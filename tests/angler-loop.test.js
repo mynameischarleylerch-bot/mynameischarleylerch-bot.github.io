@@ -3997,3 +3997,24 @@ test('Sell all pays exactly what selling the same fish one at a time pays', asyn
     JSON.parse(quick.win.localStorage.getItem('fru-angler-save')).bag, [],
     'the bulk sale must empty the bag');
 });
+
+test('upgrades survive a reload, and a save naming one that no longer exists is repaired', async () => {
+  const good = await seedSave({
+    coins: 5000, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    upgrades: ['tin_lid', 'waxed_line'],
+  }, 2101);
+  const saved = JSON.parse(good.win.localStorage.getItem('fru-angler-save'));
+  assert.deepEqual(saved.upgrades, ['tin_lid', 'waxed_line'], 'upgrades must be persisted');
+
+  // A save from before the shop, and one naming a retired upgrade.
+  const repaired = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    upgrades: ['tin_lid', 'a_upgrade_that_was_removed', 'tin_lid'],
+  }, 2102);
+  assert.deepEqual(
+    JSON.parse(repaired.win.localStorage.getItem('fru-angler-save')).upgrades,
+    ['tin_lid'],
+    'a duplicate and a retired id must both be dropped on load');
+});

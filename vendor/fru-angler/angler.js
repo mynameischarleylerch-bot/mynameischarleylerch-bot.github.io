@@ -23,13 +23,13 @@ import {
  SEALS, LOST_ITEMS,
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
- addToBag, fishEntrySpec, bagCap, bagWorth, bagEntryValue,
+ addToBag, UPGRADES, sealSlots, fishEntrySpec, bagCap, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-R';
+} from './fishing.js?v=2026-10-04-S';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-R';
+} from './reel.js?v=2026-10-04-S';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -131,6 +131,7 @@ const state = {
   sealCoins: 0,        // the seal economy; sold finds are the ONLY way in
   giftedRods: [],      // rods handed over on arrival, so they cannot be farmed
   bag: [],           // landed fish, unsold. They are worth nothing until you act.
+  upgrades: [],      // permanent one-off purchases, in the order they were bought
 
   duplicates: 0,        // seal copies handed over, all time
   bond: {},            // sealId -> how many fish it has been fed
@@ -172,6 +173,14 @@ function load() {
     state.equippedSeal = state.ownedSeals.includes(saved.equippedSeal)
       ? saved.equippedSeal
       : null;
+
+    // Upgrades. Absent in every save written before the shop existed, and an id
+    // that no longer exists is dropped -- a save naming a retired upgrade must not
+    // credit its effect forever. De-duplicated, since buying one twice is refused
+    // and a save that lists it twice bought it once.
+    state.upgrades = Array.isArray(saved.upgrades)
+      ? [...new Set(saved.upgrades.filter((id) => Boolean(UPGRADES[id])))]
+      : [];
 
     state.lost = Array.isArray(saved.lost)
       ? saved.lost.filter((id) => LOST_ITEMS.some((item) => item.id === id))
@@ -220,7 +229,17 @@ function load() {
     // Normalise the rename now rather than on the next change: a legacy save
     // with `creel` is rewritten as `bag` the moment it loads, so the migration
     // happens once instead of on every load, and no save ever holds both keys.
-    if (Array.isArray(saved.creel)) save();
+    //
+    // Likewise for upgrades: a save naming a retired upgrade, or listing one twice,
+    // is repaired IN MEMORY above. Without a rewrite here the repair would be
+    // silently undone by the next save(), which writes state -- so the bad ids
+    // would live in the save forever and only ever look fixed while that session ran.
+    if (Array.isArray(saved.creel)
+      || (Array.isArray(saved.upgrades)
+        && (saved.upgrades.length !== state.upgrades.length
+          || saved.upgrades.some((id, i) => id !== state.upgrades[i])))) {
+      save();
+    }
   } catch {
     // Corrupt or blocked storage: the fresh loadout above already stands.
   }
@@ -240,6 +259,7 @@ function save() {
       sealCoins: state.sealCoins,
       giftedRods: state.giftedRods,
       bag: state.bag,
+      upgrades: state.upgrades,
       bond: state.bond,
       // Duplicates ever handed over. It was bumped in memory and never written
       // anywhere, so it only ever existed for the session that counted it.
