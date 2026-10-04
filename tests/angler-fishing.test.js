@@ -2803,3 +2803,72 @@ test('the seals are measurably different once painted, not just on paper', () =>
     `Moss and Abyss both read green but are only ${gap.toFixed(3)} apart perceptually `
     + '-- they will look like the same seal');
 });
+
+test('every trait lake has at least ten rods of its own', () => {
+  // "Add more rods to every area except Aero Lake, at least 10 per area."
+  //
+  // Each trait lake had exactly TWO rods: the specialist that gates it and the
+  // second one you have to buy. Ten is the floor now. Aero Lake is deliberately
+  // exempt -- it is the tutorial water and was left at its eight.
+  for (const area of AREAS) {
+    if (!area.trait) continue;
+    const carry = Object.keys(RODS).filter((id) => RODS[id].traits.includes(area.trait));
+    assert.ok(carry.length >= 10,
+      `${area.name} has ${carry.length} ${area.trait} rod(s); it needs at least 10`);
+
+    // Every one of them must SAY which lake it belongs to, not merely carry the
+    // trait -- otherwise the shop cannot group them and "rods for this area" is
+    // something a human has to infer.
+    for (const id of carry) {
+      assert.equal(RODS[id].lake, area.id,
+        `${id} carries the ${area.trait} trait but its lake is `
+        + `${RODS[id].lake ?? '(unset)'}, not ${area.id}`);
+    }
+  }
+
+  // Aero Lake is untouched: eight no-trait rods, none claiming another water.
+  const aero = Object.keys(RODS).filter((id) => RODS[id].traits.length === 0);
+  assert.equal(aero.length, 8,
+    `Aero Lake should keep its eight ordinary rods, found ${aero.length}`);
+  for (const id of aero) {
+    assert.equal(RODS[id].lake, undefined,
+      `${id} is an Aero Lake rod and must not claim another lake`);
+  }
+
+  // And the whole roster: 16 original + 32 new.
+  assert.equal(Object.keys(RODS).length, 48,
+    `expected 48 rods, found ${Object.keys(RODS).length}`);
+});
+
+test('the new rods keep the ladder rules at every one of the 48 steps', () => {
+  // Worth stating explicitly, because a hand-typed pass broke five of these at
+  // once and the failures were scattered across five different tests. These rods
+  // are generated as a function of their slot in price order precisely so the
+  // ladder holds; this is that claim, checked on the merged list.
+  const ids = RODS_BY_PRICE;
+  for (let i = 1; i < ids.length; i += 1) {
+    const a = RODS[ids[i - 1]];
+    const b = RODS[ids[i]];
+    assert.ok(b.price > a.price, `${b.id} (${b.price}) must cost more than ${a.id} (${a.price})`);
+    for (const k of ['luck', 'lureSpeed', 'control', 'level']) {
+      assert.ok(b[k] >= a[k], `${b.id} costs more than ${a.id} but has less ${k}`);
+    }
+    const la = rodArt(ids[i - 1]);
+    const lb = rodArt(ids[i]);
+    assert.ok(lb.width >= la.width, `${b.id} is thinner than ${a.id}`);
+    assert.ok(lb.finish.sheen >= la.finish.sheen - 0.001,
+      `${b.id} sheen dips below ${a.id}'s`);
+    // sheen is a 0-1 gloss; the generated ramp was briefly allowed past 1.
+    assert.ok(lb.finish.sheen <= 1, `${b.id} sheen ${lb.finish.sheen} is above 1`);
+  }
+
+  // Artwork must be unique across all 48, not just within the new batch: rodArt
+  // falls back to the starting rod for an unknown id, so a missing entry would
+  // silently make two rods identical instead of throwing.
+  const seen = new Set(ids.map((id) => {
+    const a = rodArt(id);
+    return `${a.path}|${a.colour}`;
+  }));
+  assert.equal(seen.size, ids.length,
+    `${ids.length} rods but only ${seen.size} distinct look+colour pairs`);
+});

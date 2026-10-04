@@ -124,51 +124,361 @@ export const RODS = {/* ---- three more ordinary rods --------------------------
     id: 'canopy', name: 'Fernwhisper', price: 34000,
     control: 0.50, resilience: 0.86, luck: 2.2, lureSpeed: 5.1, maxKg: 240,
     traits: ['flex'],
+    lake: 'eco-marsh',
     blurb: 'Reaches over the reeds without touching them.',
   },
   channel: { level: 9,
     id: 'channel', name: 'Straightwater', price: 39000,
     control: 0.52, resilience: 0.88, luck: 2.3, lureSpeed: 5.3, maxKg: 265,
     traits: ['channel'],
+    lake: 'doric-delta',
     blurb: 'Finds the one straight line through a maze of channels.',
   },
   understory: { level: 10,
     id: 'understory', name: 'Understory', price: 42000,
     control: 0.55, resilience: 0.90, luck: 2.4, lureSpeed: 5.5, maxKg: 285,
     traits: ['flex'],
+    lake: 'eco-marsh',
     blurb: 'Goes under the canopy rather than over it, which the reeds prefer.',
   },
   spillway: { level: 11,
     id: 'spillway', name: 'Spillway', price: 49000,
     control: 0.56, resilience: 0.91, luck: 2.5, lureSpeed: 5.7, maxKg: 300,
     traits: ['channel'],
+    lake: 'doric-delta',
     blurb: 'Reads the whole channel system at once and drops into the right one.',
   },
   glacier: { level: 12,
     id: 'glacier', name: 'Glacier Lance', price: 58000,
     control: 0.57, resilience: 0.93, luck: 2.6, lureSpeed: 5.9, maxKg: 330,
     traits: ['ice'],
+    lake: 'glacier-fjord',
     blurb: 'Bored through the ice. Useless anywhere warm.',
   },
   glacierwall: { level: 14,
     id: 'glacierwall', name: 'Glacierwall', price: 69000,
     control: 0.58, resilience: 0.93, luck: 2.7, lureSpeed: 6.1, maxKg: 330,
     traits: ['ice'],
+    lake: 'glacier-fjord',
     blurb: 'Bored a shaft straight down through two hundred metres of shelf.',
   },
   abyss: { level: 17,
     id: 'abyss', name: 'Abyssal Rig', price: 108000,
     control: 0.60, resilience: 0.97, luck: 3.0, lureSpeed: 6.4, maxKg: 440,
     traits: ['reinforced'],
+    lake: 'dark-aero-deep',
     blurb: 'Built for pressure. Heavy enough to be a nuisance on the bank.',
   },
   trenchline: { level: 19,
     id: 'trenchline', name: 'Trenchline', price: 132000,
     control: 0.62, resilience: 0.98, luck: 3.2, lureSpeed: 6.6, maxKg: 460,
     traits: ['reinforced'],
+    lake: 'dark-aero-deep',
     blurb: 'Rated to the pressure at the bottom. The bottom knows it.',
   },
+
+  /* ---- eight rods per trait lake, 32 in all --------------------------
+   * Each trait lake now carries ten rods you can own for it: the two
+   * specialists that gate it, plus eight more climbing to the top of the
+   * ladder. Aero Lake is untouched at eight, as asked.
+   *
+   * INTERLEAVED by price across the four lakes, so the shop still reads as one
+   * ladder rather than four blocks. Every value here is a pure function of the
+   * rod's slot in that price order, which is what keeps the existing ladder
+   * rules true at all 48 steps: price strictly up, and level, luck, control,
+   * lureSpeed, width and sheen never down, sheen never above 1. Generated
+   * rather than hand-typed for that reason -- a hand-typed pass broke five.
+   *
+   * `lake` is new. Nothing required it before -- the water a rod belonged to
+   * was implicit in its trait -- so nothing reads it yet. It is data.
+   */
+  'delta-1': { level: 20,
+    id: 'delta-1', name: 'Siltwader', price: 140000,
+    control: 0.625, resilience: 0.985, luck: 3.22,
+    lureSpeed: 6.62, maxKg: 475,
+    traits: ['channel'],
+    lake: 'doric-delta',
+    blurb: 'Wades the silt without noticing it.',
+  },
 
+  'marsh-1': { level: 20,
+    id: 'marsh-1', name: 'Peatcutter', price: 153500,
+    control: 0.63, resilience: 0.99, luck: 3.25,
+    lureSpeed: 6.7, maxKg: 495,
+    traits: ['flex'],
+    lake: 'eco-marsh',
+    blurb: 'Cuts through peat and reed.',
+  },
+
+  'fjord-1': { level: 21,
+    id: 'fjord-1', name: 'Rimepick', price: 167000,
+    control: 0.634, resilience: 0.995, luck: 3.29,
+    lureSpeed: 6.79, maxKg: 515,
+    traits: ['ice'],
+    lake: 'glacier-fjord',
+    blurb: 'Picks a path through rime.',
+  },
+
+  'deep-1': { level: 22,
+    id: 'deep-1', name: 'Pressure Rod', price: 180500,
+    control: 0.639, resilience: 1.0, luck: 3.32,
+    lureSpeed: 6.87, maxKg: 535,
+    traits: ['reinforced'],
+    lake: 'dark-aero-deep',
+    blurb: 'Rated past its stated limit.',
+  },
+
+  'delta-2': { level: 23,
+    id: 'delta-2', name: 'Mudlark', price: 194000,
+    control: 0.643, resilience: 1.004, luck: 3.36,
+    lureSpeed: 6.96, maxKg: 555,
+    traits: ['channel'],
+    lake: 'doric-delta',
+    blurb: 'Lifts a fish out of the mud, and looks surprised.',
+  },
+
+  'marsh-2': { level: 24,
+    id: 'marsh-2', name: 'Bogwood', price: 207500,
+    control: 0.648, resilience: 1.009, luck: 3.39,
+    lureSpeed: 7.04, maxKg: 575,
+    traits: ['flex'],
+    lake: 'eco-marsh',
+    blurb: 'Bogwood, and the patience to use it.',
+  },
+
+  'fjord-2': { level: 25,
+    id: 'fjord-2', name: 'Frostwhip', price: 221500,
+    control: 0.652, resilience: 1.014, luck: 3.42,
+    lureSpeed: 7.12, maxKg: 595,
+    traits: ['ice'],
+    lake: 'glacier-fjord',
+    blurb: 'Cold hands, colder water.',
+  },
+
+  'deep-2': { level: 25,
+    id: 'deep-2', name: 'Lanternpole', price: 235000,
+    control: 0.657, resilience: 1.019, luck: 3.46,
+    lureSpeed: 7.21, maxKg: 615,
+    traits: ['reinforced'],
+    lake: 'dark-aero-deep',
+    blurb: 'A light in a place with no light.',
+  },
+
+  'delta-3': { level: 26,
+    id: 'delta-3', name: 'Reedline', price: 248500,
+    control: 0.661, resilience: 1.024, luck: 3.49,
+    lureSpeed: 7.29, maxKg: 635,
+    traits: ['channel'],
+    lake: 'doric-delta',
+    blurb: 'Follows the waterline exactly.',
+  },
+
+  'marsh-3': { level: 27,
+    id: 'marsh-3', name: 'Sedge', price: 262000,
+    control: 0.666, resilience: 1.029, luck: 3.52,
+    lureSpeed: 7.37, maxKg: 655,
+    traits: ['flex'],
+    lake: 'eco-marsh',
+    blurb: 'Finds fish where the light does not reach.',
+  },
+
+  'fjord-3': { level: 28,
+    id: 'fjord-3', name: 'Snowlance', price: 275500,
+    control: 0.67, resilience: 1.033, luck: 3.56,
+    lureSpeed: 7.46, maxKg: 675,
+    traits: ['ice'],
+    lake: 'glacier-fjord',
+    blurb: 'A lance of blue-white carbon.',
+  },
+
+  'deep-3': { level: 29,
+    id: 'deep-3', name: 'Glowtaper', price: 289000,
+    control: 0.675, resilience: 1.038, luck: 3.59,
+    lureSpeed: 7.54, maxKg: 695,
+    traits: ['reinforced'],
+    lake: 'dark-aero-deep',
+    blurb: 'Glows faintly. Fishes deeper.',
+  },
+
+  'delta-4': { level: 30,
+    id: 'delta-4', name: 'Sunfisher', price: 302500,
+    control: 0.679, resilience: 1.043, luck: 3.63,
+    lureSpeed: 7.63, maxKg: 715,
+    traits: ['channel'],
+    lake: 'doric-delta',
+    blurb: 'Fishes the warm shallows at noon.',
+  },
+
+  'marsh-4': { level: 30,
+    id: 'marsh-4', name: 'Fenrunner', price: 316000,
+    control: 0.684, resilience: 1.048, luck: 3.66,
+    lureSpeed: 7.71, maxKg: 735,
+    traits: ['flex'],
+    lake: 'eco-marsh',
+    blurb: 'Runs the fen without sinking.',
+  },
+
+  'fjord-4': { level: 31,
+    id: 'fjord-4', name: 'Bluewhistle', price: 329500,
+    control: 0.688, resilience: 1.053, luck: 3.69,
+    lureSpeed: 7.79, maxKg: 755,
+    traits: ['ice'],
+    lake: 'glacier-fjord',
+    blurb: 'Whistles in the wind, lands in the ice.',
+  },
+
+  'deep-4': { level: 32,
+    id: 'deep-4', name: 'Blackglass', price: 343000,
+    control: 0.693, resilience: 1.058, luck: 3.73,
+    lureSpeed: 7.88, maxKg: 775,
+    traits: ['reinforced'],
+    lake: 'dark-aero-deep',
+    blurb: 'Black glass, black water.',
+  },
+
+  'delta-5': { level: 33,
+    id: 'delta-5', name: 'Estuary', price: 357000,
+    control: 0.697, resilience: 1.062, luck: 3.76,
+    lureSpeed: 7.96, maxKg: 795,
+    traits: ['channel'],
+    lake: 'doric-delta',
+    blurb: 'Sits in the brackish and waits.',
+  },
+
+  'marsh-5': { level: 34,
+    id: 'marsh-5', name: 'Marshlight', price: 370500,
+    control: 0.702, resilience: 1.067, luck: 3.8,
+    lureSpeed: 8.05, maxKg: 815,
+    traits: ['flex'],
+    lake: 'eco-marsh',
+    blurb: 'Marsh light, on a stick.',
+  },
+
+  'fjord-5': { level: 35,
+    id: 'fjord-5', name: 'Calvary', price: 384000,
+    control: 0.706, resilience: 1.072, luck: 3.83,
+    lureSpeed: 8.13, maxKg: 835,
+    traits: ['ice'],
+    lake: 'glacier-fjord',
+    blurb: 'Calvary: heavy, patient, absolute.',
+  },
+
+  'deep-5': { level: 35,
+    id: 'deep-5', name: 'Deep Rig', price: 397500,
+    control: 0.711, resilience: 1.077, luck: 3.86,
+    lureSpeed: 8.21, maxKg: 855,
+    traits: ['reinforced'],
+    lake: 'dark-aero-deep',
+    blurb: 'For the pressure, not the pleasure.',
+  },
+
+  'delta-6': { level: 36,
+    id: 'delta-6', name: 'Brackish', price: 411000,
+    control: 0.715, resilience: 1.082, luck: 3.9,
+    lureSpeed: 8.3, maxKg: 875,
+    traits: ['channel'],
+    lake: 'doric-delta',
+    blurb: 'Built for water that changes its mind.',
+  },
+
+  'marsh-6': { level: 37,
+    id: 'marsh-6', name: 'Willowfen', price: 424500,
+    control: 0.72, resilience: 1.087, luck: 3.93,
+    lureSpeed: 8.38, maxKg: 895,
+    traits: ['flex'],
+    lake: 'eco-marsh',
+    blurb: 'Willow bends. So does the fish.',
+  },
+
+  'fjord-6': { level: 38,
+    id: 'fjord-6', name: 'Whiteout', price: 438000,
+    control: 0.724, resilience: 1.091, luck: 3.97,
+    lureSpeed: 8.47, maxKg: 915,
+    traits: ['ice'],
+    lake: 'glacier-fjord',
+    blurb: 'Whiteout. You will not see it coming.',
+  },
+
+  'deep-6': { level: 39,
+    id: 'deep-6', name: 'Trenchlight', price: 451500,
+    control: 0.729, resilience: 1.096, luck: 4.0,
+    lureSpeed: 8.55, maxKg: 935,
+    traits: ['reinforced'],
+    lake: 'dark-aero-deep',
+    blurb: 'Trenchlight: you see it before it sees you.',
+  },
+
+  'delta-7': { level: 40,
+    id: 'delta-7', name: 'Tidewright', price: 465000,
+    control: 0.733, resilience: 1.101, luck: 4.03,
+    lureSpeed: 8.63, maxKg: 955,
+    traits: ['channel'],
+    lake: 'doric-delta',
+    blurb: 'Handles whatever the delta throws.',
+  },
+
+  'marsh-7': { level: 40,
+    id: 'marsh-7', name: 'Reedmantle', price: 478500,
+    control: 0.738, resilience: 1.106, luck: 4.07,
+    lureSpeed: 8.72, maxKg: 975,
+    traits: ['flex'],
+    lake: 'eco-marsh',
+    blurb: 'Reed and resin, layered and set.',
+  },
+
+  'fjord-7': { level: 41,
+    id: 'fjord-7', name: 'Serac', price: 492500,
+    control: 0.742, resilience: 1.111, luck: 4.1,
+    lureSpeed: 8.8, maxKg: 995,
+    traits: ['ice'],
+    lake: 'glacier-fjord',
+    blurb: 'Serac: a wall of a rod, built like one.',
+  },
+
+  'deep-7': { level: 42,
+    id: 'deep-7', name: 'Abyss Crown', price: 506000,
+    control: 0.747, resilience: 1.116, luck: 4.13,
+    lureSpeed: 8.88, maxKg: 1015,
+    traits: ['reinforced'],
+    lake: 'dark-aero-deep',
+    blurb: 'The rod the deep respects.',
+  },
+
+  'delta-8': { level: 43,
+    id: 'delta-8', name: 'Delta Crown', price: 519500,
+    control: 0.751, resilience: 1.12, luck: 4.17,
+    lureSpeed: 8.97, maxKg: 1035,
+    traits: ['channel'],
+    lake: 'doric-delta',
+    blurb: 'The best thing you can own for the Delta.',
+  },
+
+  'marsh-8': { level: 44,
+    id: 'marsh-8', name: 'Green Sovereign', price: 533000,
+    control: 0.756, resilience: 1.125, luck: 4.2,
+    lureSpeed: 9.05, maxKg: 1055,
+    traits: ['flex'],
+    lake: 'eco-marsh',
+    blurb: 'The finest rod ever made for green water.',
+  },
+
+  'fjord-8': { level: 45,
+    id: 'fjord-8', name: 'Glacier Sovereign', price: 546500,
+    control: 0.76, resilience: 1.13, luck: 4.24,
+    lureSpeed: 9.14, maxKg: 1075,
+    traits: ['ice'],
+    lake: 'glacier-fjord',
+    blurb: 'The summit of cold-water tackle.',
+  },
+
+  'deep-8': { level: 46,
+    id: 'deep-8', name: 'Pressure Sovereign', price: 560000,
+    control: 0.765, resilience: 1.135, luck: 4.27,
+    lureSpeed: 9.22, maxKg: 1095,
+    traits: ['reinforced'],
+    lake: 'dark-aero-deep',
+    blurb: 'The deepest thing in the tackle shop.',
+  },
 };
 
 /**
@@ -275,6 +585,198 @@ const ROD_LOOKS = {
     path: 'M40.7 52 L76 16', width: 4.6, colour: '#2b5f80',
     blank: ['taper', 'gloss', 'stripe', 'split'], grip: 'crystal', gripColour: '#17455f', reel: 3,
     guides: [0.23, 0.45, 0.67, 0.86],
+  },
+
+  'delta-1': {
+    path: 'M40.7 52 L65.5 20.91', width: 4.61, colour: '#634e36',
+    blank: ['taper'], grip: 'wrap', gripColour: '#e8d3a8', reel: 1,
+    guides: [0.5, 0.68, 0.83, 0.94],
+  },
+
+  'marsh-1': {
+    path: 'M40.7 52 L65.61 19.75', width: 4.66, colour: '#4e7437',
+    blank: ['taper', 'split'], grip: 'foam', gripColour: '#2f4552', reel: 2,
+    guides: [0.497, 0.678, 0.829, 0.939],
+  },
+
+  'fjord-1': {
+    path: 'M40.7 52 L65.87 18.68', width: 4.71, colour: '#376a86',
+    blank: ['taper', 'notch'], grip: 'cork', gripColour: '#c9a37a', reel: 1,
+    guides: [0.494, 0.676, 0.827, 0.938],
+  },
+
+  'deep-1': {
+    path: 'M40.7 52 L66.08 19.05', width: 4.76, colour: '#36997d',
+    blank: ['taper', 'wrap'], grip: 'wrap', gripColour: '#d9b483', reel: 2,
+    guides: [0.491, 0.674, 0.826, 0.937],
+  },
+
+  'delta-2': {
+    path: 'M40.7 52 L66.64 17.62', width: 4.8, colour: '#ad8234',
+    blank: ['taper', 'split', 'wrap'], grip: 'foam', gripColour: '#3f5a6e', reel: 1,
+    guides: [0.488, 0.672, 0.824, 0.936],
+  },
+
+  'marsh-2': {
+    path: 'M40.7 52 L66.75 17.63', width: 4.85, colour: '#689d55',
+    blank: ['taper'], grip: 'wrap', gripColour: '#e8d3a8', reel: 2,
+    guides: [0.485, 0.67, 0.823, 0.935],
+  },
+
+  'fjord-2': {
+    path: 'M40.7 52 L67.01 16.56', width: 4.9, colour: '#5585af',
+    blank: ['taper', 'split'], grip: 'foam', gripColour: '#2f4552', reel: 1,
+    guides: [0.482, 0.668, 0.821, 0.934],
+  },
+
+  'deep-2': {
+    path: 'M40.7 52 L67.17 15.85', width: 4.95, colour: '#5abcab',
+    blank: ['taper', 'notch'], grip: 'cork', gripColour: '#c9a37a', reel: 2,
+    guides: [0.479, 0.666, 0.82, 0.933],
+  },
+
+  'delta-3': {
+    path: 'M40.7 52 L67.78 15.5', width: 5.0, colour: '#716028',
+    blank: ['taper', 'wrap'], grip: 'wrap', gripColour: '#d9b483', reel: 1,
+    guides: [0.476, 0.664, 0.818, 0.932],
+  },
+
+  'marsh-3': {
+    path: 'M40.7 52 L67.89 14.34', width: 5.05, colour: '#358427',
+    blank: ['taper', 'split', 'wrap'], grip: 'foam', gripColour: '#3f5a6e', reel: 2,
+    guides: [0.473, 0.662, 0.817, 0.931],
+  },
+
+  'fjord-3': {
+    path: 'M40.7 52 L68.15 14.44', width: 5.09, colour: '#425a7b',
+    blank: ['taper'], grip: 'wrap', gripColour: '#e8d3a8', reel: 1,
+    guides: [0.47, 0.66, 0.815, 0.93],
+  },
+
+  'deep-3': {
+    path: 'M40.7 52 L68.81 13.82', width: 5.14, colour: '#428c88',
+    blank: ['taper', 'split'], grip: 'foam', gripColour: '#2f4552', reel: 2,
+    guides: [0.467, 0.658, 0.814, 0.929],
+  },
+
+  'delta-4': {
+    path: 'M40.7 52 L68.92 13.38', width: 5.19, colour: '#9f9341',
+    blank: ['taper', 'notch'], grip: 'cork', gripColour: '#c9a37a', reel: 1,
+    guides: [0.464, 0.656, 0.812, 0.928],
+  },
+
+  'marsh-4': {
+    path: 'M40.7 52 L69.03 12.22', width: 5.24, colour: '#43b33f',
+    blank: ['taper', 'wrap'], grip: 'wrap', gripColour: '#d9b483', reel: 2,
+    guides: [0.461, 0.654, 0.81, 0.927],
+  },
+
+  'fjord-4': {
+    path: 'M40.7 52 L69.84 12.32', width: 5.29, colour: '#3f68c6',
+    blank: ['taper', 'split', 'wrap'], grip: 'foam', gripColour: '#3f5a6e', reel: 1,
+    guides: [0.458, 0.652, 0.809, 0.926],
+  },
+
+  'deep-4': {
+    path: 'M40.7 52 L69.9 10.62', width: 5.34, colour: '#68aaae',
+    blank: ['taper'], grip: 'wrap', gripColour: '#e8d3a8', reel: 2,
+    guides: [0.455, 0.65, 0.807, 0.925],
+  },
+
+  'delta-5': {
+    path: 'M40.7 52 L70.06 10.09', width: 5.38, colour: '#686731',
+    blank: ['taper', 'split'], grip: 'foam', gripColour: '#2f4552', reel: 1,
+    guides: [0.452, 0.648, 0.806, 0.924],
+  },
+
+  'marsh-5': {
+    path: 'M40.7 52 L70.72 10.1', width: 5.43, colour: '#327937',
+    blank: ['taper', 'notch'], grip: 'cork', gripColour: '#c9a37a', reel: 2,
+    guides: [0.449, 0.646, 0.804, 0.923],
+  },
+
+  'fjord-5': {
+    path: 'M40.7 52 L70.98 9.03', width: 5.48, colour: '#31428c',
+    blank: ['taper', 'wrap'], grip: 'wrap', gripColour: '#d9b483', reel: 1,
+    guides: [0.446, 0.644, 0.803, 0.922],
+  },
+
+  'deep-5': {
+    path: 'M40.7 52 L70.99 8.59', width: 5.53, colour: '#308c9f',
+    blank: ['taper', 'split', 'wrap'], grip: 'foam', gripColour: '#3f5a6e', reel: 2,
+    guides: [0.443, 0.642, 0.801, 0.921],
+  },
+
+  'delta-6': {
+    path: 'M40.7 52 L71.2 7.97', width: 5.58, colour: '#8b924f',
+    blank: ['taper'], grip: 'wrap', gripColour: '#e8d3a8', reel: 1,
+    guides: [0.44, 0.64, 0.8, 0.92],
+  },
+
+  'marsh-6': {
+    path: 'M40.7 52 L71.86 7.98', width: 5.63, colour: '#4ea55f',
+    blank: ['taper', 'split'], grip: 'foam', gripColour: '#2f4552', reel: 2,
+    guides: [0.437, 0.638, 0.798, 0.919],
+  },
+
+  'fjord-6': {
+    path: 'M40.7 52 L72.12 6.91', width: 5.67, colour: '#4e56b7',
+    blank: ['taper', 'notch'], grip: 'cork', gripColour: '#c9a37a', reel: 1,
+    guides: [0.434, 0.636, 0.797, 0.918],
+  },
+
+  'deep-6': {
+    path: 'M40.7 52 L72.63 6.56', width: 5.72, colour: '#53a3c3',
+    blank: ['taper', 'wrap'], grip: 'wrap', gripColour: '#d9b483', reel: 2,
+    guides: [0.431, 0.634, 0.795, 0.917],
+  },
+
+  'delta-7': {
+    path: 'M40.7 52 L72.89 5.85', width: 5.77, colour: '#647623',
+    blank: ['taper', 'split', 'wrap'], grip: 'foam', gripColour: '#3f5a6e', reel: 1,
+    guides: [0.428, 0.632, 0.794, 0.916],
+  },
+
+  'marsh-7': {
+    path: 'M40.7 52 L73.0 4.69', width: 5.82, colour: '#3c6f4c',
+    blank: ['taper'], grip: 'wrap', gripColour: '#e8d3a8', reel: 2,
+    guides: [0.425, 0.63, 0.792, 0.915],
+  },
+
+  'fjord-7': {
+    path: 'M40.7 52 L73.26 4.79', width: 5.87, colour: '#3f3c80',
+    blank: ['taper', 'split'], grip: 'foam', gripColour: '#2f4552', reel: 1,
+    guides: [0.422, 0.628, 0.791, 0.914],
+  },
+
+  'deep-7': {
+    path: 'M40.7 52 L73.72 3.36', width: 5.92, colour: '#3c7093',
+    blank: ['taper', 'notch'], grip: 'cork', gripColour: '#c9a37a', reel: 2,
+    guides: [0.419, 0.626, 0.789, 0.913],
+  },
+
+  'delta-8': {
+    path: 'M40.7 52 L74.03 2.56', width: 5.96, colour: '#83a63a',
+    blank: ['taper', 'wrap'], grip: 'wrap', gripColour: '#d9b483', reel: 1,
+    guides: [0.416, 0.624, 0.788, 0.912],
+  },
+
+  'marsh-8': {
+    path: 'M40.7 52 L74.14 2.57', width: 6.01, colour: '#38bb6f',
+    blank: ['taper', 'split', 'wrap'], grip: 'foam', gripColour: '#3f5a6e', reel: 2,
+    guides: [0.413, 0.622, 0.786, 0.911],
+  },
+
+  'fjord-8': {
+    path: 'M40.7 52 L74.4 1.5', width: 6.06, colour: '#685da8',
+    blank: ['taper'], grip: 'wrap', gripColour: '#e8d3a8', reel: 1,
+    guides: [0.41, 0.62, 0.785, 0.91],
+  },
+
+  'deep-8': {
+    path: 'M40.7 52 L74.81 1.33', width: 6.11, colour: '#618ab5',
+    blank: ['taper', 'split'], grip: 'foam', gripColour: '#2f4552', reel: 2,
+    guides: [0.407, 0.618, 0.783, 0.909],
   },
 };
 
@@ -350,6 +852,166 @@ const ROD_FINISHES = {
   },
   trenchline: {
     material: 'crystal', accent: '#9fb6ff', sheen: 0.97, beads: [0.4, 0.56, 0.72, 0.87], chrome: true,
+  },
+
+  'delta-1': {
+    material: 'alloy', accent: '#e7d26a', sheen: 0.97,
+    beads: [0.46, 0.64, 0.81, 0.93], chrome: true,
+  },
+
+  'marsh-1': {
+    material: 'carbon', accent: '#73e76a', sheen: 0.971,
+    beads: [0.458, 0.639, 0.809, 0.929], chrome: false,
+  },
+
+  'fjord-1': {
+    material: 'composite', accent: '#6a95e7', sheen: 0.972,
+    beads: [0.456, 0.637, 0.808, 0.928], chrome: true,
+  },
+
+  'deep-1': {
+    material: 'wood', accent: '#6ae5e7', sheen: 0.973,
+    beads: [0.454, 0.636, 0.807, 0.928], chrome: false,
+  },
+
+  'delta-2': {
+    material: 'bamboo', accent: '#e7e06a', sheen: 0.974,
+    beads: [0.452, 0.634, 0.806, 0.927], chrome: true,
+  },
+
+  'marsh-2': {
+    material: 'alloy', accent: '#6ae76e', sheen: 0.975,
+    beads: [0.45, 0.633, 0.805, 0.926], chrome: false,
+  },
+
+  'fjord-2': {
+    material: 'carbon', accent: '#6a87e7', sheen: 0.976,
+    beads: [0.448, 0.631, 0.804, 0.925], chrome: true,
+  },
+
+  'deep-2': {
+    material: 'composite', accent: '#6ad7e7', sheen: 0.977,
+    beads: [0.446, 0.63, 0.803, 0.924], chrome: false,
+  },
+
+  'delta-3': {
+    material: 'wood', accent: '#dee76a', sheen: 0.978,
+    beads: [0.444, 0.628, 0.802, 0.924], chrome: true,
+  },
+
+  'marsh-3': {
+    material: 'bamboo', accent: '#6ae77d', sheen: 0.979,
+    beads: [0.442, 0.627, 0.801, 0.923], chrome: false,
+  },
+
+  'fjord-3': {
+    material: 'alloy', accent: '#6a79e7', sheen: 0.98,
+    beads: [0.44, 0.625, 0.8, 0.922], chrome: true,
+  },
+
+  'deep-3': {
+    material: 'carbon', accent: '#6ac8e7', sheen: 0.981,
+    beads: [0.438, 0.624, 0.799, 0.921], chrome: false,
+  },
+
+  'delta-4': {
+    material: 'composite', accent: '#d1e76a', sheen: 0.982,
+    beads: [0.436, 0.622, 0.798, 0.92], chrome: true,
+  },
+
+  'marsh-4': {
+    material: 'wood', accent: '#6ae78b', sheen: 0.983,
+    beads: [0.434, 0.621, 0.797, 0.92], chrome: false,
+  },
+
+  'fjord-4': {
+    material: 'bamboo', accent: '#6a6ae7', sheen: 0.984,
+    beads: [0.432, 0.619, 0.796, 0.919], chrome: true,
+  },
+
+  'deep-4': {
+    material: 'alloy', accent: '#6abae7', sheen: 0.985,
+    beads: [0.43, 0.618, 0.795, 0.918], chrome: false,
+  },
+
+  'delta-5': {
+    material: 'carbon', accent: '#c4e76a', sheen: 0.985,
+    beads: [0.428, 0.616, 0.794, 0.917], chrome: true,
+  },
+
+  'marsh-5': {
+    material: 'composite', accent: '#6ae798', sheen: 0.986,
+    beads: [0.426, 0.615, 0.793, 0.916], chrome: false,
+  },
+
+  'fjord-5': {
+    material: 'wood', accent: '#786ae7', sheen: 0.987,
+    beads: [0.424, 0.613, 0.792, 0.916], chrome: true,
+  },
+
+  'deep-5': {
+    material: 'bamboo', accent: '#6aace7', sheen: 0.988,
+    beads: [0.422, 0.612, 0.791, 0.915], chrome: false,
+  },
+
+  'delta-6': {
+    material: 'alloy', accent: '#b4e76a', sheen: 0.989,
+    beads: [0.42, 0.61, 0.79, 0.914], chrome: true,
+  },
+
+  'marsh-6': {
+    material: 'carbon', accent: '#6ae7a8', sheen: 0.99,
+    beads: [0.418, 0.609, 0.789, 0.913], chrome: false,
+  },
+
+  'fjord-6': {
+    material: 'composite', accent: '#866ae7', sheen: 0.991,
+    beads: [0.416, 0.607, 0.788, 0.912], chrome: true,
+  },
+
+  'deep-6': {
+    material: 'wood', accent: '#6a9ee7', sheen: 0.992,
+    beads: [0.414, 0.606, 0.787, 0.912], chrome: false,
+  },
+
+  'delta-7': {
+    material: 'bamboo', accent: '#a6e76a', sheen: 0.993,
+    beads: [0.412, 0.604, 0.786, 0.911], chrome: true,
+  },
+
+  'marsh-7': {
+    material: 'alloy', accent: '#6ae7b6', sheen: 0.994,
+    beads: [0.41, 0.603, 0.785, 0.91], chrome: false,
+  },
+
+  'fjord-7': {
+    material: 'carbon', accent: '#956ae7', sheen: 0.995,
+    beads: [0.408, 0.601, 0.784, 0.909], chrome: true,
+  },
+
+  'deep-7': {
+    material: 'composite', accent: '#6a8fe7', sheen: 0.996,
+    beads: [0.406, 0.6, 0.783, 0.908], chrome: false,
+  },
+
+  'delta-8': {
+    material: 'wood', accent: '#99e76a', sheen: 0.997,
+    beads: [0.404, 0.598, 0.782, 0.908], chrome: true,
+  },
+
+  'marsh-8': {
+    material: 'bamboo', accent: '#6ae7c4', sheen: 0.998,
+    beads: [0.402, 0.597, 0.781, 0.907], chrome: false,
+  },
+
+  'fjord-8': {
+    material: 'alloy', accent: '#a26ae7', sheen: 0.999,
+    beads: [0.4, 0.595, 0.78, 0.906], chrome: true,
+  },
+
+  'deep-8': {
+    material: 'carbon', accent: '#6a81e7', sheen: 1.0,
+    beads: [0.398, 0.594, 0.779, 0.905], chrome: false,
   },
 };
 const GRIP_FROM = 0.1;
@@ -2015,7 +2677,17 @@ export const AREAS = [
     locked: true,
     trait: 'channel',
     traitNote: 'needs a rod that can hold one straight line through the channels',
-    requiredRods: ['channel', 'spillway'],
+    requiredRods: [
+'channel',
+'spillway',
+'delta-1',
+'delta-2',
+'delta-3',
+'delta-4',
+'delta-5',
+'delta-6',
+'delta-7',
+'delta-8',],
     fish: ['coralpike', 'duskdarter', 'metro-trout', 'doric-dab', 'orangebarbel', 'emberfin',
       'rivetray', 'signalfin', 'civiceel'],
     palette: {
@@ -2032,7 +2704,17 @@ export const AREAS = [
     locked: true,
     trait: 'flex',
     traitNote: 'needs a rod that can reach over the reeds',
-    requiredRods: ['canopy', 'understory'],
+    requiredRods: [
+'canopy',
+'understory',
+'marsh-1',
+'marsh-2',
+'marsh-3',
+'marsh-4',
+'marsh-5',
+'marsh-6',
+'marsh-7',
+'marsh-8',],
     fish: ['reedcarp', 'lanternjack', 'mudsole', 'mirrorpike', 'eco-gar', 'coralpike',
       'canopycat', 'verdant'],
     palette: {
@@ -2049,7 +2731,17 @@ export const AREAS = [
     locked: true,
     trait: 'ice',
     traitNote: 'needs a rod that can bore through the ice',
-    requiredRods: ['glacier', 'glacierwall'],
+    requiredRods: [
+'glacier',
+'glacierwall',
+'fjord-1',
+'fjord-2',
+'fjord-3',
+'fjord-4',
+'fjord-5',
+'fjord-6',
+'fjord-7',
+'fjord-8',],
     fish: ['snowsmelt', 'frostfin', 'rimepike', 'blueglass', 'glacier-char', 'mirrorpike',
       'aurorachar'],
     palette: {
@@ -2066,7 +2758,17 @@ export const AREAS = [
     locked: true,
     trait: 'reinforced',
     traitNote: 'needs a rod reinforced enough for the pressure',
-    requiredRods: ['abyss', 'trenchline'],
+    requiredRods: [
+'abyss',
+'trenchline',
+'deep-1',
+'deep-2',
+'deep-3',
+'deep-4',
+'deep-5',
+'deep-6',
+'deep-7',
+'deep-8',],
     fish: ['deepglow', 'pressurefin', 'voidpike', 'blackmirror', 'lastlantern', 'glacier-char',
       'glowmote', 'eventhorizon'],
     palette: {
