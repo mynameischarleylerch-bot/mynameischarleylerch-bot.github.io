@@ -1394,8 +1394,12 @@
                  written on #pet-face itself would be silently destroyed on the
                  first refit and the face would snap upright with nothing failing.
                  The glyph only; the body stays upright.
-                 TILT: -12 degrees counter-clockwise, about the glyph centre. -->
-            <g id="pet-tilt" transform="rotate(-12 19.9 40.5)">
+                 TILT: 90 degrees CLOCKWISE, about the glyph centre. Measured from
+                 the reference: its colon's two dots sit 0.15 degrees off horizontal,
+                 which can only be a quarter turn, and rotating it 90 degrees
+                 counter-clockwise restores an upright ":3". An earlier -12 was a
+                 guess, made without being able to see the picture, and was wrong. -->
+            <g id="pet-tilt" transform="rotate(90 17 39.5)">
             <!-- the colon -->
             <g id="pet-colon">
               <circle cx="16.4" cy="37.2" r=".95" fill="#12212e"/>
@@ -1624,6 +1628,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-u"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-v"></script>
 </body>
 </html>

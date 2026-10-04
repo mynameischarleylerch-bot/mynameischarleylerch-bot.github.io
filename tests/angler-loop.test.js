@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
          RODS, RODS_BY_PRICE, SEALS, startingLoadout, TIMES, WEATHER, LOST_ITEMS,
-} from '../vendor/fru-angler/fishing.js?v=2026-10-04-u';
+} from '../vendor/fru-angler/fishing.js?v=2026-10-04-v';
 
 const PAGE = readFileSync(
   new URL('../vendor/fru-angler/index.html', import.meta.url),
@@ -2969,8 +2969,13 @@ test('the :3 glyph is tilted, and the body is not', () => {
   // The angle is a stated choice, not an accident: it must be non-zero and named.
   const tilt = /id="pet-tilt" transform="rotate\((-?[\d.]+) /.exec(html);
   assert.ok(tilt, 'the tilt must declare an angle');
-  assert.ok(Math.abs(Number(tilt[1])) >= 5, 'and it must be a visible tilt, got ' + tilt[1] + 'deg');
-  assert.ok(Math.abs(Number(tilt[1])) <= 30, 'but not so far it reads as sideways, got ' + tilt[1] + 'deg');
+  // EXACTLY 90 degrees clockwise. Measured from the reference image: the colon's
+  // two dots sit 0.15 degrees off horizontal, which can only be a quarter turn,
+  // and rotating that image 90 degrees counter-clockwise restores an upright ":3".
+  // An earlier version of this test bounded the tilt at 30 degrees on the reasoning
+  // that more would "read as sideways" -- but sideways IS the reference.
+  assert.equal(Number(tilt[1]), 90,
+    'the glyph is a quarter turn clockwise, got ' + tilt[1] + 'deg');
 
   // Rotated about the glyph's own centre, or it swings off the seal.
   const pivot = /id="pet-tilt" transform="rotate\(-?[\d.]+ ([\d.]+) ([\d.]+)\)/.exec(html);
@@ -2981,4 +2986,51 @@ test('the :3 glyph is tilted, and the body is not', () => {
   const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
   const rotates = [...pet.matchAll(/transform="rotate\(/g)];
   assert.equal(rotates.length, 1, 'exactly one rotation in the whole seal, got ' + rotates.length);
+});
+
+test('the rotated glyph still fits on the seal and clears the angler', () => {
+  // A 90 degree turn changes the glyph's footprint completely: it was 8.9 wide by
+  // 11.4 tall, and lands 11.4 wide by 8.9 tall. Everything above measured the
+  // UNROTATED markup, which says nothing about where the glyph ends up on screen.
+  //
+  // So the bounds are computed THROUGH the rotation. A quarter turn maps
+  // (x, y) -> (cx - (y - cy), cy + (x - cx)) about the pivot.
+  const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
+  const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
+  const tilt = /id="pet-tilt" transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
+  assert.ok(tilt, 'the tilt must declare an angle and a pivot');
+  const angle = Number(tilt[1]);
+  const cx = Number(tilt[2]);
+  const cy = Number(tilt[3]);
+
+  const pts = [];
+  for (const m of pet.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)) {
+    const x = Number(m[1]), y = Number(m[2]), r = Number(m[3]);
+    // Centre +/- r, not the box corners: a rotated circle is still a circle, and
+    // the corners of its bounding box are not part of the shape.
+    pts.push([x - r, y], [x + r, y]);
+  }
+  const three = /<path id="pet-three"\s+d="([^"]+)"/.exec(pet)[1];
+  for (const m of three.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)) pts.push([Number(m[1]), Number(m[2])]);
+
+  const rad = (angle * Math.PI) / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const moved = pts.map(([x, y]) => [
+    cx + (x - cx) * cos - (y - cy) * sin,
+    cy + (x - cx) * sin + (y - cy) * cos,
+  ]);
+  const minX = Math.min(...moved.map((p) => p[0]));
+  const maxX = Math.max(...moved.map((p) => p[0]));
+  const minY = Math.min(...moved.map((p) => p[1]));
+  const maxY = Math.max(...moved.map((p) => p[1]));
+
+  const bodyD = /<path id="pet-body"\s+d="([^"]+)"/.exec(pet)[1];
+  const bpts = [...bodyD.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  const bx = bpts.map((p) => p[0]), by = bpts.map((p) => p[1]);
+
+  assert.ok(minX > Math.min(...bx), 'turned, the glyph runs off the seal left edge: ' + minX.toFixed(1));
+  assert.ok(maxX < Math.max(...bx), 'and off its right edge: ' + maxX.toFixed(1) + ' vs ' + Math.max(...bx));
+  assert.ok(minY > Math.min(...by), 'and above it: ' + minY.toFixed(1));
+  assert.ok(maxY < Math.max(...by), 'and into the belly: ' + maxY.toFixed(1) + ' vs ' + Math.max(...by));
+  assert.ok(maxX < 25.7, 'it must clear the angler at x=25.7, reaches ' + maxX.toFixed(1));
 });
