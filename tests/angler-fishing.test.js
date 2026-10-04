@@ -3116,10 +3116,26 @@ test('equipping a seal adds it to the dock and never evicts the one already ther
   assert.equal(roomy.ok, true);
   assert.deepEqual(roomy.party, ['bubbles', 'tangerine'], 'the first seal is not evicted');
 
-  // Equipping one already out is idempotent, not an error and not a duplicate.
+  // Equipping one already out TAKES IT OFF. This used to be asserted as idempotent,
+  // and that assertion is what made the Equipped button a dead end: the click ran a
+  // rule that changed nothing and returned success, so a player could never get a
+  // seal back off the dock. `equipped` says which way the button went.
   const again = equipSeal(owned, 'bubbles', ['bigger_dock'], roomy.party);
   assert.equal(again.ok, true);
-  assert.deepEqual(again.party, ['bubbles', 'tangerine'], 'no duplicate entry');
+  assert.equal(again.equipped, false, 'a seal already out is being taken OFF, not re-added');
+  assert.deepEqual(again.party, ['tangerine'],
+    'the others stay; only the one you clicked leaves');
+
+  // One slot, one seal out: clicking it empties the dock, which is a legal state --
+  // no seal on the dock is what a fresh save looks like.
+  const off = equipSeal(owned, 'bubbles', [], ['bubbles']);
+  assert.equal(off.ok, true);
+  assert.deepEqual(off.party, [], 'the dock is empty');
+  // And putting it straight back works, or Equip is as dead as Equipped was.
+  const backOn = equipSeal(owned, 'bubbles', [], off.party);
+  assert.equal(backOn.ok, true);
+  assert.equal(backOn.equipped, true);
+  assert.deepEqual(backOn.party, ['bubbles']);
 
   // You cannot equip a seal you have not caught.
   const ghost = equipSeal(owned, 'frost', ['bigger_dock'], first.party);

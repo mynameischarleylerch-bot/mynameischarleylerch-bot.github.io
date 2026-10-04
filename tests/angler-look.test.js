@@ -1022,9 +1022,25 @@ test('every SVG group that JS toggles has a matching hidden rule', () => {
   const stamps = [...PAGE.matchAll(/<use\b[^>]*class="([^"]*pet__fx[^"]*)"/g)];
   assert.ok(stamps.length >= 5,
     `expected a stamp per seal, found ${stamps.length} <use class="pet__fx">`);
-  assert.ok(/#pet-fx \.pet__fx\[hidden\]\s*\{\s*display:\s*none/.test(PAGE),
+  // Keyed on the CLASS. This used to require `#pet-fx .pet__fx[hidden]`, naming the
+  // single group id the dock had before it was slot-suffixed -- and when the dock
+  // became pet-fx-0 / pet-fx-1 the rule matched nothing, so every one of the five
+  // motifs rendered at once, stacked over the seal. Assert the class form, and assert
+  // that every id any such rule names still exists, so a dead selector cannot pass.
+  const css = PAGE.replace(/\/\*[\s\S]*?\*\//g, '');
+  const fxRules = [...css.matchAll(/([^{}]+)\.pet__fx\[hidden\]\s*\{([^}]*)\}/g)];
+  assert.ok(fxRules.length > 0,
     'the particle stamps are toggled with `hidden`, which does nothing on an SVG '
-    + '<use> without a CSS rule -- they need #pet-fx .pet__fx[hidden]{display:none}');
+    + '<use> without a CSS rule -- they need .pet__fx[hidden]{display:none}');
+  for (const [, selector, decls] of fxRules) {
+    assert.match(decls, /display:\s*none/,
+      `the rule must hide it: ${selector.trim()} -> ${decls.trim()}`);
+    for (const [, id] of [...selector.matchAll(/#([\w-]+)/g)]) {
+      assert.ok(PAGE.includes(`id="${id}"`),
+        `the rule names #${id}, which is not in the document -- a rule that matches `
+        + 'nothing is why every motif showed at once');
+    }
+  }
 });
 
 test('a mutated fish gets a badge, not a footnote', () => {

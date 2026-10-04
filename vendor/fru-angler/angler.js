@@ -1375,7 +1375,7 @@ function paintSky(sky) {
 }
 
 function paintArea(area) {
-  const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art } = area.palette;
+  const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art, deep } = area.palette;
   ui.lake.style.setProperty('--sky-top', skyTop);
   ui.lake.style.setProperty('--sky-mid', skyMid);
   ui.lake.style.setProperty('--sky-floor', skyFloor);
@@ -1383,6 +1383,10 @@ function paintArea(area) {
   ui.lake.style.setProperty('--accent', accent);
   ui.lake.style.setProperty('--haze-tint', haze);
   ui.lake.style.setProperty('--sun', sun);
+  // How far the near water is deepened, and in whose colour. Set unconditionally,
+  // not with the art below: only a painted lake consumes it, and a lake whose art
+  // is added later must not inherit the colour of whichever lake you left.
+  if (deep) ui.lake.style.setProperty('--lake-deep', deep);
 
   // The scene's own defs: the deep water gradient and the far shore.
   const stop = (id, colour, offset) => {
@@ -1606,7 +1610,11 @@ function renderSealShop() {
     const button = document.createElement('button');
     button.className = 'btn btn--small seal__equip';
     if (owned) {
-      button.textContent = active ? 'Equipped' : 'Equip';
+      // "Equipped" is a label for a BUTTON, so it has to say what pressing it does.
+      // A button that only says "Equipped" reads as a status display and a click on
+      // it as something dead.
+      button.textContent = active ? 'Take off dock' : 'Equip';
+      button.setAttribute('aria-pressed', String(active));
       button.classList.toggle('is-active', active);
       button.addEventListener('click', () => {
         const result = equipSeal(state.ownedSeals, seal.id, state.upgrades, sealParty());
@@ -1632,6 +1640,10 @@ function renderSealShop() {
         // Bought seals arrive on the dock if there is room, and are simply kept in
         // the bag if there is not -- buying a seal must never evict the one already
         // out. equipSeal decides, so the rule is the same one the Equip button uses.
+        // A freshly bought seal is not on the dock, so this is purely "put it there if
+        // there is room" -- never the unequip branch, because the id is not in the
+        // party. If the dock is full the new seal is simply kept, which is what
+        // `.party` gives back untouched.
         state.equippedSeal = equipSeal(state.ownedSeals, seal.id, state.upgrades, sealParty()).party;
         save(); renderSealShop(); paintChrome();
         sealChatter();

@@ -137,11 +137,15 @@
      row-to-row step at its top edge hit 29 where the picture alone peaks at 8 --
      a hard line across the water that read as a seam, not as shallows. A
      gradient has no edge to give away, and it costs the water only a little
-     saturation while adding real depth. */
+     saturation while adding real depth.
+
+     Its COLOUR is `--lake-deep`, per lake, not a literal: Aero's blue deepen is
+     right on Aero's cyan and drags a warm lake's foreground to mud, so each
+     painted lake's palette carries its own. */
   .lake[data-art] {
     background-image:
       linear-gradient(105deg, rgba(255,255,255,0) 38%, rgba(255,255,255,.22) 50%, rgba(255,255,255,0) 62%),
-      linear-gradient(180deg, rgba(1,58,99,0) 70%, rgba(1,58,99,.3) 100%),
+      linear-gradient(180deg, rgba(0,0,0,0) 70%, var(--lake-deep, rgba(1,58,99,.3)) 100%),
       var(--lake-art, none),
       linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 42%, var(--sky-floor) 100%);
     background-size: 100% 100%;
@@ -1085,7 +1089,12 @@
   /* Same reason as above, for the particles: `hidden` alone is HTML behaviour
      and does not hide an SVG element. Without this every motif shows at once,
      stacked on top of each other. */
-  #pet-fx .pet__fx[hidden] { display: none; }
+  /* The static particle motifs around each seal. Keyed on the CLASS, not on
+     `#pet-fx`: the dock is slot-suffixed now (pet-fx-0, pet-fx-1), so a rule naming
+     the old single id matched nothing and every motif rendered at once -- five sets
+     stacked on one animal. `hidden` is an HTML attribute and does nothing to an SVG
+     <use> on its own, so this rule is the only thing hiding them. */
+  .pet__fx[hidden] { display: none; }
   .bubble[hidden]{
     display: none;
   }

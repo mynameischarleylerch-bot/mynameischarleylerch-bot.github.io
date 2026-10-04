@@ -1145,14 +1145,22 @@ test('only one seal can be with you at a time', async () => {
   ctx.doc.getElementById('seal-shop-open').dispatchEvent(
     new ctx.win.MouseEvent('click', { bubbles: true }));
   const active = () => [...ctx.doc.querySelectorAll('#seal-shop-list .seal')]
-    .filter((r) => r.querySelector('.seal__equip')?.textContent.includes('Equipped'));
+    .filter((r) => r.querySelector('.seal__equip')?.getAttribute('aria-pressed') === 'true');
   assert.equal(active().length, 1, 'exactly one row is the equipped seal');
 
   const other = [...ctx.doc.querySelectorAll('#seal-shop-list .seal')]
     .find((r) => r.textContent.includes(SEALS[1].name));
   other.querySelector('.seal__equip').dispatchEvent(
     new ctx.win.MouseEvent('click', { bubbles: true }));
-  assert.equal(active().length, 1, 'swapping must replace, not stack');
+
+  // Which seal is out, checked in the SAVE rather than by counting pressed rows: a
+  // refusal also leaves exactly one pressed, so counting passes whether the swap
+  // worked or was silently turned down. This is the assertion that says "replaced".
+  const onDock = () => JSON.parse(
+    ctx.win.localStorage.getItem('fru-angler-save')).equippedSeal;
+  assert.deepEqual(onDock(), [SEALS[1].id],
+    `clicking another seal's Equip must put THAT seal on the dock, not refuse. Got ${onDock()}`);
+  assert.equal(active().length, 1, 'and still exactly one row is the equipped seal');
 });
 
 test('your seal has an opinion about what you land', async () => {
@@ -4453,4 +4461,89 @@ test('Bigger Dock puts a second animal on the dock, and both are painted', async
   // Slot ids must be suffixed, never shared, or the second animal steals the first.
   const ids = [...pair.doc.querySelectorAll('#fa-pet-dock [id]')].map((n) => n.id);
   assert.equal(new Set(ids).size, ids.length, `every id in the dock is unique: ${ids}`);
+});
+
+test('regression: only the equipped seal\'s particles are visible', async () => {
+  // The rule was `#pet-fx .pet__fx[hidden]`, naming the OLD group id. The dock is
+  // slot-suffixed now (pet-fx-0, pet-fx-1), so the selector matched nothing, no rule
+  // applied, and every one of the five motifs rendered at once -- stacked on the seal.
+  //
+  // `hidden` on an SVG <use> does nothing on its own, so this is the only thing
+  // standing between the player and five overlapping particle sets.
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: ['bubbles'], equippedSeal: ['bubbles'], lost: [], giftedRods: [],
+    sealCoins: 0,
+  }, 9780);
+
+  // Read the rule that actually exists, and require it to be keyed on something that
+  // is still in the document.
+  // Comments stripped first. A CSS comment that NAMES #pet-fx while explaining why
+  // that selector is gone reads exactly like the dead rule to a regex, which is how
+  // the fixed stylesheet still looked broken.
+  const css = (ctx.doc.querySelector('style')?.textContent ?? PAGE)
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\.pet__fx\[hidden\]\s*\{([^}]*)\}/g)];
+  assert.ok(rules.length > 0,
+    'there must be a CSS rule hiding .pet__fx[hidden] -- the attribute alone does '
+    + 'nothing on an SVG element');
+  for (const [, selector, body] of rules) {
+    assert.match(body, /display:\s*none/, `the rule must hide it: ${selector.trim()} -> ${body.trim()}`);
+    // Every id named in the selector must still exist, or the rule is dead.
+    for (const id of [...selector.matchAll(/#([\w-]+)/g)].map((m) => m[1])) {
+      assert.ok(ctx.doc.getElementById(id),
+        `the rule names #${id}, which is not in the document -- a rule that matches `
+        + 'nothing is why every motif was showing at once');
+    }
+  }
+
+  // And the behaviour, not just the stylesheet.
+  const shown = () => [...ctx.doc.querySelectorAll('#pet-fx-0 .pet__fx')]
+    .filter((u) => !u.hasAttribute('hidden')).map((u) => u.dataset.fx);
+  assert.deepEqual(shown(), ['bubbles'],
+    `exactly one motif shows, for the seal that is out; got ${shown().join(', ') || 'none'}`);
+});
+
+test('regression: a seal can be equipped again after being unequipped', async () => {
+  // equipSeal() refuses when the dock is full. With one seal already out that is
+  // correct for a SECOND seal, but it made the Equipped button a dead end: clicking
+  // it re-ran the same full-dock refusal and nothing changed, so a player could never
+  // take a seal off the dock.
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: ['bubbles'], equippedSeal: ['bubbles'], lost: [], giftedRods: [],
+    sealCoins: 0,
+  }, 9781);
+
+  const openShop = () => {
+    const panel = ctx.doc.getElementById('seal-shop-panel');
+    if (panel.hidden) {
+      ctx.doc.getElementById('seal-shop-open').dispatchEvent(
+        new ctx.win.MouseEvent('click', { bubbles: true }));
+    }
+  };
+  openShop();
+  const button = () => ctx.doc.querySelector('[data-seal="bubbles"] .seal__equip');
+  assert.equal(button().getAttribute('aria-pressed'), 'true',
+    'the seal on the dock is the pressed one');
+  assert.equal(button().textContent, 'Take off dock',
+    'and the button says pressing it takes the seal off');
+
+  // Clicking it must take the seal OFF, not refuse.
+  button().dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.deepEqual(JSON.parse(ctx.win.localStorage.getItem('fru-angler-save')).equippedSeal, [],
+    'clicking Equipped must take the seal off the dock');
+  openShop();
+  assert.equal(button().getAttribute('aria-pressed'), 'false',
+    'and with the seal off the button is no longer pressed');
+
+  // And putting it back works, or "Equip" is just as dead as "Equipped" was.
+  button().dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.deepEqual(JSON.parse(ctx.win.localStorage.getItem('fru-angler-save')).equippedSeal,
+    ['bubbles'], 'and the seal can be equipped again');
+
+  // The animal follows: it appears and disappears with the seal.
+  const visible = () => [...ctx.doc.querySelectorAll('#fa-pet-dock .fa-pet-slot')]
+    .filter((g) => !g.hasAttribute('hidden')).length;
+  assert.equal(visible(), 1, 'one seal, one animal');
 });

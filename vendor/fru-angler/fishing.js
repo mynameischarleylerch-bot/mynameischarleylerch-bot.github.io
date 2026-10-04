@@ -2634,11 +2634,34 @@ export function equipSeal(owned, sealId, upgrades = [], onDock = []) {
     return { ok: false, reason: 'You do not own that seal.' };
   }
   const party = sealParty(onDock, owned, upgrades);
-  if (party.includes(sealId)) return { ok: true, sealId, paid: 0, party };
-  if (party.length >= Math.max(1, sealSlots(upgrades))) {
+  // Already out: TAKE IT OFF. This is the unequip, and it is the same rule rather
+  // than a second one, so the button and the rule can never disagree about what
+  // "Equipped" does.
+  //
+  // It used to return { ok:true } unchanged here, which combined with the full-dock
+  // refusal below made the button a dead end: clicking Equipped re-ran a refusal,
+  // nothing changed, and a player could never take a seal off the dock.
+  if (party.includes(sealId)) {
+    return { ok: true, sealId, paid: 0, party: party.filter((id) => id !== sealId), equipped: false };
+  }
+  // A genuinely different seal, and the dock is full.
+  //
+  // With ONE slot this is the ordinary case -- the player owns five seals and one of
+  // them is out, so pressing Equip on another is a SWAP, not a request for a second
+  // animal. Refusing here is what made "I can't equip seals" true: the only seal
+  // anyone had was already out, so every other button was dead.
+  //
+  // With more than one slot and every slot taken, it really is out of room, and that
+  // is worth saying rather than silently evicting an animal the player chose.
+  if (party.length < Math.max(1, sealSlots(upgrades))) {
+    return { ok: true, sealId, paid: 0, party: [...party, sealId], equipped: true };
+  }
+  if (Math.max(1, sealSlots(upgrades)) > 1) {
     return { ok: false, reason: 'There is no room on the dock for another seal.', party };
   }
-  return { ok: true, sealId, paid: 0, party: [...party, sealId] };
+  // One slot: swap. The seal that was out comes back to your collection, which is
+  // where it was before you equipped it -- nothing is lost.
+  return { ok: true, sealId, paid: 0, party: [sealId], equipped: true, swapped: party[0] };
 }
 
 /**
@@ -2875,14 +2898,20 @@ export const AREAS = [
       'zephyr', 'quicksilver', 'horizon'],
     fish: ['glidefin', 'aero-minnow', 'sunscale', 'ripplefin', 'bubbleperch', 'glossdace',
       'prismminnow', 'haloherring', 'daylight', 'zenith'],
-    // `art` is the lake's own illustration, and only Aero Lake has one. It is
-    // data rather than a stylesheet rule so the painted lake is a one-line change
-    // here instead of a lake-id selector in the CSS, and so the lake picker can
-    // show the same picture in its swatch. Stamped because Pages caches it.
+    // `art` is the lake's own illustration. It is data rather than a stylesheet rule
+    // so a painted lake is a one-line change here instead of a lake-id selector
+    // in the CSS, and so the lake picker can show the same picture in its
+    // swatch. Stamped because Pages caches it.
+    //
+    // `deep` is the colour the near water is deepened toward, and it has to be
+    // per-lake: it started life as one literal, Aero's deep blue, which is right
+    // on Aero's cyan and turns the Delta's orange foreground to mud. Stamped
+    // with the picture, so a lake and its art can never ship out of step.
     palette: {
       skyTop: '#81d4fa', skyMid: '#b3e5fc', skyFloor: '#f4fbff',
       water: '#2f81c4', accent: '#4fc3f7',
       haze: 'rgba(255, 255, 255, 0.75)', sun: 'rgba(255, 255, 255, 0.95)',
+      deep: 'rgba(1, 58, 99, 0.3)',
       art: './media/aero-lake.jpg?v=2026-10-04-X',
     },
   },
@@ -2911,6 +2940,14 @@ export const AREAS = [
       skyTop: '#f7c894', skyMid: '#fbe0c4', skyFloor: '#fffaf4',
       water: '#c2701f', accent: '#e07b2a',
       haze: 'rgba(255, 240, 224, 0.5)', sun: 'rgba(255, 214, 170, 0.7)',
+      // Rust, not Aero's blue. Measured over this picture's foreground band
+      // (84-99%, sat 0.987 / lum 0.653 / hue 26deg): Aero's blue deepen at the
+      // same .3 costs 0.470 of saturation for 0.098 of darkening, while this
+      // costs 0.246 for 0.089 -- the same depth for half the colour. It is not a
+      // hue shift that makes the blue wrong here; the measured hue barely moves
+      // either way. The blue just bleaches the orange toward grey.
+      deep: 'rgba(122, 46, 0, 0.3)',
+      art: './media/doric-delta.jpg?v=2026-10-04-X',
     },
   },
   {
