@@ -1946,3 +1946,47 @@ test('the face still looks at the angler, and stays clear of him', () => {
     + `(colon ${colonX}, numeral starts at ${Math.min(...threeX)})`);
   assert.ok(Math.max(...fy) > Math.min(...fy));
 });
+
+test('the sun bloom is a rounded rectangle, not a disc behind the boosts', () => {
+  // It was width:22%; aspect-ratio:1; border-radius:50% at right:6%/top:4% -- a
+  // perfect circle sitting exactly where the boost readout lives, so it framed the
+  // numbers as one big pale bubble instead of reading as light. Asked for as a
+  // rounded rectangle.
+  // Strip comments first. The rule's own comment explains that it WAS a 50% radius,
+  // and the checks below read that prose as if it were still a declaration.
+  const css = PAGE.replace(/\/\*[\s\S]*?\*\//g, '');
+  const m = /\.lake::before\s*\{([^}]*)\}/.exec(css);
+  assert.ok(m, '.lake::before must exist -- it is the sun bloom');
+  const body = m[1];
+
+  // No full circle. A 50% radius on both axes is a disc whatever the width says.
+  assert.doesNotMatch(body, /border-radius:\s*50%/,
+    'border-radius:50% makes the bloom a circle again, whatever its width');
+  // And no aspect-ratio:1, which forces a square box and undoes any height below.
+  assert.doesNotMatch(body, /aspect-ratio:\s*1\b/,
+    'aspect-ratio:1 forces a square; the bloom needs its own height to be a panel');
+
+  // It must still be rounded -- corners present but short of a full radius.
+  const br = /border-radius:\s*([^;]+)/.exec(body);
+  assert.ok(br, 'the bloom must have rounded corners');
+  const corners = br[1].match(/[\d.]+%/g) || [];
+  assert.ok(corners.length >= 1, 'border-radius must use percentages');
+  for (const c of corners) {
+    assert.ok(parseFloat(c) < 50,
+      `border-radius ${c} on both axes rounds the bloom back into a circle; keep the `
+      + 'corners short of 50% so it reads as a rounded panel');
+  }
+
+  // Both dimensions are set explicitly, so the shape is a rectangle and not a
+  // square that merely looks like one.
+  assert.match(body, /(?<![-\w])width:\s*[^;]+/, 'the bloom needs an explicit width');
+  assert.match(body, /(?<![-\w])height:\s*[^;]+/, 'and an explicit height');
+
+  // It keeps the Aero glow and its corner of the lake -- this is a shape change,
+  // not a removal.
+  assert.match(css, /#fff9c4/, 'the Aero sun bloom colour must remain');
+  assert.match(body, /radial-gradient/, 'the soft falloff must remain');
+  assert.match(body, /right:\s*6%/, 'it stays in the top-right corner');
+  assert.match(body, /top:\s*4%/, 'at the same offset');
+  assert.match(body, /pointer-events:\s*none/, 'and must stay click-through');
+});

@@ -217,9 +217,18 @@
   }
 
   .lake::before {
+    /* The sun bloom. This was a 22%-wide disc with aspect-ratio:1 and
+       border-radius:50%, sitting at right:6%/top:4% -- directly behind the boost
+       readout in the top-right corner, so it read as a big pale CIRCLE framing the
+       numbers rather than as light. It is a rounded rectangle now: same soft glow,
+       same corner, but a shape that does not look like a bubble around the text.
+       aspect-ratio is gone (it forced a square) and the corners are soft rather
+       than a full 50%, so it reads as a rounded panel of light. */
     content: ""; position: absolute; right: 6%; top: 4%;
-    width: 22%; aspect-ratio: 1; border-radius: 50%;
-    background: radial-gradient(circle, var(--sun), rgba(255, 249, 196, 0) 70%);
+    width: 24%; height: 30%;
+    border-radius: 28% 34% 32% 30% / 34% 30% 32% 28%;
+    background: radial-gradient(ellipse at 50% 50%,
+      var(--sun), rgba(255, 249, 196, 0) 72%);
     box-shadow: 0 0 40px rgba(255, 249, 196, .55);
     pointer-events: none;
   }
@@ -1865,6 +1874,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-K"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-L"></script>
 </body>
 </html>
