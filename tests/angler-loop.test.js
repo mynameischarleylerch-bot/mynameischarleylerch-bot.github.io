@@ -3371,7 +3371,15 @@ test('every seal has its own static particle motif, and it stays off the face', 
   const frost = bodyOf('frost'), moss = bodyOf('moss'), abyss = bodyOf('abyss');
   assert.notEqual(frost, moss);
   assert.notEqual(moss, abyss);
-  assert.ok(frost.includes('eafaff'), 'Frost must be drawn in ice white');
+  // Near-white with a blue cast, not pure white: it has to read as ice against the
+  // pale lake water behind it. Matched on the actual stroke, not a remembered hex.
+  const frostStroke = /stroke="(#[0-9a-f]{6})"/i.exec(frost);
+  assert.ok(frostStroke, 'Frost must be drawn with an explicit ice-white stroke');
+  const fr = parseInt(frostStroke[1].slice(1, 3), 16);
+  const fg = parseInt(frostStroke[1].slice(3, 5), 16);
+  const fb = parseInt(frostStroke[1].slice(5, 7), 16);
+  assert.ok(Math.min(fr, fg, fb) > 200 && fb >= fr,
+    `Frost's stroke ${frostStroke[1]} is not an ice white with a blue cast`);
 
   // Static: no animation anywhere in the motifs.
   assert.doesNotMatch(page.slice(page.indexOf('<symbol id="fx-bubbles"'),
@@ -3385,11 +3393,20 @@ test('every seal has its own static particle motif, and it stays off the face', 
   const fit = page.indexOf('<g id="fa-pet-fit"');
   const pet = page.indexOf('<g id="fa-pet">');
   const body = page.indexOf('id="pet-body"');
+  const face = page.indexOf('<g id="pet-tilt"');
   assert.ok(fx > fit, 'the particles must be inside fa-pet-fit, or they will not scale '
     + 'with the seal and will not hide when the seal is removed');
   assert.ok(fx > pet, 'the particles must be inside the pet group');
-  assert.ok(fx < body, 'the particles must be stamped BEFORE the body, so the seal '
-    + 'draws over them and they read as atmosphere rather than clutter');
+  // AFTER the body, not before. This used to assert the opposite -- that the stamps
+  // come first -- which is precisely why they were invisible: the body is an opaque
+  // path and painting it afterwards covers every particle underneath. The comment
+  // at the old assertion ("the seal draws over them") described the bug as though it
+  // were the intent.
+  assert.ok(fx > body,
+    'the particles must be stamped AFTER the body. The body is opaque, so anything '
+    + 'drawn before it is completely hidden -- that is why they could not be seen.');
+  assert.ok(fx < face,
+    'but they must still come before the face, or they sit over the :3');
 
   // paintPet must choose between them on the seal's id, and clear them with no seal.
   const fn = /function paintPet\(\)\s*\{[\s\S]*?\n\}/.exec(src);
@@ -3494,10 +3511,73 @@ test('every seal has its own static particle motif, and it stays off the face', 
     `the geometry walker disagrees with the known pet body bounds (${JSON.stringify(bodyBox)}); `
     + 'it cannot be used to check the motifs');
 
+  // THE VISIBILITY CHECK. The first version of these motifs was drawn BEFORE the
+  // body and placed inside its outline, and every one of them was invisible: an
+  // opaque path painted afterwards covers every pixel underneath it. The ids were
+  // right, the colours were right, the geometry was inside the seal -- and the
+  // player saw nothing, which is exactly what was reported.
+  //
+  // So: each motif must put real area OUTSIDE the body path. Sampled on the shapes'
+  // own points, against the loaf's outline (x 0.9..24.9, y 31.4..49.8, corners r5.5).
+  const insideBody = (x, y) => {
+    if (x < 0.9 || x > 24.9 || y < 31.4 || y > 49.8) return false;
+    const r = 5.5;
+    if (x < 0.9 + r && y < 31.4 + r) {
+      return (x - (0.9 + r)) ** 2 + (y - (31.4 + r)) ** 2 <= r * r;
+    }
+    if (x > 24.9 - r && y < 31.4 + r) {
+      return (x - (24.9 - r)) ** 2 + (y - (31.4 + r)) ** 2 <= r * r;
+    }
+    return true;
+  };
+  const leaves = (el, m = [1, 0, 0, 1, 0, 0], out = []) => {
+    const push = (c, cm) => {
+      const t = c.tagName.toLowerCase();
+      const g = (n) => parseFloat(c.getAttribute(n) || '0');
+      if (t === 'circle') out.push({ cx: g('cx'), cy: g('cy'), r: g('r'), m: cm });
+      else if (t === 'ellipse') out.push({ cx: g('cx'), cy: g('cy'), rx: g('rx'), ry: g('ry'), m: cm });
+      else if (t === 'path') out.push({ d: c.getAttribute('d') || '', m: cm });
+    };
+    push(el, m);
+    for (const c of el.children) push(c, mul(m, tf(c.getAttribute('transform'))));
+    for (const c of el.children) leaves(c, mul(m, tf(c.getAttribute('transform'))), out);
+    return out;
+  };
+  const outsideFraction = (shapes) => {
+    let out = 0; let total = 0;
+    for (const sh of shapes) {
+      let ps = [];
+      if (sh.d !== undefined) {
+        ps = pathPts(sh.d).map(([x, y]) => ap(sh.m, x, y));
+      } else if (sh.rx !== undefined) {
+        const c = ap(sh.m, sh.cx, sh.cy);
+        for (let a = 0; a < 8; a += 1) {
+          const t = (a * Math.PI) / 4;
+          ps.push([c[0] + Math.cos(t) * sh.rx, c[1] + Math.sin(t) * sh.ry]);
+        }
+        ps.push(c);
+      } else {
+        const c = ap(sh.m, sh.cx, sh.cy);
+        for (let a = 0; a < 8; a += 1) {
+          const t = (a * Math.PI) / 4;
+          ps.push([c[0] + Math.cos(t) * sh.r, c[1] + Math.sin(t) * sh.r]);
+        }
+        ps.push(c);
+      }
+      for (const [x, y] of ps) { total += 1; if (!insideBody(x, y)) out += 1; }
+    }
+    return total ? out / total : 0;
+  };
+
   const FACE_X = 17.5;   // the face glyph starts at x 19
   const BOARD_Y = 48.6;  // the boards the seal sits on
   for (const seal of SEALS) {
     const sym = doc.getElementById(`fx-${seal.id}`);
+    const vis = outsideFraction(leaves(sym));
+    assert.ok(vis >= 0.4,
+      `${seal.name}'s particles are only ${(vis * 100).toFixed(0)}% outside the seal's `
+      + 'body -- the rest is hidden underneath it. An opaque body painted over the '
+      + 'rest makes the motif invisible, which is what happened first time.');
     const bb = box(sym);
     assert.ok(bb, `${seal.name}'s motif has no drawable geometry`);
 
@@ -3528,7 +3608,15 @@ test('every seal has its own static particle motif, and it stays off the face', 
       `${seal.name}'s particles reach y=${bb[3].toFixed(1)}, onto the boards`);
     assert.ok(bb[0] >= 0.4,
       `${seal.name}'s particles spill to x=${bb[0].toFixed(1)}, off the left of the seal`);
-    assert.ok(bb[1] >= 30,
-      `${seal.name}'s particles float up to y=${bb[1].toFixed(1)}, above the seal`);
+    // Above the loaf on purpose. The body fills x 0.9..24.9, y 31.4..49.8, so the
+    // only place a particle can be SEEN is the band over its back -- y 28.4..34.5 --
+    // which straddles the top edge. Asserting they stay below y 30 (the old rule)
+    // is what forced them underneath an opaque body and made them invisible.
+    assert.ok(bb[1] >= 28,
+      `${seal.name}'s particles float up to y=${bb[1].toFixed(1)}, off the top of the `
+      + 'scene');
+    assert.ok(bb[3] <= 36,
+      `${seal.name}'s particles reach y=${bb[3].toFixed(1)}, down over the seal's face `
+      + 'and middle -- they belong in the band over its back');
   }
 });
