@@ -13,7 +13,17 @@ import {
   groupBag,
   sealFedLine,
   fishSilhouette,
-  bondMilestones, bondProgress,} from '../vendor/fru-angler/fishing.js';
+  bondMilestones, bondProgress,
+  UPGRADES, BASE_BAG_CAP, bagCap, buyUpgrade, sealSlots, upgradeLuck,} from '../vendor/fru-angler/fishing.js';
+
+/**
+ * addToBag as it used to be: takes a bag, returns a bag.
+ *
+ * The real rule now returns { bag, kept } so the controller can announce a fish that
+ * did not fit. These tests only want the bag, so they use this and stay readable --
+ * rather than every one of them unwrapping a `.bag` for no reason.
+ */
+const addToBagArray = (bag, entry, cap) => addToBag(bag, entry, cap).bag;
 
 test('the starting wallet can afford exactly one upgrade from the cheapest rod', () => {
   const loadout = startingLoadout();
@@ -2051,20 +2061,20 @@ test('a landed fish goes in the bag, not straight into the wallet', () => {
   // state.coins += value at the moment of the catch. Every fish was sold the
   // instant it hit the deck, so the player never chose whether a catch was worth
   // money or worth feeding to their seal -- there was no bag to choose with.
-  const bag = addToBag([], fishEntrySpec(FISH[0], 2.4));
+  const bag = addToBagArray([], fishEntrySpec(FISH[0], 2.4));
   assert.equal(bag.length, 1, 'the fish must land in the bag');
   assert.equal(bagWorth(bag), catchValue(FISH[0], 2.4),
     'and it must still be worth what it was');
   // Adding never mutates the input: the save holds one array, not a history.
   const before = [];
-  addToBag(before, fishEntrySpec(FISH[0], 2.4));
+  addToBagArray(before, fishEntrySpec(FISH[0], 2.4));
   assert.equal(before.length, 0, 'the bag must be immutable');
 });
 
 test('selling a fish takes exactly that fish out and pays rod coins', () => {
   const a1 = fishEntrySpec(FISH[0], 1.5);
   const b1 = fishEntrySpec(FISH[3], 2);
-  const bag = addToBag(addToBag([], a1), b1);
+  const bag = addToBagArray(addToBagArray([], a1), b1);
   assert.equal(bag.length, 2);
 
   const sold = sellFromBag(bag, 0);
@@ -2082,7 +2092,7 @@ test('selling a fish takes exactly that fish out and pays rod coins', () => {
 test('feeding a fish spends it and raises the seal bond', () => {
   // Feeding is the whole point of the bag: a catch can become luck instead of
   // coins. Bond is what makes that a decision rather than a second shop.
-  const bag = addToBag([], fishEntrySpec(FISH[0], 2));
+  const bag = addToBagArray([], fishEntrySpec(FISH[0], 2));
   const fed = feedToBond(bag, 0, { bubbles: 3 }, 'bubbles');
   assert.equal(fed.ok, true);
   assert.equal(fed.bag.length, 0, 'a fed fish is gone');
@@ -2093,7 +2103,7 @@ test('feeding a fish spends it and raises the seal bond', () => {
   let c = bag;
   let bond = {};
   for (const other of [FISH[0], FISH[1], FISH[2], FISH[3]]) {
-    const step = feedToBond(addToBag(c, fishEntrySpec(other, 1)), 0, bond, 'bubbles');
+    const step = feedToBond(addToBagArray(c, fishEntrySpec(other, 1)), 0, bond, 'bubbles');
     assert.equal(step.ok, true);
     c = step.bag;
     bond = step.bond;
@@ -2871,4 +2881,173 @@ test('the new rods keep the ladder rules at every one of the 48 steps', () => {
   }));
   assert.equal(seen.size, ids.length,
     `${ids.length} rods but only ${seen.size} distinct look+colour pairs`);
+});
+
+/* ----------------------------------------------------------- dock upgrades */
+
+test('the upgrade table is 22 perks that get dearer as they matter more', () => {
+  const list = Object.values(UPGRADES);
+  assert.ok(list.length >= 20, `expected at least 20 upgrades, found ${list.length}`);
+
+  // Ids unique and stable, and every entry carries what the panel needs.
+  assert.deepEqual(list.map((u) => u.id), Object.keys(UPGRADES),
+    'the table must be in the same order as its keys, cheapest-feeling first');
+  for (const u of list) {
+    assert.equal(u.id, u.id.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+      `${u.id}: id must match its key`);
+    assert.ok(Number.isInteger(u.price) && u.price > 0, `${u.id}: price must be a positive integer`);
+    assert.ok(Number.isInteger(u.level) && u.level >= 1, `${u.id}: needs a rank gate`);
+    assert.ok(typeof u.name === 'string' && u.name.length > 0, `${u.id}: needs a name`);
+    assert.ok(typeof u.blurb === 'string' && u.blurb.length > 10, `${u.id}: needs a blurb`);
+    assert.equal(typeof u.effect, 'string', `${u.id}: effect must be a string, not a function`);
+    // Every perk that feeds the roll carries the NUMBER upgradeLuck() sums. Without
+    // this, a typo'd field means the perk is purchasable and does nothing.
+    if (u.effect === 'luck') {
+      assert.ok(Number.isFinite(u.luck) && u.luck > 0,
+        `${u.id}: effect 'luck' must carry a positive \`luck\` number`);
+    }
+    // And a slot perk must say how many it opens.
+    if (u.effect === 'slot') {
+      assert.ok(Number.isInteger(u.value) && u.value >= 1,
+        `${u.id}: effect 'slot' must say how many slots it opens`);
+    }
+  }
+
+  // Prices strictly rise, and so do the rank gates: the important things are the
+  // expensive things. This is the property the whole shop exists to express.
+  for (let i = 1; i < list.length; i += 1) {
+    assert.ok(list[i].price > list[i - 1].price,
+      `${list[i].id} (${list[i].price}) must cost more than ${list[i-1].id} (${list[i-1].price})`);
+    assert.ok(list[i].level >= list[i - 1].level,
+      `${list[i].id} must not be easier to reach than ${list[i-1].id}`);
+  }
+
+  // The headline upgrade is among the most expensive in the shop.
+  const dock = UPGRADES.bigger_dock;
+  assert.equal(dock.effect, 'slot', 'Bigger Dock must be the two-seal upgrade');
+  assert.equal(dock.value, 1, 'and it must add exactly one slot');
+  // It must be one of the EXPENSIVE half of the ladder, not merely present. An
+  // earlier version of this test allowed at most four dearer entries, which was an
+  // invented number: the dock sits 14th of 22 with eight dearer and is still the
+  // right place for it -- cheaper than the deep-luck tail, dearer than everything a
+  // player has by mid-game. Assert the half, which is what was actually meant.
+  const dearer = list.filter((u) => u.price > dock.price).length;
+  assert.ok(dearer <= Math.floor(list.length / 2),
+    `Bigger Dock has ${dearer} dearer upgrade(s) of ${list.length}; it should be in the `
+    + 'expensive half');
+  assert.ok(dock.price > list[0].price * 100,
+    'and it must cost vastly more than the cheapest thing in the shop');
+});
+
+test('buyUpgrade refuses cleanly and charges exactly once', () => {
+  const rich = { coins: 500_000 };
+
+  const bad = buyUpgrade(rich, 'nope', 99, []);
+  assert.equal(bad.ok, false);
+  assert.match(bad.reason, /Unknown upgrade/);
+
+  const low = buyUpgrade({ coins: 0 }, 'tin_lid', 1, []);
+  assert.equal(low.ok, false, 'a broke player must be refused, not charged nothing');
+  assert.match(low.reason, /Not enough rod coins/);
+
+  const young = buyUpgrade(rich, 'the_long_line', 1, []);
+  assert.equal(young.ok, false);
+  assert.match(young.reason, /needs rank 20/);
+
+  const bought = buyUpgrade(rich, 'tin_lid', 1, []);
+  assert.equal(bought.ok, true);
+  assert.equal(bought.coins, rich.coins - UPGRADES.tin_lid.price, 'charged exactly the price');
+  assert.deepEqual(bought.owned, ['tin_lid'], 'and reports what is now owned');
+
+  // Twice is a refusal with a reason: each upgrade is one-off.
+  const again = buyUpgrade(bought, 'tin_lid', 1, bought.owned);
+  assert.equal(again.ok, false);
+  assert.match(again.reason, /already fitted/);
+  assert.equal(again.coins, bought.coins, 'a refusal must not move the wallet');
+
+  // And the rule is pure: nothing it was handed changed.
+  assert.deepEqual(rich, { coins: 500_000 }, 'buyUpgrade must not mutate its wallet');
+  assert.deepEqual(bought.owned, ['tin_lid'], 'nor its owned list');
+});
+
+test('Bigger Dock is what gives you a second seal', () => {
+  assert.equal(sealSlots([]), 1, 'you start with one seal');
+  assert.equal(sealSlots(['tin_lid']), 1, 'an unrelated upgrade adds no slot');
+  assert.equal(sealSlots(['bigger_dock']), 2, 'Bigger Dock adds one');
+  assert.equal(sealSlots(['bigger_dock', 'bigger_dock']), 2,
+    'an id listed twice must not grant two slots -- buyUpgrade refuses the second');
+  assert.equal(sealSlots(['nonsense']), 1, 'an unknown id grants nothing');
+});
+
+test('the bag holds ten fish, and the upgrades raise it', () => {
+  assert.equal(BASE_BAG_CAP, 10, 'the starting capacity is ten');
+  assert.equal(bagCap([]), 10, 'and ten with nothing bought');
+  assert.equal(bagCap(undefined), 10, 'an absent upgrade list is the same as none');
+  assert.equal(bagCap(['not_a_real_upgrade']), 10, 'an unknown id adds nothing');
+  assert.equal(bagCap('nonsense'), 10, 'a non-array is treated as none, not thrown on');
+  assert.equal(bagCap(['fish_basket']), 20, 'Fish Basket adds ten');
+  assert.equal(bagCap(['fish_basket', 'deep_net']), 45, 'the full ladder is forty-five');
+  assert.equal(bagCap(['tin_lid']), 10, 'a non-bag perk adds nothing');
+});
+
+test('a full bag keeps nothing and says so rather than throwing the fish away quietly', () => {
+  const fish = () => fishEntrySpec(FISH[0], 1);
+  const full = Array.from({ length: 10 }, () => fish());
+
+  const refused = addToBag(full, fish(), 10);
+  assert.equal(refused.kept, false, 'a fish landing on a full bag is not kept');
+  assert.equal(refused.bag.length, 10, 'and the bag does not grow past the cap');
+  assert.deepEqual(refused.bag, full, 'and nothing already in it is disturbed');
+
+  // The last slot still works: ten is the cap, not nine.
+  const taken = addToBag(full.slice(0, 9), fish(), 10);
+  assert.equal(taken.kept, true);
+  assert.equal(taken.bag.length, 10);
+
+  // No cap passed means no cap -- every existing caller keeps working unchanged.
+  const unbounded = addToBag(full, fish());
+  assert.equal(unbounded.kept, true, 'omitting the cap must not start limiting anyone');
+  assert.equal(unbounded.bag.length, 11);
+
+  // A zero cap keeps nothing at all, and is not an error.
+  const none = addToBag([], fish(), 0);
+  assert.equal(none.kept, false);
+  assert.equal(none.bag.length, 0);
+
+  // Junk entries are still filtered out, exactly as before.
+  const junk = addToBag([{ fishId: 'nope' }, fish()], fish());
+  assert.equal(junk.bag.length, 2, 'a dead entry is still dropped');
+});
+
+test('a bag already over its cap still accepts fish, so nobody is locked out', () => {
+  // An old save can hold more than the cap and is NOT trimmed on load. The cap only
+  // governs NEW fish, and an over-cap bag still takes one -- otherwise a player with
+  // a full save could never land anything again and could only recover by reloading.
+  const over = Array.from({ length: 14 }, () => fishEntrySpec(FISH[0], 1));
+  const result = addToBag(over, fishEntrySpec(FISH[1], 1), 10);
+  assert.equal(result.kept, true, 'an over-cap bag must still accept a fish');
+  assert.equal(result.bag.length, 15);
+});
+
+test('every seal on the dock contributes luck, and so does every upgrade', () => {
+  const rod = { luck: 1 };
+  const one = { id: 'bubbles', luck: 0.8 };
+
+  // The old single-seal form must be unchanged -- this is the regression guard.
+  const solo = luckFor({ rod, level: 1, seal: one, bond: 0 });
+  const viaArray = luckFor({ rod, level: 1, seals: [one], bond: [0] });
+  assert.equal(viaArray, solo, 'the array form and the scalar form must agree');
+
+  const two = { id: 'tangerine', luck: 1.0 };
+  const both = luckFor({ rod, level: 1, seals: [one, two], bond: [0, 0] });
+  assert.ok(both > viaArray + 0.9,
+    `a second seal must add its own luck: ${viaArray} -> ${both}`);
+
+  // Bonds stack per seal, and so do upgrade luck.
+  const fed = luckFor({ rod, level: 1, seals: [one, two], bond: [10, 0] });
+  assert.ok(fed > both, 'bond must still count on top of a party');
+  const upgraded = luckFor({ rod, level: 1, seals: [one], bond: [0], upgrades: ['star_chart'] });
+  assert.ok(upgraded > viaArray, 'upgrades must add luck');
+  assert.equal(upgradeLuck(['nonsense']), 0, 'an unknown upgrade adds nothing');
+  assert.equal(upgradeLuck([]), 0, 'no upgrades adds nothing');
 });

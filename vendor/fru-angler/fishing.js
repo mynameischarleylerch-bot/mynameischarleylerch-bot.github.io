@@ -176,7 +176,8 @@ export const RODS = {/* ---- three more ordinary rods --------------------------
     lake: 'dark-aero-deep',
     blurb: 'Rated to the pressure at the bottom. The bottom knows it.',
   },
-
+
+
   /* ---- eight rods per trait lake, 32 in all --------------------------
    * Each trait lake now carries ten rods you can own for it: the two
    * specialists that gate it, plus eight more climbing to the top of the
@@ -585,7 +586,8 @@ const ROD_LOOKS = {
     path: 'M40.7 52 L76 16', width: 4.6, colour: '#2b5f80',
     blank: ['taper', 'gloss', 'stripe', 'split'], grip: 'crystal', gripColour: '#17455f', reel: 3,
     guides: [0.23, 0.45, 0.67, 0.86],
-  },
+  },
+
 
   'delta-1': {
     path: 'M40.7 52 L65.5 20.91', width: 4.61, colour: '#634e36',
@@ -852,7 +854,8 @@ const ROD_FINISHES = {
   },
   trenchline: {
     material: 'crystal', accent: '#9fb6ff', sheen: 0.97, beads: [0.4, 0.56, 0.72, 0.87], chrome: true,
-  },
+  },
+
 
   'delta-1': {
     material: 'alloy', accent: '#e7d26a', sheen: 0.97,
@@ -1680,14 +1683,28 @@ export function fishSvg(fish) {
  * Every part defaults to zero rather than throwing, because a save written
  * before any of this existed has none of it.
  */
-export function luckFor({ rod, level = 1, seal = null, bond = 0 } = {}) {
+export function luckFor({ rod, level = 1, seal = null, bond = 0, seals = null, upgrades = [] } = {}) {
   const rodLuck = Number.isFinite(rod?.luck) ? rod.luck : 0;
-  // Bond is the fed-fish bonus, and it stacks: a fed seal is a better seal, not a
+
+  // `seals` is the party form and `seal` is the original single one, still honoured
+  // so every existing caller and test keeps working. Normalise both to a list here
+  // rather than branching at each use.
+  const party = seals ?? (seal ? [seal] : []);
+  const list = Array.isArray(party) ? party : [party];
+
+  // Every seal on the dock counts, and every bond with it. A second seal is a second
+  // set of luck -- that is the entire point of buying the dock.
+  const sealLuck = list.reduce((sum, s) => sum + (Number.isFinite(s?.luck) ? s.luck : 0), 0);
+  const bondTotal = (Array.isArray(bond) ? bond : [bond])
+    .reduce((sum, b) => sum + bondLuck(b), 0);
+
+  // Bond is the fed-fish bonus and it stacks: a fed seal is a better seal, not a
   // replacement for one. Feeding has to land HERE or it buys nothing at all.
   return rodLuck
     + luckFromLevel(level)
-    + (Number.isFinite(seal?.luck) ? seal.luck : 0)
-    + bondLuck(bond);
+    + sealLuck
+    + bondTotal
+    + upgradeLuck(upgrades);
 }
 
 /* --------------------------------------------------------- lost Frutiger items */
@@ -1856,10 +1873,50 @@ export function fishEntrySpec(fish, weight, mutation = null) {
 }
 
 /** Put a fish in the bag. Never mutates: the save holds one array, not a log. */
-export function addToBag(bag, entry) {
+/* ------------------------------------------------------------ bag capacity */
+
+/**
+ * How many fish the bag holds.
+ *
+ * Ten with nothing bought. Fish Basket adds ten and Deep Net twenty-five, so the
+ * full ladder is forty-five. Read from the UPGRADES table above, which is declared
+ * before this point in the file, so a plain reference is safe.
+ */
+export const BASE_BAG_CAP = 10;
+
+/** The cap for a player holding these upgrades. Never below the base. */
+export function bagCap(upgrades = []) {
+  const owned = Array.isArray(upgrades) ? upgrades : [];
+  const extra = owned.reduce((sum, id) => {
+    const up = UPGRADES[id];
+    return sum + (up && up.effect === 'bag' ? (Number(up.value) || 0) : 0);
+  }, 0);
+  return BASE_BAG_CAP + extra;
+}
+
+/**
+ * Put one fish in the bag.
+ *
+ * `cap` defaults to Infinity so every existing caller keeps working unchanged.
+ * Returns { bag, kept } rather than a bare array, so the caller can tell a fish
+ * that was kept from one that silently was not -- which is the whole difference
+ * between a capacity the player understands and one that feels like a bug.
+ *
+ * A full bag does NOT refuse the fish silently and does not destroy anything: the
+ * entry is simply not kept, and kept:false tells the caller to say so. The caller
+ * decides what the player is told; this rule decides nothing about that.
+ */
+export function addToBag(bag, entry, cap = Infinity) {
   const owned = Array.isArray(bag) ? bag.filter((e) => e && FISH.some((f) => f.id === e.fishId)) : [];
-  if (!entry || !FISH.some((f) => f.id === entry.fishId)) return [...owned];
-  return [...owned, { ...entry }];
+  if (!entry || !FISH.some((f) => f.id === entry.fishId)) return { bag: [...owned], kept: false };
+  const limit = Number.isFinite(cap) ? Math.max(0, Math.floor(cap)) : Infinity;
+  // Strictly at the cap, not past it. An OVER-cap bag -- an old save, or one written
+  // before this rule existed -- still accepts a fish, because a player who cannot land
+  // anything until they sell has no way out except reloading, and reloading is not a
+  // thing the game should ever require of them. The cap governs growth from a legal
+  // bag; the only way back under one is to sell.
+  if (owned.length === limit) return { bag: [...owned], kept: false };
+  return { bag: [...owned, { ...entry }], kept: true };
 }
 
 /** What one bag entry is worth in rod coins, mutation included. */
@@ -2116,6 +2173,125 @@ export function bagWorthByFish(bag) {
     out.set(entry.fishId, (out.get(entry.fishId) ?? 0) + bagEntryValue(entry));
   }
   return out;
+}
+
+/* ------------------------------------------------------------- dock upgrades */
+
+/**
+ * Permanent, one-off purchases bought with rod coins.
+ *
+ * Priced so the most important cost the most, and gated on rank so the early ones
+ * are reachable: xpForLevel() grows as (n-1)^2.1, so a rank gate at any price is
+ * really a gate on how long you have played.
+ *
+ * `effect` is data, not code. Nothing here is a function: the rules that READ these
+ * live in sealSlots(), luckFor() and bagCap(), so the table can be asserted without
+ * running any of it.
+ *
+ * A perk that feeds the roll carries a `luck` NUMBER alongside its effect, and
+ * luckFor() sums those. `effect: 'slot'` is the special one: its `value` is how many
+ * extra seal slots it opens, read by sealSlots(). `effect: 'bag'` is how many more
+ * fish the bag holds, read by bagCap().
+ */
+export const UPGRADES = {
+  // --- cheap, early, small ---
+  tin_lid: { id: 'tin_lid', name: 'Tin Lid', price: 250, level: 1, effect: 'keep', value: 1,
+    blurb: 'A lid for the bucket. Holds one fish you would otherwise have dropped.' },
+  waxed_line: { id: 'waxed_line', name: 'Waxed Line', price: 700, level: 1, effect: 'keep', value: 1,
+    blurb: 'Waxed, so it frays less. Everything you land counts.' },
+  padded_grip: { id: 'padded_grip', name: 'Padded Grip', price: 1_600, level: 2, effect: 'control', value: 0.02,
+    blurb: 'Your hands stop slipping when something big takes hold.' },
+  spare_hook: { id: 'spare_hook', name: 'Spare Hook', price: 3_200, level: 3, effect: 'keep', value: 1,
+    blurb: 'One more hook. One more chance.' },
+  bait_tin: { id: 'bait_tin', name: 'Bait Tin', price: 5_500, level: 4, effect: 'bait', value: 0.05,
+    blurb: 'Bait that keeps. You cast more often.' },
+
+  // --- the middle: real, felt upgrades ---
+  fish_basket: { id: 'fish_basket', name: 'Fish Basket', price: 9_000, level: 5, effect: 'bag', value: 10,
+    blurb: 'A proper basket. Ten more fish wait for you instead of going over the side.' },
+  second_spot: { id: 'second_spot', name: 'Second Spot', price: 14_000, level: 6, luck: 0.10, effect: 'luck',
+    blurb: 'You read the water faster where you stand.' },
+  lanterns: { id: 'lanterns', name: 'Pier Lanterns', price: 19_000, level: 7, effect: 'night', value: 1,
+    blurb: 'Light on the boards. The dark hours stop costing you.' },
+  oar_hooks: { id: 'oar_hooks', name: 'Oar Hooks', price: 21_000, level: 7, effect: 'control', value: 0.03,
+    blurb: 'Two hooks by the oar. You are not losing the fish to a lost rod.' },
+  sound_box: { id: 'sound_box', name: 'Sound Box', price: 25_000, level: 8, effect: 'bite', value: 0.12,
+    blurb: 'A loud bite window. The fish tells you sooner.' },
+  reel_bearing: { id: 'reel_bearing', name: 'Reel Bearing', price: 32_000, level: 9, effect: 'reel', value: 0.10,
+    blurb: 'Smooth under load. Harder fish give up sooner.' },
+
+  // --- the seals, and the dock that holds them ---
+  seal_bond_pin: { id: 'seal_bond_pin', name: 'Bond Pin', price: 42_000, level: 10, effect: 'bond', value: 0.15,
+    blurb: 'A fed seal stays fed. Bond counts for more.' },
+  tide_calendar: { id: 'tide_calendar', name: 'Tide Calendar', price: 54_000, level: 11, luck: 0.18, effect: 'luck',
+    blurb: 'You know what the water is doing before it does it.' },
+  // THE headline upgrade. It is expensive because it is the most powerful thing in
+  // the game: a second seal is a second set of luck, a second bond ladder, and a
+  // second animal on the dock.
+  bigger_dock: { id: 'bigger_dock', name: 'Bigger Dock', price: 90_000, level: 14, effect: 'slot', value: 1,
+    blurb: 'Room for a second seal. Both sit with you. Both count.' },
+
+  // --- expensive, late, powerful ---
+  lamp_oil: { id: 'lamp_oil', name: 'Lamp Oil', price: 98_000, level: 15, luck: 0.22, effect: 'luck',
+    blurb: 'The lanterns burn all night. The dark stops being a tax.' },
+  deep_net: { id: 'deep_net', name: 'Deep Net', price: 110_000, level: 15, effect: 'bag', value: 25,
+    blurb: 'For the ones that live down where the light gives up.' },
+  star_chart: { id: 'star_chart', name: 'Star Chart', price: 132_000, level: 16, luck: 0.30, effect: 'luck',
+    blurb: 'Weather is no longer weather. It is a forecast you can read.' },
+  second_rod_rest: { id: 'second_rod_rest', name: 'Spare Rod Rest', price: 156_000, level: 17, effect: 'keep', value: 2,
+    blurb: 'Two rods stood ready. Switching costs you nothing.' },
+  seal_call: { id: 'seal_call', name: 'Seal Call', price: 182_000, level: 18, luck: 0.35, effect: 'luck',
+    blurb: 'A whistle your seal comes back for.' },
+  glass_bottom: { id: 'glass_bottom', name: 'Glass Bottom', price: 210_000, level: 19, luck: 0.40, effect: 'luck',
+    blurb: 'You see the shape before it bites.' },
+  old_luck: { id: 'old_luck', name: 'Old Luck', price: 228_000, level: 20, luck: 0.45, effect: 'luck',
+    blurb: 'You have done this long enough to be good at it.' },
+  the_long_line: { id: 'the_long_line', name: 'The Long Line', price: 245_000, level: 20, luck: 0.50, effect: 'luck',
+    blurb: 'Cast further than the lake expects. The deep ones come to you.' },
+};
+
+/** How many seals fit on the dock. One until Bigger Dock is bought. */
+export function sealSlots(owned = []) {
+  // De-duplicated: the slot count is a property of WHICH upgrades you have, not how
+  // many times the id appears in the save. A hand-edited save listing bigger_dock
+  // twice must not buy two docks.
+  const unique = [...new Set(Array.isArray(owned) ? owned : [])];
+  const extra = unique.filter((id) => UPGRADES[id]?.effect === 'slot')
+    .reduce((sum, id) => sum + (UPGRADES[id].value || 0), 0);
+  return 1 + extra;
+}
+
+/** Every upgrade's luck, summed into one number for the roll. */
+export function upgradeLuck(owned = []) {
+  return (Array.isArray(owned) ? owned : [])
+    .reduce((sum, id) => sum + (Number(UPGRADES[id]?.luck) || 0), 0);
+}
+
+/**
+ * Attempt to buy one upgrade.
+ *
+ * Mirrors buySeal(): pure, a refusal is always { ok:false, reason }, and the new
+ * wallet comes back rather than being mutated. The order of the checks matches the
+ * seal rule -- unknown id, then already-owned, then rank, then price -- so a player
+ * who is both broke and under-levelled hears about the level, which is the problem
+ * they can solve by playing rather than by saving.
+ */
+export function buyUpgrade(wallet, upgradeId, level = 1, owned = []) {
+  const upgrade = UPGRADES[upgradeId];
+  if (!upgrade) return { ...wallet, ok: false, reason: 'Unknown upgrade.' };
+
+  // Already-owned is a refusal with a reason, not a free re-charge. Each upgrade is
+  // a one-off, so buying the same one twice must never be possible.
+  if (Array.isArray(owned) && owned.includes(upgradeId)) {
+    return { ...wallet, ok: false, reason: `${upgrade.name} is already fitted.` };
+  }
+  if (upgrade.level > level) {
+    return { ...wallet, ok: false, reason: `${upgrade.name} needs rank ${upgrade.level}.` };
+  }
+  if (!Number.isFinite(wallet?.coins) || wallet.coins < upgrade.price) {
+    return { ...wallet, ok: false, reason: `Not enough rod coins for ${upgrade.name}.` };
+  }
+  return { ok: true, upgradeId, coins: wallet.coins - upgrade.price, owned: [...(owned ?? []), upgradeId] };
 }
 
 /* ---------------------------------------------------------------- pet seals */

@@ -2101,8 +2101,21 @@ test('a landed fish lands in the bag, not the wallet', async () => {
     .replace(/\/\/[^\r\n]*/g, '');
   assert.doesNotMatch(code, /state\.coins\s*\+=/,
     'landing a fish must not pay into the wallet');
-  assert.match(body, /addToBag/, 'it must go in the bag');
-  assert.match(body, /fishEntrySpec/, 'as a proper entry');
+  // Through bagFish(), which wraps addToBag with the cap. Asserting a bare
+  // `addToBag` here would pass while the cap was never applied -- the wrapper is the
+  // thing that respects it, so the wrapper is the thing worth pinning.
+  assert.match(body, /bagFish\(/, 'it must go in the bag, through the cap-aware helper');
+
+  // The entry spec and the cap live in the wrapper now, not in landFish, so that is
+  // where they are asserted. Asserting them in landFish would fail against correct
+  // code -- the wrapper exists precisely so the cap cannot be forgotten at a call
+  // site.
+  const helper = fnSource(src, 'bagFish');
+  assert.match(helper, /fishEntrySpec/, 'as a proper entry');
+  assert.match(helper, /addToBag\(/, 'bagFish must call the bag rule');
+  assert.match(helper, /bagCap\(/, 'passing it the cap');
+  assert.match(helper, /state\.bag = result\.bag/, 'and store what came back');
+  assert.match(helper, /return result\.kept/, 'and report whether the fish was kept');
 });
 
 test('the bag panel exists and offers both choices', async () => {
@@ -2638,7 +2651,7 @@ test('a seal duplicate is a real fish in the bag, not just a counter', async () 
   // appears somewhere in landFish() passes on the original code, which adds the
   // fish exactly once and never for the duplicate.
   const branch = body.slice(body.indexOf('if (duplicated) {'));
-  assert.match(branch, /addToBag\(state\.bag, fishEntrySpec\(fish, kg, mutation\)\)/,
+  assert.match(branch, /bagFish\(fish, kg, mutation\)/,
     'the duplicate branch must add a second fish to the bag');
 
   // Each of the three steps must sit inside the block, not after it. The block ends
@@ -2652,7 +2665,9 @@ test('a seal duplicate is a real fish in the bag, not just a counter', async () 
   for (const [what, rx] of [
     // The counter is written `= (x ?? 0) + 1`, so it is an assignment whose right
     // side is a sum -- not `+=`. An earlier version matched /\+=/ and never fired.
-    ['the second fish', /addToBag\(state\.bag, fishEntrySpec/],
+    // bagFish() is the call now: it wraps addToBag with the cap, so the fish is
+    // still a real entry -- it just goes in through the wrapper.
+    ['the second fish', /bagFish\(fish, kg, mutation\)/],
     ['the duplicate count', /state\.duplicates\s*=\s*\([^)]*\)\s*\+\s*1/],
     ['the notice', /notify\(/],
   ]) {

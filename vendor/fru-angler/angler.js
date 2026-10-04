@@ -23,13 +23,13 @@ import {
  SEALS, LOST_ITEMS,
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
- addToBag, fishEntrySpec, bagWorth, bagEntryValue,
+ addToBag, fishEntrySpec, bagCap, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-Q';
+} from './fishing.js?v=2026-10-04-R';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-Q';
+} from './reel.js?v=2026-10-04-R';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -1060,6 +1060,20 @@ function showResult(name, meta, value, rarity, art = null, stats = null, mutatio
   ui.catchAgain.focus();
 }
 
+/**
+ * Put one fish in the bag, respecting the cap.
+ *
+ * Returns whether it was kept. On a full bag the fish is NOT kept -- but the caller
+ * has already recorded the bestiary and the rank by then, so the catch still counted
+ * for progression. Only the fish is lost, and the player is told which one, because
+ * silently not keeping something you just fought for is the worst version of this.
+ */
+function bagFish(fish, kg, mutation) {
+  const result = addToBag(state.bag, fishEntrySpec(fish, kg, mutation), bagCap(state.upgrades));
+  state.bag = result.bag;
+  return result.kept;
+}
+
 function landFish() {
   const fish = state.hooked;
   const kg = fishWeight(fish);
@@ -1080,8 +1094,13 @@ function landFish() {
   // a catch could be worth coins or worth bond, and it was always coins.
   //
   // Bestiary and rank still happen on landing -- the fish was caught either way.
-  state.bag = addToBag(state.bag, fishEntrySpec(fish, kg, mutation));
+  const kept = bagFish(fish, kg, mutation);
   state.bestiary = recordCatch(state.bestiary, fish, kg);
+  if (!kept) {
+    // notify(), not say(): the seal speaks on the same catch and would replace
+    // this line before it could be read. Same reasoning as the duplicate below.
+    notify(`The bag is full \u2014 your ${fish.name} did not fit. Sell something, or buy a bigger one.`, 'warn');
+  }
 
   const meta = [
     fish.rarity,
@@ -1128,8 +1147,15 @@ function landFish() {
     // A second FISH, not a number. It used to increment a counter and post a
     // notice saying "two Glidefin, one hook" while the bag held exactly one --
     // the perk the seal was bought for did not exist.
-    state.bag = addToBag(state.bag, fishEntrySpec(fish, kg, mutation));
-    notify(`${seal.name} duplicates it \u2014 two ${fish.name}, one hook.`);
+    const dupKept = bagFish(fish, kg, mutation);
+    if (dupKept) {
+      notify(`${seal.name} duplicates it \u2014 two ${fish.name}, one hook.`);
+    } else {
+      // The duplicate is the one that gets refused: the first fish already took the
+      // last slot, and saying "two of them" when the bag holds one is the exact lie
+      // this notice used to tell.
+      notify(`The bag was full, so ${seal.name}'s duplicate had nowhere to go.`, 'warn');
+    }
     state.duplicates = (state.duplicates ?? 0) + 1;
   }
 
