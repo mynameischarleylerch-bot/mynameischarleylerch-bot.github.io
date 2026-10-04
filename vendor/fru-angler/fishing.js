@@ -2883,7 +2883,7 @@ export const AREAS = [
       skyTop: '#81d4fa', skyMid: '#b3e5fc', skyFloor: '#f4fbff',
       water: '#2f81c4', accent: '#4fc3f7',
       haze: 'rgba(255, 255, 255, 0.75)', sun: 'rgba(255, 255, 255, 0.95)',
-      art: './media/aero-lake.jpg?v=2026-10-04-W',
+      art: './media/aero-lake.jpg?v=2026-10-04-X',
     },
   },
   {

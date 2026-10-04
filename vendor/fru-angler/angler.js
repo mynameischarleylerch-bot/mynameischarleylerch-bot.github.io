@@ -26,10 +26,10 @@ import {
  addToBag, bagCap, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-W';
+} from './fishing.js?v=2026-10-04-X';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-W';
+} from './reel.js?v=2026-10-04-X';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -714,7 +714,7 @@ function paintPet() {
   if (!dock) return;
   const party = sealParty().map((id) => SEALS.find((s) => s.id === id) ?? null);
 
-  for (const slot of [dock.querySelector('.fa-pet-slot')]) {
+  for (const slot of dock.querySelectorAll('.fa-pet-slot')) {
     const n = slot.dataset.slot;
     const seal = party[Number(n)] ?? null;
     if (seal) slot.removeAttribute('hidden');
