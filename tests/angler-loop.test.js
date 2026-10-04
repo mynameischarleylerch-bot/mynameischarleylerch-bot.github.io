@@ -2778,7 +2778,9 @@ test('feeding updates an open Bond panel without reopening it', async () => {
     `12 fed reaches 1, 5 and 12; only ${reached.length} marked`);
 });
 
-
+
+
+
 test('the boosts stack names the rod and the seal it is reporting', async () => {
   // The rows carried a generic "Rod" and a generic "Seal". Every number in the
   // stack is luck, but nothing said WHICH rod or WHICH seal was paying it, so
@@ -3083,7 +3085,7 @@ test('the turned glyph is compact, and sits on the RIGHT so it looks at the dock
 
 /* ------------------------------------ a seal is painted in its lake's colour */
 
-test('the shop portrait is painted from the seal hue AND lightness', () => {
+test('the shop portrait is painted from the seal hue, lightness AND gloss', () => {
   // The data is only half the feature. .seal__portrait hardcoded its lightness, so
   // a correct seal.light never reached the screen and every portrait came out the
   // same shade -- three blue lakes, one blue dot.
@@ -3093,6 +3095,10 @@ test('the shop portrait is painted from the seal hue AND lightness', () => {
   assert.match(row[1], /--seal-hue:\$\{seal\.hue\}/, 'the portrait must carry the seal hue');
   assert.match(row[1], /--seal-light:\$\{seal\.light\}%/,
     'the portrait must carry the seal lightness, or the three blue lakes look identical');
+  // The gloss is relative to the seal. See the chroma test below for why a fixed one
+  // washed the seals out; this asserts the value is actually passed.
+  assert.match(row[1], /--seal-gloss:\$\{[^}]*seal\.light/,
+    'the portrait must carry a gloss derived from the seal lightness');
 
   const page = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
   // Bound the rule to its own closing brace. `[^}]*` runs past the gradient's own
@@ -3100,46 +3106,112 @@ test('the shop portrait is painted from the seal hue AND lightness', () => {
   // unrelated percentages and failed against correct CSS.
   const css = /\.seal__portrait\s*\{([^}]*?)\n\s*\}/.exec(page);
   assert.ok(css, '.seal__portrait must be styled');
-  // Every lightness in the rule must be the VARIABLE, not a literal. Asserting only
-  // that `var(--seal-light` appears somewhere was the weak version: hardcoding the
-  // gradient's second stop still left the string in the border, so the guard passed
-  // against a portrait whose body colour no longer came from the seal at all.
   // Look only INSIDE the hsl() calls: percentages elsewhere in the rule are geometry
-  // (`circle at 34% 30%`, `border-radius: 50%`), not colour. A first pass counted
-  // those and failed against correct CSS.
-  // Match the hsl() argument up to its OWN closing paren: a naive `[^)]*` stops at
-  // the `)` inside var(--seal-hue, 200) and reads the stop as "var(--seal-hue, 200",
-  // which then looks hardcoded against the correct rule.
-  const hslStops = [...css[1].matchAll(/hsl\(((?:[^()]|(?:\([^()]*\)))*)\)/g)]
+  // (`circle at 34% 30%`, `border-radius: 50%`), not colour.
+  // Match each hsl() argument up to its OWN closing paren: a naive `[^)]*` stops at
+  // the `)` inside var(--seal-hue, 200).
+  const hslStops = [...css[1].matchAll(/hsl\(((?:[^()]|\([^()]*\))*)\)/g)]
     .map((m) => m[1]);
   assert.ok(hslStops.length >= 2,
     `expected the portrait gradient's stops, found ${hslStops.length}`);
-  // Of each stop, hue and saturation are fixed (200, 90/66/45); the LIGHTNESS -- the
-  // third value -- must be the variable, or the seal's colour is not being used.
-  // Index 0 is the gloss highlight, which is deliberately a fixed near-white: that
-  // sheen is the Aero finish, shared by every seal, and tinting it would wash them
-  // all out. The BODY stop and the RIM stop are the ones that must take the seal.
-  // Positional, not a substring test -- "does this stop mention 90%" was true of the
-  // body too, because the gradient spans two lines.
-  // For each stop, the question is simply whether the LIGHTNESS -- the last colour
-  // component before any alpha -- comes from the variable. Checking for
-  // `var(--seal-light` in the stop is enough, and survives hsl()'s own punctuation:
-  // an earlier version split on commas to find "the last field" and was defeated by
-  // the comma inside var(--seal-hue, 200).
+
+  // Stop 0 is the gloss, and it must come from --seal-gloss. Stops 1 and 2 (the
+  // gradient body and the rim) must come from --seal-light.
+  assert.match(hslStops[0], /var\(--seal-gloss/,
+    'the first stop is the gloss highlight; its lightness must be var(--seal-gloss) so '
+    + 'it tracks the seal. A fixed near-white gloss desaturated every seal -- Tangerine, '
+    + 'whose lake is orange, came out peach.');
   for (const stop of hslStops.slice(1)) {
     const withoutAlpha = stop.split('/')[0];            // hsl(...) / .7 -> hsl(...)
     assert.match(withoutAlpha, /var\(--seal-light/,
       `hsl(${stop}) has a hardcoded lightness; its lightness must be var(--seal-light) `
       + "so the portrait takes the seal's own colour");
   }
-  // And the gloss really is the fixed one -- so a later change that tints it, or
-  // reorders the stops, is caught rather than silently altering every seal.
-  assert.match(hslStops[0], /\b92%$/,
-    'the first stop is the Aero gloss and stays a fixed near-white');
-  // And it must be used for the gradient body AND the rim, not just one of them.
+  // And the gloss must not have crept back to a fixed value in the stylesheet.
+  assert.doesNotMatch(hslStops[0], /\b\d+%\s*$/,
+    'the gloss stop must not end in a literal percentage; it must be var(--seal-gloss)');
+  // The body stop must be SATURATED enough to carry the hue. At 66% the portrait
+  // still passed the chroma loop below while reading as a pale wash, so the
+  // saturation is pinned rather than left to drift down toward the old wash.
+  const bodyStop = /hsl\(var\(--seal-hue, 200\) (\d+)% var\(--seal-light/.exec(css[1]);
+  assert.ok(bodyStop, 'the body stop must be hsl(hue SAT% var(--seal-light)');
+  assert.ok(Number(bodyStop[1]) >= 72,
+    `the portrait body is at ${bodyStop[1]}% saturation; it needs at least 72% to read `
+    + 'as its own colour. Below that the seals wash out.');
+
+  // And --seal-light is used for the gradient body AND the rim, not just one.
   const uses = (css[1].match(/var\(--seal-light/g) || []).length;
   assert.ok(uses >= 2,
     `--seal-light is used ${uses} time(s); the gradient body and the rim both need it`);
+});
+
+test('each seal reads as its own colour -- chroma, not just a different hue', () => {
+  // The guard above proves the seal's values REACH the portrait. It cannot prove the
+  // result looks like anything, and it did not have to: with the gloss pinned at 92%
+  // lightness every stop passed, the hues were correct, and the seals still read as
+  // pale washed-out dots -- Tangerine, from an orange lake, came out peach.
+  //
+  // So this renders the portrait's two stops the way the browser does and requires
+  // the average to carry real chroma. Chroma is what makes a colour read as ITS
+  // colour; a highlight at 92% lightness is nearly white and dilutes it.
+  const rgbOf = (hue, sat, light) => {
+    const h = ((hue % 360) + 360) % 360, s = sat / 100, l = light / 100;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]]
+      [Math.floor(h / 60) % 6];
+    return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+  };
+  const chroma = ([r, g, b]) => {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    return mx === 0 ? 0 : (mx - mn) / mx;
+  };
+
+  // The portrait as built: gloss = min(94, light + 16) at 88% sat, body at 72% sat.
+  for (const seal of SEALS) {
+    const gloss = rgbOf(seal.hue, 88, Math.min(94, seal.light + 16));
+    const body = rgbOf(seal.hue, 72, seal.light);
+    const dot = [0, 1, 2].map((i) => gloss[i] * 0.38 + body[i] * 0.62);
+
+    // The floor SCALES with the seal's own lightness, because a pale seal is
+    // supposed to be pale: Frost is glacier ice and belongs near white, and a flat
+    // 35% floor rejected it for being the colour it is meant to be. What must hold
+    // for every seal is that it is as saturated as ITS OWN body allows -- i.e. the
+    // gloss did not bleach it. So compare against the body's chroma, and require the
+    // dot to retain most of it.
+    const bodyChroma = chroma(body);
+    assert.ok(chroma(dot) >= bodyChroma * 0.7,
+      `${seal.name} renders at ${(chroma(dot) * 100).toFixed(1)}% chroma but its body is `
+      + `${(bodyChroma * 100).toFixed(1)}% -- the gloss has bleached it. Everything that `
+      + 'washed out lost roughly half its chroma to the highlight.');
+
+    // ...and no seal may be so pale that it reads as a white dot. This is the floor
+    // that does apply universally, and it sits below every real seal.
+    assert.ok(chroma(dot) >= 0.15,
+      `${seal.name} renders at ${(chroma(dot) * 100).toFixed(1)}% chroma -- indistinguishable `
+      + 'from a plain white dot whatever its hue');
+
+    // The gloss must still be a highlight: lighter than the body it sits over.
+    const sum = (c) => c[0] + c[1] + c[2];
+    assert.ok(sum(gloss) > sum(body),
+      `${seal.name}: the gloss rgb(${gloss.map(Math.round)}) is not lighter than its body `
+      + `rgb(${body.map(Math.round)}), so the portrait has no highlight and looks flat`);
+  }
+
+  // And the specific regression, named: an orange lake must render orange. This is
+  // the one that was reported, so it is pinned rather than left to the loop above.
+  const tangerine = SEALS.find((s) => s.name === 'Tangerine');
+  assert.ok(tangerine, 'Tangerine must be a seal');
+  const tGloss = rgbOf(tangerine.hue, 88, Math.min(94, tangerine.light + 16));
+  const tBody = rgbOf(tangerine.hue, 72, tangerine.light);
+  const tDot = [0, 1, 2].map((i) => tGloss[i] * 0.38 + tBody[i] * 0.62);
+  const [tr, tg, tb] = tDot;
+  assert.ok(tr > tg && tg > tb,
+    `Tangerine must render warm (r > g > b), got rgb(${tDot.map(Math.round)})`);
+  assert.ok(chroma(tDot) >= 0.5,
+    `Tangerine renders at ${(chroma(tDot) * 100).toFixed(1)}% chroma; it should be a clear `
+    + 'orange, not a pale wash. Its lake water is #c2701f.');
 });
 
 test('the seal on the dock is tinted by its own lightness too', () => {
