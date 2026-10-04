@@ -611,6 +611,19 @@
      at 320px cannot fit five labels on one line and a tab you cannot reach is
      worse than a scroll. aria-selected drives the filled state from CSS, so the
      look cannot drift from the accessibility state. */
+  /* A section heading that carries a control on the right. The heading stays an
+     h3 for the document outline; only its LAYOUT becomes a flex row. */
+  .shop__section--row {
+    display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  }
+  .shop__sell-all {
+    white-space: nowrap; font-size: .74rem; padding: .26rem .6rem;
+  }
+  /* Disabled state has to be visible, not just inert: the button is dimmed AND
+     struck from the count, because "Sell all 0" is a worse label than a greyed
+     button with no count on it. */
+  .shop__sell-all:disabled { opacity: .5; cursor: default; }
+
   .shop__tabs {
     display: flex; flex-wrap: wrap; gap: .3rem; margin: .1rem 0 .6rem;
     border-bottom: 1px solid var(--hairline); padding-bottom: .5rem;
@@ -1794,7 +1807,14 @@
           <h3 class="shop__section">Your rods</h3>
           <div class="shop__list" id="inventory-rods"></div>
 
-          <h3 class="shop__section">Your fish</h3>
+          <h3 class="shop__section shop__section--row">
+            Your fish
+            <!-- The whole bag in one act. Each row also has its own Sell one, so
+                 this is the deliberate bulk option, not the only way out. -->
+            <button class="btn btn--small shop__sell-all" id="sell-all-fish" type="button">
+              Sell all
+            </button>
+          </h3>
           <p class="shop__wallet" id="inventory-empty" hidden>
             Nothing landed yet. Cast and reel something in.
           </p>
@@ -1919,6 +1939,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-P"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-Q"></script>
 </body>
 </html>

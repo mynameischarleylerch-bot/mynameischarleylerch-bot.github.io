@@ -24,12 +24,12 @@ import {
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
  addToBag, fishEntrySpec, bagWorth, bagEntryValue,
- sellFromBag, feedToBond, bondLuck, bondCount, groupBag,
+ sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-P';
+} from './fishing.js?v=2026-10-04-Q';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-P';
+} from './reel.js?v=2026-10-04-Q';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -71,6 +71,7 @@ const ui = {
   // The fish bag: unsold catches. Two panels are "a bag"; they are not
   // the same one, and a duplicate key here silently kills a panel.
   bagPanel: el('bag-panel'), bagList: el('bag-list'),
+  sellAllFish: el('sell-all-fish'),
   bagSummary: el('bag-summary'), bagOpenBtn: el('bag-open'),
   bagCloseBtn: el('bag-close'), bagCount: el('bag-count'),
   bondOpen: el('bond-open'), bondClose: el('bond-close'),
@@ -1955,6 +1956,31 @@ function sellOneFish(at, fish) {
   say(`${fish.name} sold for ${result.coins.toLocaleString('en-US')} coins.`);
 }
 
+/**
+ * Sell every fish in the bag at once.
+ *
+ * Goes through sellWholeBag(), the pure rule, rather than looping sellOneFish():
+ * looping would re-save and re-render the panel once per fish, and the refusal
+ * message would be overwritten by the successes that follow it.
+ *
+ * The rule already exists and is tested; nothing called it. The bag had one button
+ * per species and no way to empty it, so a bag of twelve different fish was twelve
+ * trips through the panel.
+ */
+function sellEveryFish() {
+  const result = sellWholeBag(state.bag);
+  // An empty bag is a refusal, not a silent zero: say so rather than do nothing.
+  if (!result.ok) return say(result.reason);
+  state.coins += result.coins;
+  state.bag = result.bag;
+  save(); paintChrome(); paintBag();
+  paintBagBadge(state.bag.length);
+  // Same reason sellOneFish repaints it: the Bond panel states a count this sale
+  // just changed, and a stale count is worse than no panel.
+  if (ui.bondPanel && !ui.bondPanel.hidden) paintBond();
+  say(`Sold ${result.sold} fish for ${result.coins.toLocaleString('en-US')} coins.`);
+}
+
 /** Feed one fish to the equipped seal, leaving the rest. */
 function feedOneFish(at, fish, seal) {
   if (at < 0) return;
@@ -1986,6 +2012,22 @@ function paintBag() {
     ui.bagSummary.textContent = bag.length
       ? `${bag.length} fish in the bag, worth ${bagWorth(bag).toLocaleString('en-US')} rod coins.`
       : 'Nothing in the bag. Fish something and it waits here.';
+  }
+
+  // The bulk seller. Its label states the COUNT and the TOTAL, so the click is a
+  // decision rather than a leap of faith -- and an empty bag disables it and drops
+  // the figures, because "Sell all 0 for 0" is a label that reads as broken.
+  if (ui.sellAllFish) {
+    if (bag.length === 0) {
+      ui.sellAllFish.disabled = true;
+      ui.sellAllFish.textContent = 'Sell all';
+      ui.sellAllFish.removeAttribute('title');
+    } else {
+      const worth = bagWorth(bag);
+      ui.sellAllFish.disabled = false;
+      ui.sellAllFish.textContent = `Sell all ${bag.length} for ${worth.toLocaleString('en-US')}`;
+      ui.sellAllFish.title = `Sell every fish in the bag for ${worth.toLocaleString('en-US')} rod coins`;
+    }
   }
 
   ui.bagList.textContent = '';
@@ -2141,6 +2183,7 @@ ui.indexPanel?.addEventListener('click', (event) => {
 });
 ui.inventoryClose?.addEventListener('click', closeBag);
 ui.bagCloseBtn?.addEventListener('click', closeBagPanel);
+  ui.sellAllFish?.addEventListener('click', sellEveryFish);
 // Clicking the scrim outside the panel closes it, same as the shop.
 ui.inventory?.addEventListener('click', (event) => {
 ui.bagPanel?.addEventListener('click', (event) => {

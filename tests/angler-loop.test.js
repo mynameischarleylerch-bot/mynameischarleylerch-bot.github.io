@@ -3865,3 +3865,120 @@ test('the rod shop is grouped by lake, one tab per area', async () => {
   assert.equal(after, before - 1,
     `buying a rod must drop its lake's count by one (${before} -> ${after})`);
 });
+
+test('the bag has one button that sells all of it, not just one fish at a time', async () => {
+  // Every row already had Sell one, so the only way to empty a bag of twelve
+  // different fish was twelve trips through the panel. The rule sellWholeBag()
+  // existed and was tested; nothing called it.
+  const bag = [
+    { fishId: 'glidefin', weight: 1, mutation: null, multiplier: 1 },
+    { fishId: 'glidefin', weight: 2.5, mutation: null, multiplier: 1 },
+    { fishId: 'sunscale', weight: 3, mutation: null, multiplier: 1 },
+  ];
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: null, lost: [], giftedRods: [], sealCoins: 0,
+    // structuredClone: passing `bag` by reference let the game's own splice empty
+    // the fixture, so `bag.length` became 0 and the count assertion below compared
+    // 0 against 0 -- it passed against a button that said "Sell all 4".
+    bag: structuredClone(bag),
+  }, 1520);
+  ctx.doc.getElementById('bag-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+
+  const sellAll = ctx.doc.getElementById('sell-all-fish');
+  assert.ok(sellAll, 'the bag must have a sell-everything button');
+  assert.equal(sellAll.disabled, false, 'and it must be live with fish in the bag');
+
+  // The label states the count and the total, so the click is a decision rather
+  // than a leap of faith. The three fish here are worth different amounts.
+  const label = sellAll.textContent;
+  // The COUNT and the TOTAL are separate numbers, and matching /3/ against the whole
+  // label is satisfied by the payout figure alone -- which is how a version with no
+  // count in it passed. Read them positionally: count before "for", payout after.
+  const parsed = /Sell all (\d+) for ([\d,]+)/.exec(label);
+  assert.ok(parsed,
+    `the button must read "Sell all <count> for <total>", said "${label}"`);
+  assert.equal(Number(parsed[1]), bag.length,
+    `the button says ${parsed[1]} fish but the bag holds ${bag.length}`);
+  const stated = Number(parsed[2].replace(/,/g, ''));
+  assert.ok(stated > 0, `the button must say what the lot pays, said "${label}"`);
+
+  // And the stated total must be the real one -- the same figure selling one at a
+  // time would pay, not a rounded-up "and more!" number.
+  const expected = bag.reduce((sum, f) => {
+    const fish = FISH.find((x) => x.id === f.fishId);
+    return sum + Math.round(fish.pricePerKg * f.weight * (f.multiplier ?? 1));
+  }, 0);
+  assert.equal(stated, expected,
+    `the button claims ${stated} but the three fish are worth ${expected}`);
+
+  sellAll.dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+
+  assert.equal(Number(text(ctx, 'coins')), expected,
+    'selling the lot must pay exactly what it said');
+  const saved = JSON.parse(ctx.win.localStorage.getItem('fru-angler-save'));
+  assert.deepEqual(saved.bag, [], 'and the bag must be empty');
+
+  // With an empty bag the button must be disabled AND carry no misleading figures.
+  const after = ctx.doc.getElementById('sell-all-fish');
+  assert.equal(after.disabled, true, 'an empty bag must not offer a sale');
+  assert.doesNotMatch(after.textContent, /for\s/,
+    `"${after.textContent}" advertises a payout on an empty bag, which reads as broken`);
+  assert.doesNotMatch(after.textContent, /\b0\b/,
+    'and it must not say "Sell all 0" -- that is the same thing');
+
+  // Rod coins are the fish currency; the seal-coins wallet must be untouched.
+  assert.equal(text(ctx, 'seal-coins'), '0',
+    'selling the bag must not touch the seal-coin wallet');
+});
+
+test('Sell all pays exactly what selling the same fish one at a time pays', async () => {
+  // The reason the bulk button routes through sellWholeBag() rather than looping
+  // sellOneFish(): if the two paths ever disagree, a player who checks by selling
+  // three fish by hand gets a different number from the button that quoted one.
+  // Both are driven through the real DOM here, in the same order.
+  const bag = [
+    { fishId: 'glidefin', weight: 1.5, mutation: null, multiplier: 1 },
+    { fishId: 'sunscale', weight: 2, mutation: 'Glacial', multiplier: 1.5 },
+    { fishId: 'glidefin', weight: 4, mutation: null, multiplier: 1 },
+  ];
+
+  // --- one at a time ---
+  const slow = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: ['bubbles'], equippedSeal: 'bubbles', lost: [],
+    giftedRods: [], sealCoins: 0, bond: {}, bag: structuredClone(bag),
+  }, 1521);
+  slow.doc.getElementById('bag-open').dispatchEvent(
+    new slow.win.MouseEvent('click', { bubbles: true }));
+  // Click Sell one on whatever row is showing, until the bag is empty. The row
+  // advertises the heaviest of its group, so this sells 4kg Glidefin then 1.5kg.
+  let guard = 0;
+  while (slow.doc.querySelector('#bag-list .bag__sell') && guard < 10) {
+    guard += 1;
+    slow.doc.querySelector('#bag-list .bag__sell').dispatchEvent(
+      new slow.win.MouseEvent('click', { bubbles: true }));
+  }
+  const byHand = Number(text(slow, 'coins'));
+  assert.equal(guard, 3, `expected to sell three fish one at a time, sold ${guard}`);
+
+  // --- all at once ---
+  const quick = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: ['bubbles'], equippedSeal: 'bubbles', lost: [],
+    giftedRods: [], sealCoins: 0, bond: {}, bag: structuredClone(bag),
+  }, 1522);
+  quick.doc.getElementById('bag-open').dispatchEvent(
+    new quick.win.MouseEvent('click', { bubbles: true }));
+  quick.doc.getElementById('sell-all-fish').dispatchEvent(
+    new quick.win.MouseEvent('click', { bubbles: true }));
+  const inOneGo = Number(text(quick, 'coins'));
+
+  assert.equal(inOneGo, byHand,
+    `Sell all paid ${inOneGo} but selling the same three one at a time paid ${byHand}`);
+  assert.ok(byHand > 0, 'sanity: the fish must be worth something');
+  assert.deepEqual(
+    JSON.parse(quick.win.localStorage.getItem('fru-angler-save')).bag, [],
+    'the bulk sale must empty the bag');
+});
