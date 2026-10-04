@@ -4180,3 +4180,46 @@ test('an old save holding more fish than the cap is kept whole, never truncated'
   assert.ok(ctx.doc.getElementById('bag-count').classList.contains('is-full'),
     'an over-cap bag is certainly full');
 });
+
+test('the dock holds a list of seals, and old saves naming one still load', async () => {
+  const base = (over = {}) => ({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: ['bubbles', 'tangerine'], equippedSeal: [], lost: [],
+    giftedRods: [], sealCoins: 0, ...over,
+  });
+
+  // A save written before Bigger Dock: a single id, not a list.
+  const old = await seedSave(base({ equippedSeal: 'bubbles' }), 9740);
+  assert.deepEqual(JSON.parse(old.win.localStorage.getItem('fru-angler-save')).equippedSeal,
+    ['bubbles'], 'a legacy single id must become a one-entry dock');
+
+  // null, likewise.
+  const none = await seedSave(base({ equippedSeal: null }), 9741);
+  assert.deepEqual(JSON.parse(none.win.localStorage.getItem('fru-angler-save')).equippedSeal,
+    [], 'a legacy null must become an empty dock');
+
+  // Already a list: kept as-is. One seal, because there is only ONE slot until the
+  // dock is bought -- asking for two here would be asking for the cap to be ignored.
+  const two = await seedSave(base({ equippedSeal: ['bubbles'] }), 9742);
+  assert.deepEqual(JSON.parse(two.win.localStorage.getItem('fru-angler-save')).equippedSeal,
+    ['bubbles'], 'a list dock survives untouched');
+
+  // A hand-edited save cannot put a seal on the dock that is not owned...
+  const ghost = await seedSave(
+    base({ equippedSeal: ['bubbles', 'a_seal_you_do_not_own'] }), 9743);
+  assert.deepEqual(JSON.parse(ghost.win.localStorage.getItem('fru-angler-save')).equippedSeal,
+    ['bubbles'], 'a seal you do not own must not be credited to the dock');
+
+  // ...and cannot exceed the slots the dock actually has. With no Bigger Dock there
+  // is ONE slot, so two seals is a save that has been tampered with.
+  const over = await seedSave(base({ equippedSeal: ['bubbles', 'tangerine'] }), 9744);
+  assert.deepEqual(JSON.parse(over.win.localStorage.getItem('fru-angler-save')).equippedSeal,
+    ['bubbles'], 'one slot must not hold two seals');
+
+  // Buy Bigger Dock and the same save now holds both -- the gate is the real one.
+  const roomy = await seedSave(base({
+    equippedSeal: ['bubbles', 'tangerine'], upgrades: ['bigger_dock'],
+  }), 9745);
+  assert.deepEqual(JSON.parse(roomy.win.localStorage.getItem('fru-angler-save')).equippedSeal,
+    ['bubbles', 'tangerine'], 'a bought second slot really does hold a second seal');
+});

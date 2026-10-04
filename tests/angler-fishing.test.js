@@ -14,7 +14,8 @@ import {
   sealFedLine,
   fishSilhouette,
   bondMilestones, bondProgress,
-  UPGRADES, BASE_BAG_CAP, bagCap, buyUpgrade, sealSlots, upgradeLuck,} from '../vendor/fru-angler/fishing.js';
+  UPGRADES, BASE_BAG_CAP, bagCap, buyUpgrade, sealSlots, upgradeLuck,
+  sealParty as sealPartyOf,} from '../vendor/fru-angler/fishing.js';
 
 /**
  * addToBag as it used to be: takes a bag, returns a bag.
@@ -3056,4 +3057,75 @@ test('every seal on the dock contributes luck, and so does every upgrade', () =>
   assert.ok(upgraded > viaArray, 'upgrades must add luck');
   assert.equal(upgradeLuck(['nonsense']), 0, 'an unknown upgrade adds nothing');
   assert.equal(upgradeLuck([]), 0, 'no upgrades adds nothing');
+});
+
+test('the dock accepts every save shape and refuses what it should', () => {
+  const both = ['bubbles', 'tangerine'];
+
+  // All three shapes a save can hold, all meaning the same thing.
+  assert.deepEqual(sealPartyOf('bubbles', both, []), ['bubbles'], 'a legacy single id docks');
+  assert.deepEqual(sealPartyOf(null, both, []), [], 'a legacy null docks nothing');
+  assert.deepEqual(sealPartyOf(['bubbles'], both, []), ['bubbles'], 'a one-entry list docks');
+  assert.deepEqual(sealPartyOf(undefined, both, []), [], 'no value at all docks nothing');
+
+  // One slot until Bigger Dock is bought.
+  assert.deepEqual(sealPartyOf(both, both, []), ['bubbles'],
+    'two seals must not fit on a one-slot dock');
+  assert.deepEqual(sealPartyOf(both, both, ['bigger_dock']), both,
+    'and two must fit once the dock is bought');
+
+  // A seal we do not own never docks, whatever shape it arrives in.
+  assert.deepEqual(sealPartyOf('frost', ['bubbles'], []), [], 'an unowned seal docks nothing');
+  assert.deepEqual(sealPartyOf(['bubbles', 'frost'], both, ['bigger_dock']), ['bubbles'],
+    'a ghost seal is dropped even with room for it');
+
+  // Nonsense in must not become nonsense out.
+  assert.deepEqual(sealPartyOf('nonsense', 'not-an-array', []), [],
+    'a non-array owned list treats you as owning nothing');
+  assert.deepEqual(sealPartyOf(['bubbles'], both, 'not-an-array'), ['bubbles'],
+    'a non-array upgrade list is simply no upgrades');
+
+  // A repeated id is one seal, not two -- buying one twice is refused elsewhere.
+  assert.deepEqual(sealPartyOf(['bubbles', 'bubbles'], both, ['bigger_dock']), ['bubbles'],
+    'the same seal twice is still one seal');
+
+  // The cap never goes to zero: there is always somewhere to put a seal, or the
+  // player could own one and have nowhere to sit it.
+  assert.deepEqual(sealPartyOf(['bubbles'], both, []), ['bubbles'],
+    'one slot is the floor, never none');
+});
+
+test('equipping a seal adds it to the dock and never evicts the one already there', () => {
+  const owned = ['bubbles', 'tangerine'];
+
+  const first = equipSeal(owned, 'bubbles', [], []);
+  assert.equal(first.ok, true);
+  assert.deepEqual(first.party, ['bubbles']);
+
+  // The dock is full. This must be an honest refusal -- the bug was
+  // `state.equippedSeal = [seal.id]`, which quietly threw away Bubbles.
+  const second = equipSeal(owned, 'tangerine', [], first.party);
+  assert.equal(second.ok, false, 'a full dock must refuse, not swap');
+  assert.match(second.reason, /no room/i);
+  assert.deepEqual(second.party, ['bubbles'],
+    'and the seal already on the dock must survive the refusal');
+  assert.equal(second.sealId, undefined, 'a refusal names no seal as equipped');
+
+  // With the dock bought there IS room, and the second seal joins the first.
+  const roomy = equipSeal(owned, 'tangerine', ['bigger_dock'], first.party);
+  assert.equal(roomy.ok, true);
+  assert.deepEqual(roomy.party, ['bubbles', 'tangerine'], 'the first seal is not evicted');
+
+  // Equipping one already out is idempotent, not an error and not a duplicate.
+  const again = equipSeal(owned, 'bubbles', ['bigger_dock'], roomy.party);
+  assert.equal(again.ok, true);
+  assert.deepEqual(again.party, ['bubbles', 'tangerine'], 'no duplicate entry');
+
+  // You cannot equip a seal you have not caught.
+  const ghost = equipSeal(owned, 'frost', ['bigger_dock'], first.party);
+  assert.equal(ghost.ok, false);
+  assert.match(ghost.reason, /do not own/i);
+
+  // A non-array owned list is nobody owning anything.
+  assert.equal(equipSeal('nonsense', 'bubbles', [], []).ok, false);
 });

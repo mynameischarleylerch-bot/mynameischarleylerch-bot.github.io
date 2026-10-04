@@ -23,13 +23,13 @@ import {
  SEALS, LOST_ITEMS,
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
- addToBag, bagCap, BASE_BAG_CAP, UPGRADES, sealSlots, fishEntrySpec, bagWorth, bagEntryValue,
+ addToBag, bagCap, BASE_BAG_CAP, UPGRADES, sealSlots, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-U';
+} from './fishing.js?v=2026-10-04-V';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-U';
+} from './reel.js?v=2026-10-04-V';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -126,7 +126,10 @@ const state = {
   areaId: AREAS[0].id,  // the water you are standing in
   xp: 0,               // rank progress; levelFrom() turns this into a level
   ownedSeals: [],      // every seal bought, cheapest first
-  equippedSeal: null,  // the ONE of them sitting on the dock with you
+  equippedSeal: [],  // seal ids on the dock. A LIST now Bigger Dock exists; read it
+                     // through sealParty(), never directly -- a call site that does
+                     // `SEALS.find((x) => x.id === state.equippedSeal)` is the bug the
+                     // shim exists to prevent.
   lost: [],            // lost items recovered, newest last
   sealCoins: 0,        // the seal economy; sold finds are the ONLY way in
   giftedRods: [],      // rods handed over on arrival, so they cannot be farmed
@@ -170,10 +173,11 @@ function load() {
       ? saved.ownedSeals.filter((id) => SEALS.some((seal) => seal.id === id))
       : [];
     // Only honour an equipped seal we actually own, or the HUD would lie.
-    state.equippedSeal = state.ownedSeals.includes(saved.equippedSeal)
-      ? saved.equippedSeal
-      : null;
-
+    // Upgrades come BEFORE the dock on purpose. The dock repair asks sealSlots() how
+    // many animals fit, and that answer depends on the upgrades -- so repairing the
+    // dock first asks with a still-empty upgrade list, caps every save at one slot,
+    // and then quietly deletes the second seal the player had just been given the
+    // dock to hold.
     // Upgrades. Absent in every save written before the shop existed, and an id
     // that no longer exists is dropped -- a save naming a retired upgrade must not
     // credit its effect forever. De-duplicated, since buying one twice is refused
@@ -181,6 +185,13 @@ function load() {
     state.upgrades = Array.isArray(saved.upgrades)
       ? [...new Set(saved.upgrades.filter((id) => Boolean(UPGRADES[id])))]
       : [];
+
+    // The dock. A save from before Bigger Dock holds a single id or null; the dock is
+    // a list now. Both shapes are accepted, filtered to seals we actually own, and
+    // capped at the number of slots the upgrades grant -- otherwise a hand-edited save
+    // can put three animals on a one-slot dock.
+    state.equippedSeal = sealPartyOf(saved.equippedSeal, state.ownedSeals, state.upgrades);
+
 
     state.lost = Array.isArray(saved.lost)
       ? saved.lost.filter((id) => LOST_ITEMS.some((item) => item.id === id))
@@ -234,10 +245,26 @@ function load() {
     // is repaired IN MEMORY above. Without a rewrite here the repair would be
     // silently undone by the next save(), which writes state -- so the bad ids
     // would live in the save forever and only ever look fixed while that session ran.
+    //
+    // Same for the dock: a legacy `equippedSeal` of a bare id or null is repaired in
+    // memory to a list, and without a rewrite the next save() would write the OLD
+    // scalar shape straight back out.
+    //
+    // Comparing the NORMALISED savedDock against the repaired list is not enough:
+    // for a legacy save both come out as ['bubbles'], they compare equal, and the
+    // save is never rewritten -- leaving the scalar on disk for the next load to
+    // misread again. The shape itself has to be part of the test. That is the whole
+    // difference between normalising the value and normalising the file.
+    const dockWasList = Array.isArray(saved.equippedSeal);
+    const savedDock = saved.equippedSeal == null ? []
+      : (dockWasList ? saved.equippedSeal : [saved.equippedSeal]);
     if (Array.isArray(saved.creel)
+      || !dockWasList
       || (Array.isArray(saved.upgrades)
         && (saved.upgrades.length !== state.upgrades.length
-          || saved.upgrades.some((id, i) => id !== state.upgrades[i])))) {
+          || saved.upgrades.some((id, i) => id !== state.upgrades[i])))
+      || savedDock.length !== state.equippedSeal.length
+      || savedDock.some((id, i) => id !== state.equippedSeal[i])) {
       save();
     }
   } catch {
@@ -412,7 +439,7 @@ function paintBoosts() {
   if (!ui.boostList || !ui.boostTotal) return;
   const current = rod();
   const rank = levelFrom({ xp: state.xp }).level;
-  const seal = SEALS.find((item) => item.id === state.equippedSeal) ?? null;
+  const seal = primarySeal();
   const sky = state.sky ?? skyFor(state.areaId);
 
   const rows = [
@@ -619,7 +646,7 @@ function sealSays(line, ms = BUBBLE_MS) {
  */
 let chatter = 0;
 function sealChatter() {
-  const seal = SEALS.find((item) => item.id === state.equippedSeal) ?? null;
+  const seal = primarySeal();
   if (!seal) return;
   chatter += 1;
   sealSays(sealIdleLine(seal, { areaId: state.areaId, count: chatter }));
@@ -667,7 +694,7 @@ function clearNotices() {
 /** The seal on the dock, tinted per seal and hidden when there is none. */
 function paintPet() {
   if (!ui.pet) return;
-  const seal = SEALS.find((item) => item.id === state.equippedSeal) ?? null;
+  const seal = primarySeal();
   // Hide the WRAPPER, not the pet: parentNode is the fitted group, and the pet
   // is its own nearest 'g' ancestor, so closest('g') here returns the pet itself
   // and the wrapper -- the thing that is actually visible -- never changes.
@@ -1158,7 +1185,7 @@ function landFish() {
 
   // A duplicate is a second copy at the same hook, not a second entry in the
   // index — the index is what gates the next lake, and that must stay honest.
-  const seal = SEALS.find((item) => item.id === state.equippedSeal) ?? null;
+  const seal = primarySeal();
 
   // A duplicate is worth its own notice: it is the most surprising thing that
   // happens on a cast, and it used to share a line with everything else.
@@ -1532,7 +1559,7 @@ function renderSealShop() {
 
   for (const seal of SEALS) {
     const owned = state.ownedSeals.includes(seal.id);
-    const active = state.equippedSeal === seal.id;
+    const active = sealParty().includes(seal.id);
     const home = AREAS.find((a) => a.id === seal.home);
 
     // Ask the real rules whether this can be bought, rather than re-deciding here.
@@ -1571,9 +1598,11 @@ function renderSealShop() {
       button.textContent = active ? 'Equipped' : 'Equip';
       button.classList.toggle('is-active', active);
       button.addEventListener('click', () => {
-        const result = equipSeal(state.ownedSeals, seal.id);
+        const result = equipSeal(state.ownedSeals, seal.id, state.upgrades, sealParty());
         if (!result.ok) return say(result.reason);
-        state.equippedSeal = result.sealId;
+        // The whole decision was made in equipSeal: whether there is room, and what
+        // the dock becomes. Nothing here can quietly evict the seal already out.
+        state.equippedSeal = result.party;
         save(); renderSealShop(); paintChrome();
         sealChatter();   // the seal introduces itself, on the dock, unprompted
         say(`${seal.name} settles onto the dock beside you.`);
@@ -1589,7 +1618,10 @@ function renderSealShop() {
         if (!result.ok) return say(result.reason);
         state.sealCoins = result.coins;
         state.ownedSeals = [...state.ownedSeals, seal.id];
-        state.equippedSeal = seal.id;
+        // Bought seals arrive on the dock if there is room, and are simply kept in
+        // the bag if there is not -- buying a seal must never evict the one already
+        // out. equipSeal decides, so the rule is the same one the Equip button uses.
+        state.equippedSeal = equipSeal(state.ownedSeals, seal.id, state.upgrades, sealParty()).party;
         save(); renderSealShop(); paintChrome();
         sealChatter();
         say(`${seal.name} comes home with you.`);
@@ -1813,7 +1845,7 @@ function closeShop() {
  */
 function paintBond() {
   if (!ui.bondTimeline) return;
-  const seal = SEALS.find((s) => s.id === state.equippedSeal) ?? null;
+  const seal = primarySeal();
 
   ui.bondTimeline.textContent = '';
 
@@ -1909,6 +1941,22 @@ function closeBond() {
  * shows the exact ratio, so "(7/10)" rather than a bare count -- the player can see
  * the ceiling without opening anything, and can tell a full bag from a nine.
  */
+/**
+ * The seals on the dock, as a list, cleaned.
+ *
+ * Deliberately a two-line shim over the pure sealParty() rule in fishing.js rather
+ * than the whole filter spelled out here: the rule is where it can be tested without
+ * booting the game, and this is the only place that knows about `state`.
+ */
+function sealParty() {
+  return sealPartyOf(state.equippedSeal, state.ownedSeals, state.upgrades);
+}
+
+function primarySeal() {
+  const [id] = sealParty();
+  return SEALS.find((seal) => seal.id === id) ?? null;
+}
+
 function paintBagBadge(count, cap = BASE_BAG_CAP) {
   const badge = ui.bagCount;
   if (!badge) return;
@@ -2065,7 +2113,7 @@ function feedOneFish(at, fish, seal) {
 function paintBag() {
   if (!ui.bagList) return;
   const bag = Array.isArray(state.bag) ? state.bag : [];
-  const seal = SEALS.find((s) => s.id === state.equippedSeal) ?? null;
+  const seal = primarySeal();
 
   paintBagBadge(bag.length, bagCap(state.upgrades));
 
@@ -2273,7 +2321,7 @@ function frame(now) {
 
   if (state.phase === 'waiting' && now >= state.biteAt) {
     // Luck is rod + rank + equipped seal, so all three have a visible pull.
-  const sealNow = SEALS.find((item) => item.id === state.equippedSeal) ?? null;
+  const sealNow = primarySeal();
   // Weather counts toward luck. luckFromSky() was computed and then never
   // used, so every sky looked different and fished identically.
   const skyNow = state.sky ?? skyFor(state.areaId);

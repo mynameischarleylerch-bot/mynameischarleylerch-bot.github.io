@@ -2261,6 +2261,27 @@ export function sealSlots(owned = []) {
   return 1 + extra;
 }
 
+/**
+ * The seals on the dock, as a clean list.
+ *
+ * equippedSeal is a LIST now, because Bigger Dock lets a second seal out, but every
+ * save written before that holds a single id or null. All three shapes are accepted
+ * here rather than at each of the call sites, because the call site that reads
+ * state.equippedSeal directly is exactly the bug this exists to prevent.
+ *
+ * Three filters, all load-bearing:
+ *   - a SCALAR or null becomes a one-entry or empty list, so old saves still dock;
+ *   - a seal we do not own is dropped, or the HUD shows an animal never caught;
+ *   - the list is capped at the slots the dock grants, so a hand-edited save cannot
+ *     conjure a third animal on a one-slot dock.
+ */
+export function sealParty(raw, owned = [], upgrades = []) {
+  const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  const have = Array.isArray(owned) ? owned : [];
+  const slots = Math.max(1, sealSlots(upgrades));
+  return [...new Set(list.filter((id) => have.includes(id)))].slice(0, slots);
+}
+
 /** Every upgrade's luck, summed into one number for the roll. */
 export function upgradeLuck(owned = []) {
   return (Array.isArray(owned) ? owned : [])
@@ -2598,11 +2619,26 @@ export function buySeal(wallet, sealId, level = 1, progress = { bestiary: {}, ow
  * Only one seal is ever active, and re-equipping an owned seal is free — the
  * same rule rods follow, and for the same reason: buying access, not holding it.
  */
-export function equipSeal(owned, sealId) {
+/**
+ * Put one seal on the dock.
+ *
+ * Refuses a seal you do not own, and refuses when the dock is already full -- an
+ * explicit "there is no room" rather than silently replacing the animal already
+ * sitting there, which is what `state.equippedSeal = [sealId]` did. Upgrading the
+ * dock and then finding your seal gone would be the worst possible bug in this file.
+ *
+ * Idempotent: equipping a seal that is already out succeeds and changes nothing.
+ */
+export function equipSeal(owned, sealId, upgrades = [], onDock = []) {
   if (!Array.isArray(owned) || !owned.includes(sealId)) {
     return { ok: false, reason: 'You do not own that seal.' };
   }
-  return { ok: true, sealId, paid: 0 };
+  const party = sealParty(onDock, owned, upgrades);
+  if (party.includes(sealId)) return { ok: true, sealId, paid: 0, party };
+  if (party.length >= Math.max(1, sealSlots(upgrades))) {
+    return { ok: false, reason: 'There is no room on the dock for another seal.', party };
+  }
+  return { ok: true, sealId, paid: 0, party: [...party, sealId] };
 }
 
 /**
