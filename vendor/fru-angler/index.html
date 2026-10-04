@@ -148,18 +148,30 @@
     pointer-events: none;
   }
   .lake__boosts-title {
-    font-size: .66rem; font-weight: 800; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--ink-soft, #0e6ea8);
+    font-size: .68rem; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase;
+    /* This asked for var(--ink-soft, #0e6ea8), which never resolved to #0e6ea8:
+       --ink-soft IS defined, as #3d6b85, and measured 3.1:1 against the dimmest
+       the glass reaches. WCAG AA wants 4.5. The literal below is 7.9:1. */
+    color: #0d2c3d;
   }
   .lake__boost-list { display: grid; gap: .1rem; }
   .lake__boost {
     display: flex; align-items: baseline; gap: .4rem;
-    font-size: .74rem; line-height: 1.25; color: var(--ink, #013a63);
+    font-size: .76rem; line-height: 1.3;
+    /* Darker than the #013a63 fallback this used, which measured 6.4:1 against the
+       dimmest the panel glass reaches; this is 7.9:1. Deliberately a literal, not
+       var(--ink): --ink is also read by .seal__name and .seal__line in the shop,
+       and DEFINING it recoloured the seal shop last time. A variable is not a
+       local change. */
+    color: #0d2c3d;
   }
-  .lake__boost-name { opacity: .82; }
+  .lake__boost-name { opacity: .9; }
   /* A boost you do not have yet says so rather than disappearing: a missing row
      reads as a bug, a zero reads as "not earned yet". */
-  .lake__boost--none { opacity: .55; }
+  /* was .55 -- in the old pale ink an unearned boost was all but invisible, and that
+   is the row a player most wants to notice. */
+  .lake__boost--none { opacity: .72; }
   .lake__boost--none .lake__boost-value::after { content: ' \2014'; }
   .lake__boost-value {
     margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums;
@@ -168,8 +180,9 @@
   .lake__boost--none .lake__boost-value::before { content: ''; }
   .lake__boosts-total {
     margin-top: .15rem; padding-top: .2rem;
-    border-top: 1px solid rgba(1, 87, 155, .14);
-    font-size: .72rem; font-weight: 700; color: #1c5678;
+    border-top: 1px solid rgba(1, 87, 155, .24);
+    font-size: .75rem; font-weight: 800; letter-spacing: .02em;
+    color: #0d2c3d; /* was #1c5678: 4.3:1, just under AA */
   }
   .lake__boosts-total b { font-variant-numeric: tabular-nums; }
   .lake__sky {
@@ -1846,6 +1859,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-H"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-J"></script>
 </body>
 </html>

@@ -3620,3 +3620,102 @@ test('every seal has its own static particle motif, and it stays off the face', 
       + 'and middle -- they belong in the band over its back');
   }
 });
+
+test('the boost readout is top-right and legible, and changes nothing else', () => {
+  const page = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
+  // Strip comments first. A blanket regex over the raw CSS reads the prose inside a
+  // comment as if it were a declaration -- it reported "left: a fixed left would
+  // leave the panel drifting" as a real `left` offset.
+  const sheet = page.slice(page.indexOf('<style>'), page.indexOf('</style>'))
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  const rule = /\.lake__boosts\s*\{([^}]*)\}/.exec(sheet);
+  assert.ok(rule, '.lake__boosts must be styled');
+  const body = rule[1];
+
+  // --- position ---
+  assert.match(body, /position:\s*absolute/, 'the readout must be positioned absolutely');
+  assert.match(body, /(?<![-\w])right:\s*[\d.]+rem/, 'anchored to the RIGHT edge');
+  assert.match(body, /(?<![-\w])top:\s*[\d.]+rem/, 'and to the top');
+  assert.doesNotMatch(body, /(?<![-\w])left:\s*[\d.]+(?:rem|px|%)/,
+    'a `left` offset would fight the `right` anchor and pull it back across');
+  assert.match(body, /text-align:\s*right/, 'rows must align with the right anchor');
+  assert.match(body, /justify-items:\s*end/, 'the grid must place items at the end');
+
+  // Nothing may override it: one rule, no inline style, no media query, no !important.
+  const targeting = [...sheet.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+    .filter((m) => m[1].includes('lake__boosts') && /(^|[\s;])(position|top|right)\s*:/.test(m[2]));
+  assert.equal(targeting.length, 1,
+    `expected exactly one rule positioning the panel, found ${targeting.length}`);
+  const el = /<div class="lake__boosts"[^>]*>/.exec(page);
+  assert.ok(!el[0].includes('style='), 'the panel must carry no inline style');
+
+  // --- legibility, measured not eyeballed ---
+  const lum = (hex) => {
+    const h = hex.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+    const f = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const ratio = (a, b) => {
+    const la = lum(a); const lb = lum(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+  const over = (fg, bg, alpha) => {
+    const f = [0, 2, 4].map((i) => parseInt(fg.replace('#', '').slice(i, i + 2), 16));
+    const b = [0, 2, 4].map((i) => parseInt(bg.replace('#', '').slice(i, i + 2), 16));
+    return `#${f.map((v, i) => Math.round(v * alpha + b[i] * (1 - alpha))
+      .toString(16).padStart(2, '0')).join('')}`;
+  };
+  // The panel is 62% white over the lake; composite over the water gradient's own
+  // stops and require AAA, so it cannot drift back to a colour that merely looks
+  // fine against the lightest water.
+  const water = /<linearGradient id="fa-water"[^>]*>([\s\S]*?)<\/linearGradient>/.exec(page);
+  assert.ok(water, 'the lake water gradient must exist');
+  const stops = [...water[1].matchAll(/stop-color="(#\w{6})"/g)].map((m) => m[1]);
+  assert.ok(stops.length >= 3, `expected the water's stops, found ${stops.length}`);
+
+  for (const sel of ['lake__boost', 'lake__boosts-title', 'lake__boosts-total']) {
+    const r = new RegExp(`\\.${sel}\\s*\\{([^}]*)\\}`).exec(sheet);
+    assert.ok(r, `.${sel} must exist`);
+    // The LAST color declaration wins in CSS. Matching the first let a rule pass
+    // while a second, paler color was appended after it -- the browser renders that
+    // one and the panel looks unchanged. Take the final declaration only.
+    const cols = [...r[1].matchAll(/color:\s*([^;]+)/gi)].map((m) => m[1].trim());
+    const col = cols.length ? { 1: cols[cols.length - 1] } : null;
+    assert.ok(col && /^#[0-9a-f]{3,8}$/i.test(col[1]),
+      `.${sel} must END with a literal hex colour, not var(--ink-soft) or var(--ink): both `
+      + 'are shared with the rest of the UI, and --ink-soft resolves to a paler '
+      + 'colour than the rule assumes');
+    for (const w of stops) {
+      const panel = over('#ffffff', w, 0.62);
+      const cr = ratio(col[1].length === 4
+        ? `#${col[1][1]}${col[1][1]}${col[1][2]}${col[1][2]}${col[1][3]}${col[1][3]}`
+        : col[1], panel);
+      assert.ok(cr >= 7,
+        `.${sel} is ${col[1]} at ${cr.toFixed(2)}:1 against the panel over ${w} `
+        + `(${panel}) -- below the 7:1 this panel needs`);
+    }
+  }
+
+  // An unearned boost used to sit at opacity .55, which made it all but invisible --
+  // and it is the row a player most wants to notice.
+  const none = /\.lake__boost--none\s*\{[^}]*opacity:\s*([\d.]+)/.exec(sheet);
+  assert.ok(none, '.lake__boost--none must set an opacity');
+  assert.ok(parseFloat(none[1]) >= 0.7,
+    `an unearned boost sits at opacity ${none[1]}; it was .55`);
+
+  // --- THE REGRESSION THAT MATTERS MOST ---
+  // Defining --ink to recolour this panel also recoloured .seal__name and
+  // .seal__line in the seal shop, which read var(--ink, #013a63). That is what
+  // "everything broke" was. Nothing global may be defined on this panel's account.
+  assert.doesNotMatch(sheet, /--ink\s*:/,
+    '--ink must not be defined: .seal__name and .seal__line read var(--ink, #013a63), '
+    + 'so defining it recolours the seal shop as well. Panel colours stay literal.');
+  for (const sel of ['seal__name', 'seal__line']) {
+    const r = new RegExp(`\\.${sel}\\s*\\{([^}]*)\\}`).exec(sheet);
+    assert.ok(r && /color:\s*var\(--ink,\s*#013a63\)/.test(r[1]),
+      `.${sel} must keep its own fallback colour; the shop was recoloured by a change `
+      + 'made for the boost panel');
+  }
+});
