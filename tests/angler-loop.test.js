@@ -166,6 +166,34 @@ function reelUi(ctx) {
 
 const text = (ctx, id) => ctx.doc.getElementById(id).textContent;
 
+
+/**
+ * Every rod row the shop can show, across every lake tab.
+ *
+ * The shop used to be one flat list, so a test could count #shop-list .rod and
+ * expect the whole roster. It is grouped by lake now, one tab at a time, so a test
+ * that wants "every rod you do not own" has to visit the tabs. Walking them here
+ * keeps that in one place instead of five near-identical loops.
+ */
+function allShopRows(ctx) {
+  const tabs = [...ctx.doc.querySelectorAll('#shop-tabs .shop__tab')];
+  assert.ok(tabs.length > 0, 'the rod shop must have a tab per lake');
+  const rows = [];
+  for (const tab of tabs) {
+    tab.click();
+    rows.push(...[...ctx.doc.querySelectorAll('#shop-list .rod')]);
+  }
+  return rows;
+}
+
+/** The rows of one lake's tab, leaving that tab selected. */
+function shopRowsFor(ctx, lakeId) {
+  const tab = ctx.doc.querySelector(`#shop-tabs .shop__tab[data-lake="${lakeId}"]`);
+  assert.ok(tab, `no tab for lake ${lakeId}`);
+  tab.click();
+  return [...ctx.doc.querySelectorAll('#shop-list .rod')];
+}
+
 test('the game boots with a rod, a wallet and the idle hint', async () => {
   const ctx = await boot(1);
   assert.equal(text(ctx, 'rod'), 'Splinter');
@@ -275,9 +303,20 @@ test('the shop lists every rod and a purchase upgrades the equipped one', async 
   ctx.doc.getElementById('shop-open').click();
   assert.equal(ctx.doc.getElementById('shop-panel').hidden, false);
 
-  const buttons = [...ctx.doc.querySelectorAll('#shop-list .rod')];
+  // Grouped by lake now, so "every rod" means every tab. Nothing may go missing in
+  // the grouping, which is the thing worth guarding -- not the flat order.
+  const buttons = allShopRows(ctx);
   assert.equal(buttons.length, RODS_BY_PRICE.length - 1,
-    'the shop offers every rod you do not own');
+    'the shop offers every rod you do not own, across every lake tab');
+  // Cheapest-first still holds inside a group, which is the order the player reads.
+  for (const lake of ['aero-lake', 'doric-delta', 'eco-marsh', 'glacier-fjord', 'dark-aero-deep']) {
+    const rows = shopRowsFor(ctx, lake).map((r) => RODS[r.dataset.rod].price);
+    for (let i = 1; i < rows.length; i += 1) {
+      assert.ok(rows[i] > rows[i - 1],
+        `${lake}: ${rows[i]} must cost more than ${rows[i - 1]}`);
+    }
+  }
+  shopRowsFor(ctx, 'aero-lake');
 
   // The shop no longer lists the equipped rod, so nothing here says "equipped".
   assert.equal(buttons.some((b) => b.textContent.includes('equipped')), false,
@@ -420,7 +459,11 @@ test('the shop is for buying, and points at the inventory for owned rods', async
   ctx.doc.getElementById('shop-open').click();
   const headings = [...ctx.doc.querySelectorAll('#shop-list .shop__section')]
     .map((h) => h.textContent);
-  assert.match(headings[0], new RegExp(`For sale \\(${RODS_BY_PRICE.length - 1}\\)`),
+  // The heading names the LAKE, not the whole shop: the tab already says which lake
+  // is showing, and a bare total reads as if the shop only held seven rods.
+  const aero = RODS_BY_PRICE.filter((id) => (RODS[id].lake ?? 'aero-lake') === 'aero-lake')
+    .filter((id) => !['bamboo'].includes(id));
+  assert.match(headings[0], new RegExp(`Aero Lake \\(${aero.length}\\)`),
     `headings were ${JSON.stringify(headings)}`);
   assert.equal(shopRow(ctx, 'bamboo'), null, 'the rod you own is not sold to you again');
   assert.ok(shopRow(ctx, 'willow'), 'rods you do not own are listed');
@@ -1901,7 +1944,10 @@ test('the rod shop tells you a rod is locked, and why, before you click it', asy
   }, 218);
   ctx.doc.getElementById('shop-open').click();
 
-  const rows = [...ctx.doc.querySelectorAll('#shop-list .rod')];
+  // Grouped by lake, so this has to visit the tabs: a locked row can now be on any
+  // of them, and checking only the tab that happens to be open would let every
+  // other lake's gates go unguarded.
+  const rows = allShopRows(ctx);
   assert.ok(rows.length > 8, `the shop must list every rod, found ${rows.length}`);
 
   // At rank 1 in Aero Lake, nothing past the first few is buyable.
@@ -1914,8 +1960,9 @@ test('the rod shop tells you a rod is locked, and why, before you click it', asy
   }
 
   // And a traited rod must say which LAKE, not just "locked".
-  const glacier = rows.find((r) => r.dataset.rod === 'glacier');
-  assert.ok(glacier, 'the shop must list the Glacier Lance');
+  const glacier = shopRowsFor(ctx, 'glacier-fjord')
+    .find((r) => r.dataset.rod === 'glacier');
+  assert.ok(glacier, 'the Glacier Fjord tab must list the Glacier Lance');
   assert.match(glacier.querySelector('.rod__state').textContent, /Glacier Fjord/,
     'a traited rod must name the lake to buy it in');
 });
@@ -1936,13 +1983,15 @@ test('the shop unlocks a rod once you are in the right lake at the right rank', 
 
   ctx.doc.getElementById('shop-open').click();
   // DORFic Delta is the channel lake, so its first rod is the one to check.
-  const channel = [...ctx.doc.querySelectorAll('#shop-list .rod')].find((r) => r.dataset.rod === 'channel');
+  const channel = shopRowsFor(ctx, 'doric-delta')
+    .find((r) => r.dataset.rod === 'channel');
   assert.equal(channel.dataset.locked, 'false',
     `Straightwater must be buyable in DORFic Delta at a high rank, row says "${channel.querySelector('.rod__state').textContent}"`);
   assert.equal(channel.disabled, false, 'and must be clickable');
 
   // The Glacier Lance, whose lake is nowhere near here, stays locked.
-  const glacier = [...ctx.doc.querySelectorAll('#shop-list .rod')].find((r) => r.dataset.rod === 'glacier');
+  const glacier = shopRowsFor(ctx, 'glacier-fjord')
+    .find((r) => r.dataset.rod === 'glacier');
   assert.equal(glacier.dataset.locked, 'true', 'but an ice rod must not be');
   assert.match(glacier.querySelector('.rod__state').textContent, /Glacier Fjord/,
     'and must say which lake');
@@ -3728,4 +3777,91 @@ test('the boost readout is top-right and legible, and changes nothing else', () 
       `.${sel} must keep its own fallback colour; the shop was recoloured by a change `
       + 'made for the boost panel');
   }
+});
+
+test('the rod shop is grouped by lake, one tab per area', async () => {
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: null, lost: [], giftedRods: [], sealCoins: 0,
+  }, 240);
+  ctx.doc.getElementById('shop-open').click();
+
+  // One tab per lake, in AREAS order, labelled with the lake name.
+  const tabs = [...ctx.doc.querySelectorAll('#shop-tabs .shop__tab')];
+  assert.equal(tabs.length, AREAS.length,
+    `expected ${AREAS.length} tabs, found ${tabs.length}`);
+  assert.deepEqual(tabs.map((b) => b.dataset.lake), AREAS.map((a) => a.id),
+    'the tabs must be the lakes, in order');
+  for (const [i, tab] of tabs.entries()) {
+    assert.match(tab.textContent, new RegExp(AREAS[i].name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      `tab ${i} must be labelled with the lake name`);
+  }
+
+  // Exactly one is selected, and it is a real tablist state -- not just a class.
+  const selected = tabs.filter((b) => b.getAttribute('aria-selected') === 'true');
+  assert.equal(selected.length, 1, 'exactly one tab may be selected');
+  assert.equal(selected[0].dataset.lake, 'aero-lake', 'it opens on Aero Lake');
+  for (const tab of tabs) {
+    assert.equal(tab.getAttribute('role'), 'tab', 'tabs must carry role=tab');
+    assert.equal(tab.getAttribute('aria-controls'), 'shop-list',
+      'a tab must point at the panel it controls');
+  }
+  assert.equal(ctx.doc.getElementById('shop-list').getAttribute('role'), 'tabpanel',
+    'the list must be the tabpanel the tabs control');
+
+  // Each tab shows ONLY its own lake's rods, and every rod appears under exactly
+  // one tab. This is the property that makes the grouping worth having: a rod
+  // filed under the wrong lake, or shown on two tabs, breaks it.
+  const seen = new Map();
+  for (const area of AREAS) {
+    const rows = shopRowsFor(ctx, area.id);
+    for (const row of rows) {
+      const id = row.dataset.rod;
+      assert.equal(seen.has(id), false,
+        `${id} is listed under both ${seen.get(id)} and ${area.id}`);
+      seen.set(id, area.id);
+      assert.equal((RODS[id].lake ?? 'aero-lake'), area.id,
+        `${id} is on the ${area.name} tab but its lake is ${RODS[id].lake ?? 'aero-lake'}`);
+    }
+    // And the heading names the lake it is showing.
+    const head = ctx.doc.querySelector('#shop-list .shop__section');
+    assert.match(head.textContent, new RegExp(area.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      `the ${area.name} tab must be headed with the lake name, said "${head.textContent}"`);
+  }
+  assert.equal(seen.size, RODS_BY_PRICE.length - 1,
+    `every rod you do not own must appear on exactly one tab; saw ${seen.size} `
+    + `of ${RODS_BY_PRICE.length - 1}`);
+
+  // The selected tab is the only one marked selected, at every point in the walk.
+  const sel = [...ctx.doc.querySelectorAll('#shop-tabs .shop__tab[aria-selected="true"]')];
+  assert.equal(sel.length, 1, 'still exactly one selected tab after walking them');
+  assert.equal(sel[0].dataset.lake, 'dark-aero-deep', 'and it is the last one visited');
+
+  // The count on a tab is what is FOR SALE there -- not the lake's whole roster.
+  // Compared against the roster computed here, not against the rows the tab
+  // happened to render: comparing a count to its own output cannot fail.
+  const forSaleIn = (lakeId) => RODS_BY_PRICE
+    .filter((id) => (RODS[id].lake ?? 'aero-lake') === lakeId)
+    .filter((id) => id !== 'bamboo');
+  for (const area of AREAS) {
+    const tab = ctx.doc.querySelector(`#shop-tabs .shop__tab[data-lake="${area.id}"]`);
+    const shown = Number(tab.querySelector('.shop__tab-count').textContent);
+    assert.equal(shown, forSaleIn(area.id).length,
+      `the ${area.name} tab says ${shown}, but ${forSaleIn(area.id).length} of its `
+      + 'rods are for sale');
+    assert.ok(shown < area.requiredRods.length || area.requiredRods.length === 0 || shown <= 10,
+      'the count is the for-sale number, not the roster');
+  }
+
+  // And the tab count is still right after a purchase removes a row.
+  const rich = await boot(241, 0);
+  rich.doc.getElementById('shop-open').click();
+  const willow = shopRowsFor(rich, 'aero-lake').find((r) => r.dataset.rod === 'willow');
+  const before = Number(rich.doc.querySelector('#shop-tabs .shop__tab[data-lake="aero-lake"]')
+    .querySelector('.shop__tab-count').textContent);
+  willow.click();
+  const after = Number(rich.doc.querySelector('#shop-tabs .shop__tab[data-lake="aero-lake"]')
+    .querySelector('.shop__tab-count').textContent);
+  assert.equal(after, before - 1,
+    `buying a rod must drop its lake's count by one (${before} -> ${after})`);
 });

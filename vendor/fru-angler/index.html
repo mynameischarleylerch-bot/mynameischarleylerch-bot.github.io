@@ -607,6 +607,37 @@
   .species__none{
     font-size: .8rem; color: var(--ink-soft); font-style: italic;
   }
+  /* Rod shop tabs: one per lake. A plain pill strip that wraps, because a phone
+     at 320px cannot fit five labels on one line and a tab you cannot reach is
+     worse than a scroll. aria-selected drives the filled state from CSS, so the
+     look cannot drift from the accessibility state. */
+  .shop__tabs {
+    display: flex; flex-wrap: wrap; gap: .3rem; margin: .1rem 0 .6rem;
+    border-bottom: 1px solid var(--hairline); padding-bottom: .5rem;
+  }
+  .shop__tab {
+    font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer;
+    padding: .34rem .6rem; border-radius: var(--pill);
+    border: 1px solid var(--hairline); color: var(--ink-soft, #3d6b85);
+    background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.62));
+    box-shadow: inset 0 1px 0 #fff;
+  }
+  .shop__tab:hover { border-color: rgba(1, 87, 155, .38); }
+  .shop__tab:focus-visible { outline: 2px solid #0288d1; outline-offset: 2px; }
+  .shop__tab[aria-selected="true"] {
+    color: #fff; border-color: transparent;
+    background: linear-gradient(180deg, #4fb3ee, #1c7fc4);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 1px 3px rgba(1,87,155,.3);
+  }
+  .shop__tab-count {
+    margin-left: .3rem; font-size: .68rem; font-weight: 800;
+    font-variant-numeric: tabular-nums; opacity: .8;
+  }
+  .shop__tab[aria-selected="true"] .shop__tab-count { opacity: .95; }
+  /* The heading inside a tab is the lake name; keep it small so it does not read
+     as a second, competing title under the tab already saying the same thing. */
+  .shop__list .shop__section--lake { font-size: .8rem; }
+
   .shop__section {
     margin: .7rem 0 .3rem; font-size: .72rem; font-weight: 700;
     letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft);
@@ -1830,7 +1861,11 @@
         <div class="shop__panel" role="dialog" aria-modal="true" aria-labelledby="shop-title">
           <h2 class="shop__title" id="shop-title">Rods</h2>
           <p class="shop__wallet">You have <b id="shop-coins">¤0</b></p>
-          <div class="shop__list" id="shop-list"></div>
+          <!-- One tab per lake. renderShop() groups the rods by the `lake` field
+               and shows one group at a time; Aero Lake is the tab with no trait
+               and holds the eight ordinary rods. -->
+          <div class="shop__tabs" id="shop-tabs" role="tablist" aria-label="Rods by lake"></div>
+          <div class="shop__list" id="shop-list" role="tabpanel" aria-labelledby="shop-tabs"></div>
           <p style="margin:.9rem 0 0"><button class="btn" id="shop-close" type="button">Close</button></p>
         </div>
       </div>
@@ -1874,6 +1909,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-M"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-N"></script>
 </body>
 </html>

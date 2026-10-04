@@ -26,10 +26,10 @@ import {
  addToBag, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-M';
+} from './fishing.js?v=2026-10-04-N';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-M';
+} from './reel.js?v=2026-10-04-N';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -61,6 +61,7 @@ const ui = {
   catchArt: el('catch-art'), catchWeight: el('catch-weight'), catchWorth: el('catch-worth'),
   catchMutation: el('catch-mutation'),
   shopPanel: el('shop-panel'), shopList: el('shop-list'), shopCoins: el('shop-coins'),
+  shopTabs: el('shop-tabs'),
   shopOpen: el('shop-open'), shopClose: el('shop-close'),
   // The inventory: rods and the bestiary. Historically called "a bag".
   inventory: el('inventory-panel'), inventoryRods: el('inventory-rods'),
@@ -109,6 +110,7 @@ const ui = {
 const state = {
   phase: 'idle',        // idle | casting | waiting | reeling | result
   rodId: 'bamboo',
+  shopLake: 'aero-lake', // which lake's rods the shop shows
   owned: startingInventory(),   // everything bought so far; rodId is one of these
   coins: 0,
   meter: 0,
@@ -127,7 +129,8 @@ const state = {
   lost: [],            // lost items recovered, newest last
   sealCoins: 0,        // the seal economy; sold finds are the ONLY way in
   giftedRods: [],      // rods handed over on arrival, so they cannot be farmed
-  bag: [],           // landed fish, unsold. They are worth nothing until you act.
+  bag: [],           // landed fish, unsold. They are worth nothing until you act.
+
   duplicates: 0,        // seal copies handed over, all time
   bond: {},            // sealId -> how many fish it has been fed
 };
@@ -1648,17 +1651,79 @@ function closeIndex() {
   ui.indexPanel.hidden = true;
 }
 
+/** Rods grouped by the lake they belong to, in the order the lakes appear. */
+function rodLakes() {
+  // A rod with no `lake` is an Aero Lake rod: the eight ordinary ones, which carry
+  // no trait. AREAS is the source of order, so a new lake gets a tab for free.
+  return AREAS.map((area) => ({
+    id: area.id,
+    name: area.name,
+    rods: RODS_BY_PRICE.filter((id) => (RODS[id].lake ?? 'aero-lake') === area.id),
+  }));
+}
+
+/** Draw the lake tabs, and show the group the player last looked at. */
+function renderShopTabs() {
+  if (!ui.shopTabs) return;
+  const lakes = rodLakes();
+  const forSale = (lake) => lake.rods.filter((id) => !ownsRod(state.owned, id));
+
+  // Keep the chosen tab if it still exists; otherwise fall back to the first lake
+  // that still has something to sell, so opening the shop never lands on an
+  // empty list when another tab has rods in it.
+  if (!lakes.some((l) => l.id === state.shopLake)) {
+    state.shopLake = (lakes.find((l) => forSale(l).length > 0) ?? lakes[0]).id;
+  }
+
+  ui.shopTabs.textContent = '';
+  for (const lake of lakes) {
+    const n = forSale(lake).length;
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'shop__tab';
+    tab.id = `shop-tab-${lake.id}`;
+    tab.dataset.lake = lake.id;
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', String(lake.id === state.shopLake));
+    tab.setAttribute('aria-controls', 'shop-list');
+    tab.append(lake.name);
+    const count = document.createElement('span');
+    count.className = 'shop__tab-count';
+    count.textContent = String(n);
+    tab.appendChild(count);
+    tab.addEventListener('click', () => {
+      if (state.shopLake === lake.id) return;
+      state.shopLake = lake.id;
+      renderShop();
+    });
+    ui.shopTabs.appendChild(tab);
+  }
+}
+
 function renderShop() {
   ui.shopCoins.textContent = state.coins;
   ui.shopList.textContent = '';
+  renderShopTabs();
 
-  const forSale = RODS_BY_PRICE.filter((id) => !ownsRod(state.owned, id));
-  ui.shopList.appendChild(makeHeading(`For sale (${forSale.length})`));
+  const lakes = rodLakes();
+  const shown = lakes.find((l) => l.id === state.shopLake) ?? lakes[0];
+  const forSale = shown.rods.filter((id) => !ownsRod(state.owned, id));
+
+  // The heading names the lake, because the tab already does and a bare count
+  // reads as if it were the whole shop.
+  const head = makeHeading(`${shown.name} (${forSale.length})`);
+  head.classList.add('shop__section--lake');
+  ui.shopList.appendChild(head);
 
   if (forSale.length === 0) {
     const done = document.createElement('p');
     done.className = 'shop__owned-all';
-    done.textContent = 'You own every rod. Open your inventory to pick one.';
+    // Only claim the whole shop is finished if every lake is. Otherwise it is
+    // just this one, and saying otherwise reads as a bug.
+    const everyLake = lakes.every((l) => l.rods.every((id) => ownsRod(state.owned, id)));
+    done.textContent = everyLake
+      ? 'You own every rod. Open your inventory to pick one.'
+      : `You own every ${shown.name} rod. Try another lake.`;
     ui.shopList.appendChild(done);
     return;
   }
