@@ -4111,3 +4111,72 @@ test('every bag badge call site passes the live cap', () => {
       + `denominator after an upgrade: ${call}`);
   }
 });
+
+test('landing on a full bag keeps the catch and drops the fish, naming it', async () => {
+  const fish = (id, kg) => ({ fishId: id, weight: kg, mutation: null, multiplier: 1 });
+  const full = Array.from({ length: 10 }, () => fish('glidefin', 1));
+  const base = {
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    bag: full,
+  };
+
+  const ctx = await seedSave(base, 9730);
+  const badge = () => ctx.doc.getElementById('bag-count');
+  // The container is #notify, not #notices -- ui.notify = el('notify'). A wrong id
+  // here reads as "no notice was shown", which is the most misleading way for this
+  // test to fail, because the notice really was on screen the whole time.
+  const notices = () => [...ctx.doc.querySelectorAll('#notify .notice')]
+    .map((n) => n.textContent).join(' | ');
+
+  assert.equal(badge().textContent, '(10/10)', 'the bag starts full and says so');
+  assert.ok(badge().classList.contains('is-full'), 'and is marked full');
+
+  const xpAt = () => Number(ctx.doc.getElementById('level-progress').dataset.xp ?? 0);
+  const xpBefore = xpAt();
+
+  await landOne(ctx, 9730);
+  const name = ctx.doc.querySelector('.catch__name')?.textContent?.trim();
+  assert.ok(name, 'a fish was landed, so the catch card names it');
+
+  // The fish is gone...
+  assert.equal(badge().textContent, '(10/10)',
+    'a full bag must still be full -- the fish did not get in');
+  const saved = JSON.parse(ctx.win.localStorage.getItem('fru-angler-save'));
+  assert.equal(saved.bag.length, 10, 'and the save really holds ten fish, not eleven');
+
+  // ...but the catch still counted, which is the whole point.
+  assert.ok(xpAt() > xpBefore,
+    `a fish that did not fit must still pay its xp (${xpBefore} -> ${xpAt()})`);
+  assert.ok(Object.keys(saved.bestiary).length > 0,
+    'and must still be recorded in the bestiary');
+
+  // And the player is told which fish they lost, rather than watching the bag sit
+  // there full with no explanation.
+  assert.match(notices(), /bag is full/i,
+    `the full bag must be announced; notices were: ${notices()}`);
+  assert.match(notices(), new RegExp(name.split(' ')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+    `and the notice must name the fish; notices were: ${notices()}`);
+});
+
+test('an old save holding more fish than the cap is kept whole, never truncated', async () => {
+  // Deliberately NOT trimmed. The bag is somewhere to keep fish, and silently
+  // deleting a dozen fish out of someone's save is far worse than letting them sell
+  // down. The cap governs what NEW fish may join, not what already exists.
+  const fish = () => ({ fishId: 'glidefin', weight: 1, mutation: null, multiplier: 1 });
+  const over = Array.from({ length: 14 }, () => fish());
+
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    bag: over,
+  }, 9731);
+
+  const saved = JSON.parse(ctx.win.localStorage.getItem('fru-angler-save'));
+  assert.equal(saved.bag.length, 14,
+    'every fish in an over-cap save must survive the load -- nothing may be deleted');
+  assert.equal(ctx.doc.getElementById('bag-count').textContent, '(14/10)',
+    'and the badge reports the truth: fourteen in a bag that holds ten');
+  assert.ok(ctx.doc.getElementById('bag-count').classList.contains('is-full'),
+    'an over-cap bag is certainly full');
+});

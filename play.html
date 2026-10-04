@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aero Arcade — loading</title>
-<link rel="stylesheet" href="./styles.css?v=2026-10-04-T">
+<link rel="stylesheet" href="./styles.css?v=2026-10-04-U">
 <!-- The tab icon. This was href="data:,", an empty placeholder that renders
      nothing, so the browser tab was blank. -->
-<link rel="icon" type="image/svg+xml" href="./assets/icon.svg?v=2026-10-04-T">
-<link rel="apple-touch-icon" href="./assets/icon.svg?v=2026-10-04-T">
+<link rel="icon" type="image/svg+xml" href="./assets/icon.svg?v=2026-10-04-U">
+<link rel="apple-touch-icon" href="./assets/icon.svg?v=2026-10-04-U">
 </head>
 <body class="player-page">
 <div class="backdrop" aria-hidden="true"></div>
@@ -34,7 +34,7 @@
   <div class="msn" data-msn data-open="false">
     <button class="msn__toggle" type="button" data-msn-toggle aria-expanded="false">
       <span class="msn__face-wrap">
-        <img class="msn__face" data-msn-face src="./assets/avatars/avatar-01.svg?v=2026-10-04-T" alt="" width="36" height="36">
+        <img class="msn__face" data-msn-face src="./assets/avatars/avatar-01.svg?v=2026-10-04-U" alt="" width="36" height="36">
         <span class="msn__dot" data-msn-dot></span>
       </span>
       <span class="msn__text">
@@ -60,17 +60,17 @@
 <p class="hint">Press <kbd>Esc</kbd> to go back. Fullscreen is the way to play.</p>
 </div>
 <script type="module">
-  import { initPlayer } from './src/play.js?v=2026-10-04-T';
-  import { gameSlugFromSearch } from './src/router.js?v=2026-10-04-T';
+  import { initPlayer } from './src/play.js?v=2026-10-04-U';
+  import { gameSlugFromSearch } from './src/router.js?v=2026-10-04-U';
 
   const slug = gameSlugFromSearch(window.location.search);
-  const response = await fetch('./games.config.json?v=2026-10-04-T');
+  const response = await fetch('./games.config.json?v=2026-10-04-U');
   const config = await response.json();
   initPlayer({ window, config, slug });
 </script>
 <script type="module">
-  import { initThemeButton } from './src/theme-ui.js?v=2026-10-04-T';
-  import { initAvatar } from './src/avatar-ui.js?v=2026-10-04-T';
+  import { initThemeButton } from './src/theme-ui.js?v=2026-10-04-U';
+  import { initAvatar } from './src/avatar-ui.js?v=2026-10-04-U';
   initThemeButton(window);
   initAvatar(document);
 </script>
