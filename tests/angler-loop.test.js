@@ -3159,6 +3159,26 @@ test('the seal on the dock is tinted by its own lightness too', () => {
     'the deep gradient stop must be interpolated from the computed lightness');
   // Plain substring: a regex here has to survive the template literal's own
   // punctuation, and `\$\{deep\}` sits after a backtick that `[^\`]*` cannot cross.
-  assert.ok(body.includes('Math.round((seal.light'),
-    'and `deep` must be derived from seal.light, so the stop is not a fixed depth');
+  assert.ok(body.includes('Math.round(light * 0.62)'),
+    'and `deep` must be derived from the seal lightness, so the stop is not a fixed depth');
+  // `light` must READ the seal. Asserting only that the two stops use it lets a
+  // `const light = 62` pass: every stop is then derived, from a constant.
+  assert.ok(body.includes('const light = seal.light'),
+    '`light` must come from the seal, or both stops are derived from a constant');
+  // BOTH stops, not just the deep one. The mid stop was left at a fixed 74% for
+  // several passes, so the dock painted every seal the same lightness and only
+  // the hue varied -- Abyss, from the black deep, came out as light as Bubbles.
+  // The shop portrait read the lightness; the dock did not, and the two surfaces
+  // disagreed about what colour a seal is.
+  assert.ok(body.includes('Math.min(92, light + 18)'),
+    'the mid stop must be derived from the seal lightness too');
+  const midStop = /stops\[1\][^\n]*\$\{mid\}/.test(body);
+  assert.ok(midStop,
+    'and the mid gradient stop must be interpolated from it');
+  assert.doesNotMatch(body, /82% 74%/, 
+    'no stop may sit at a fixed 74% lightness -- that is what made the dock');
+  // And the gradient must still be lit from above: mid above deep, both below
+  // the white top stop, or it reads as flat rather than glossy.
+  assert.match(body, /Math\.min\(92, light \+ 18\)/,
+    'mid must stay above deep');
 });

@@ -26,10 +26,10 @@ import {
  addToBag, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-z';
+} from './fishing.js?v=2026-10-04-A';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-z';
+} from './reel.js?v=2026-10-04-A';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -655,12 +655,20 @@ function paintPet() {
   if (!seal) { sealSays(''); return; }
   fitPet();
   const stops = ui.pet.querySelectorAll('stop');
-  // The body's deep stop takes the seal's own lightness, so a pale glacier
-  // seal and the black deep seal differ ON the dock as well as in the shop
-  // list. The light stop stays high-key: the lit-from-above gloss is the Aero
-  // finish and is shared by every seal, so tinting it would wash them out.
-  const deep = Math.round((seal.light ?? 62) * 0.62);
-  if (stops[1]) stops[1].setAttribute('stop-color', `hsl(${seal.hue} 82% 74%)`);
+  // BOTH body stops carry the seal's lightness, not just the deep one.
+  // The mid stop used to be a fixed 74%, so on the dock every seal was painted
+  // the same lightness and only its hue varied -- which made Abyss, the seal
+  // from the black deep, look exactly as light as Bubbles from Aero Lake. The
+  // shop portrait already read --seal-light; the dock did not, so the two
+  // surfaces disagreed about what colour a seal is.
+  //
+  // Mid sits ABOVE deep by construction, so the gradient still reads as lit from
+  // above; the top stop stays white because that highlight is the shared Aero
+  // sheen rather than the seal's colour.
+  const light = seal.light ?? 62;
+  const mid = Math.min(92, light + 18);
+  const deep = Math.round(light * 0.62);
+  if (stops[1]) stops[1].setAttribute('stop-color', `hsl(${seal.hue} 82% ${mid}%)`);
   if (stops[2]) stops[2].setAttribute('stop-color', `hsl(${seal.hue} 62% ${deep}%)`);
 }
 
