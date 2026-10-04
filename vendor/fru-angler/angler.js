@@ -798,10 +798,20 @@ function fitPet() {
   // coordinates and stays assertable.
   const PET_Y = 8.2;
   // The seal is longer now, so its centre moved to x=13.
-  // The :3 glyph -- colon plus numeral -- is centred at x=20.4 in its own
-  // coordinates. The counter-scale turns about this point, so it must track any
-  // redraw of the glyph.
-  const FACE_X = 20.4;
+  //
+  // FACE_X must be 13 -- the SEAL's own anchor, not the glyph's centre. That is
+  // what makes the two corrections cancel exactly: the outer squeeze scales x by
+  // s about 13, and this scales it back by 1/s about the same point, so together
+  // they are a pure translation and the face never moves relative to the body,
+  // whatever shape the lake is.
+  //
+  // Anchored anywhere else the two do NOT cancel, and the face slides by
+  // (1 - s) * (13 - FACE_X) -- about 2 units on a wide desktop, and changing as
+  // the window changes shape. It was 20.4 for several passes, which is the
+  // UPRIGHT glyph's centre rather than even the turned one: a 1.45-unit error
+  // before any window was considered, and the reason a face that fitted the
+  // markup hung off the animal's shoulder.
+  const FACE_X = 13;
   group.setAttribute('transform',
     `translate(13 0) scale(${scale.toFixed(4)} 1) translate(-13 0) translate(0 ${PET_Y})`);
 

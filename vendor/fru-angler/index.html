@@ -1398,8 +1398,34 @@
                  the reference: its colon's two dots sit 0.15 degrees off horizontal,
                  which can only be a quarter turn, and rotating it 90 degrees
                  counter-clockwise restores an upright ":3". An earlier -12 was a
-                 guess, made without being able to see the picture, and was wrong. -->
-            <g id="pet-tilt" transform="rotate(90 20.5 39.5)">
+                 guess, made without being able to see the picture, and was wrong.
+
+                 The pivot is (17.714, 38.186) and the glyph is scaled to 30% about
+                 its own centre (20.5275, 40.75) -- the scale goes FIRST in the list, so
+                 it is applied before the rotation, which is what "about its own centre"
+                 has to mean.
+
+                 THE FACE IS SMALL ON PURPOSE, and the reason is the squeeze. The body is
+                 drawn round, but the scene uses preserveAspectRatio="none", so fitPet()
+                 then SQUEEZES the seal's x by lake.height/lake.width -- about 0.47 on a
+                 1920x1080 desktop. The face carries the INVERSE correction so it keeps the
+                 size it was drawn at. The body therefore gets NARROWER as the window gets
+                 wider and the face does not, and a glyph sized for the unsqueezed drawing
+                 hangs out past the curved shoulder: at 85% the turned face reached x=24.6
+                 on screen, which is where it crossed the outline.
+
+                 At 30% the nearest approach is 1.62 units of clear INK -- half the stroke
+                 counted, not just the centreline -- at every aspect a real window produces,
+                 from a wide desktop to a tall portrait one, and the face still sits 2.25
+                 units right of the body's middle so it looks at the angler rather than out
+                 to sea. Below s=0.44, an unusually wide AND short window, the margin
+                 narrows to about 0.7 -- still inside the body, but not by much.
+
+                 FACE_X in fitPet() is 13 -- the SEAL's centre, not the glyph's -- which is
+                 what makes the two corrections cancel and the face stop drifting as the
+                 window reshapes. See the tests at the foot of angler-look.test.js. -->
+            <g id="pet-tilt"
+               transform="rotate(90 17.714 38.186) translate(20.5275 40.75) scale(0.3) translate(-20.5275 -40.75)">
             <!-- the colon -->
             <g id="pet-colon">
               <circle cx="18.2" cy="39.2" r=".72" fill="#12212e"/>

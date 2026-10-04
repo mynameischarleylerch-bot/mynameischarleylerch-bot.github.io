@@ -2925,22 +2925,22 @@ test('the face is pre-compensated for the counter-scale, or it cannot be seen', 
   assert.ok(faceFix.includes('translate(${-FACE_X} 0)'),
     'and translate back from that same centre');
 
-  // And FACE_X must BE the face's centre. Reading the literal instead of the
-  // name: pointing it at the body's centre -- x=12.9 -- scales the face about
-  // the wrong point, which slides it sideways by the error on every lake, and
-  // no other assertion here would notice.
-  // The whole GLYPH's centre -- the colon plus the numeral, from the bounding
-  // box. Averaging the 3's path coordinates gave 22.5, because the two rightward
-  // bulges carry far more coordinate pairs than the two short returns to the
-  // left. The anchor has to centre what is actually on screen.
-  const threeD = face.match(/id="pet-three"\s+d="([^"]+)"/)[1];
-  const mx = [...face.matchAll(/<circle[^>]*cx="([\d.]+)"[^>]*r="([\d.]+)"/g)]
-    .flatMap((m) => [Number(m[1]) - Number(m[2]), Number(m[1]) + Number(m[2])])
-    .concat([...threeD.matchAll(/(-?\d+\.?\d*)[ ,](-?\d+\.?\d*)/g)].map((m) => Number(m[1])));
-  const faceCentre = (Math.min(...mx) + Math.max(...mx)) / 2;
+  // And FACE_X must be the PET'S OWN anchor -- the same x the outer counter-
+  // squeeze turns about -- not the face's centre.
+  //
+  // This asserted the opposite for several passes and was wrong. The outer
+  // squeeze scales x by s about PET_X and the face correction scales it back by
+  // 1/s about FACE_X; the two cancel exactly only when the two agree. Anchored
+  // on the face instead, the face slides by (1 - s) * (PET_X - FACE_X) -- and it
+  // was carrying the UPRIGHT glyph's centre (20.4), not even the turned one, so
+  // the error existed before any window was considered. That drift is what put
+  // the :3 off the seal's shoulder.
   const declared = Number(/const FACE_X = ([\d.]+);/.exec(body)[1]);
-  assert.ok(Math.abs(declared - faceCentre) < 0.2,
-    `FACE_X is ${declared} but the face is centred at ${faceCentre.toFixed(2)}`);
+  const petAnchor = Number(/translate\((\d+(?:\.\d+)?) 0\) scale/.exec(body)[1]);
+  assert.equal(declared, petAnchor,
+    `FACE_X is ${declared} but the pet's counter-squeeze turns about ${petAnchor}; `
+    + 'the two only cancel when they share an anchor, or the face slides by '
+    + '(1 - s) * (petAnchor - FACE_X) as the window changes shape.');
 });
 
 test('the :3 glyph is tilted, and the body is not', () => {
@@ -2954,7 +2954,10 @@ test('the :3 glyph is tilted, and the body is not', () => {
   const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
 
   // A nested group carries the tilt.
-  assert.match(html, /<g id="pet-face">[\s\S]{0,900}?<g id="pet-tilt" transform="rotate\(-?[\d.]+ [\d.]+ [\d.]+\)"/,
+  // The comment above #pet-tilt is long and keeps growing, so a fixed character
+  // window between the two tags is a landmine: enlarge it and this passes, shrink
+  // the comment and it fails for no reason at all. Match the SHAPE instead.
+  assert.match(html, /<g id="pet-face">[\s\S]*?<g id="pet-tilt"[\s\S]*?transform="rotate\(-?[\d.]+ [\d.]+ [\d.]+\)/,
     'the tilt must be a nested group inside the face, not on the face itself');
 
   const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
@@ -2967,7 +2970,7 @@ test('the :3 glyph is tilted, and the body is not', () => {
     'the counter-scale still lands on the face');
 
   // The angle is a stated choice, not an accident: it must be non-zero and named.
-  const tilt = /id="pet-tilt" transform="rotate\((-?[\d.]+) /.exec(html);
+  const tilt = /id="pet-tilt"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) /.exec(html);
   assert.ok(tilt, 'the tilt must declare an angle');
   // EXACTLY 90 degrees clockwise. Measured from the reference image: the colon's
   // two dots sit 0.15 degrees off horizontal, which can only be a quarter turn,
@@ -2978,7 +2981,7 @@ test('the :3 glyph is tilted, and the body is not', () => {
     'the glyph is a quarter turn clockwise, got ' + tilt[1] + 'deg');
 
   // Rotated about the glyph's own centre, or it swings off the seal.
-  const pivot = /id="pet-tilt" transform="rotate\(-?[\d.]+ ([\d.]+) ([\d.]+)\)/.exec(html);
+  const pivot = /id="pet-tilt"[\s\S]{0,200}?transform="rotate\(-?[\d.]+ ([\d.]+) ([\d.]+)\)/.exec(html);
   assert.ok(Number(pivot[1]) > 14 && Number(pivot[1]) < 25,
     'pivot must sit on the glyph, got x=' + pivot[1]);
 
@@ -2997,7 +3000,7 @@ test('the rotated glyph still fits on the seal and clears the angler', () => {
   // (x, y) -> (cx - (y - cy), cy + (x - cx)) about the pivot.
   const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
   const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
-  const tilt = /id="pet-tilt" transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
+  const tilt = /id="pet-tilt"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
   assert.ok(tilt, 'the tilt must declare an angle and a pivot');
   const angle = Number(tilt[1]);
   const cx = Number(tilt[2]);
@@ -3045,7 +3048,7 @@ test('the turned glyph is compact, and sits on the RIGHT so it looks at the dock
   // instead, so the turn lands on a compact glyph.
   const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
   const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
-  const tilt = /id="pet-tilt" transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
+  const tilt = /id="pet-tilt"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
   const angle = Number(tilt[1]);
   const cx = Number(tilt[2]), cy = Number(tilt[3]);
   assert.equal(angle, 90, 'still a quarter turn');

@@ -1418,3 +1418,484 @@ test('the whole face reads :3 compactly, sitting on the seal', () => {
   assert.ok(faceW < bodyW * 0.55,
     'the :3 must be compact, it spans ' + faceW.toFixed(1) + ' of a ' + bodyW.toFixed(1) + ' body');
 });
+
+/**
+ * The :3 as the browser will actually draw it: the glyph's own geometry pushed
+ * through the #pet-tilt transform, so it can be measured against the body.
+ *
+ * Everything here is read out of the markup. Hardcoding the pivot would let the
+ * drawing and the test drift apart, which is how the original 0.8-unit overlap
+ * survived a suite full of seal assertions -- every earlier test read the glyph's
+ * UNROTATED coordinates, and the rotation is what pushed it off the shoulder.
+ */
+
+/** A transform list as a 2x3 matrix, applied left to right as SVG does. */
+function mat(list) {
+  let m = [1, 0, 0, 1, 0, 0];                       // a b c d e f
+  const mul = (p, q) => [
+    p[0] * q[0] + p[2] * q[1],
+    p[1] * q[0] + p[3] * q[1],
+    p[0] * q[2] + p[2] * q[3],
+    p[1] * q[2] + p[3] * q[3],
+    p[0] * q[4] + p[2] * q[5] + p[4],
+    p[1] * q[4] + p[3] * q[5] + p[5],
+  ];
+  for (const [op, args] of list) {
+    const n = args.map(Number);
+    if (op === 'rotate') {
+      const t = (n[0] * Math.PI) / 180;
+      const c = Math.cos(t), s = Math.sin(t);
+      // rotate(a cx cy) is translate(cx cy) rotate(a) translate(-cx -cy).
+      m = mul(m, mul([1, 0, 0, 1, n[1] ?? 0, n[2] ?? 0],
+        mul([c, s, -s, c, 0, 0], [1, 0, 0, 1, -(n[1] ?? 0), -(n[2] ?? 0)])));
+    } else if (op === 'translate') {
+      m = mul(m, [1, 0, 0, 1, n[0], n[1] ?? 0]);
+    } else if (op === 'scale') {
+      m = mul(m, [n[0], 0, 0, n[1] ?? n[0], 0, 0]);
+    } else {
+      throw new Error('unhandled transform: ' + op);
+    }
+  }
+  return m;
+}
+
+/** The #pet-tilt transform, parsed from the markup. */
+function faceMatrix() {
+  const t = PAGE.match(/id="pet-tilt"\s+transform="([^"]+)"/);
+  assert.ok(t, '#pet-tilt must carry the tilt transform');
+  const list = [...t[1].matchAll(/([a-z]+)\(([^)]*)\)/g)]
+    .map((m) => [m[1], m[2].split(/[\s,]+/).filter(Boolean)]);
+  return mat(list);
+}
+
+const place = (m, p) => [
+  m[0] * p[0] + m[2] * p[1] + m[4],
+  m[1] * p[0] + m[3] * p[1] + m[5],
+];
+
+/**
+ * Flatten an M/C path to points. Only what these two paths use: an M and a run of
+ * cubics. A cubic takes SIX numbers (two control points and an end point) -- reading
+ * eight makes the parser run off the end of the token list.
+ */
+function pathPoints(d, steps = 400) {
+  const seq = [...d.matchAll(/[A-Za-z]|-?\d*\.?\d+/g)]
+    .map((m) => (/[A-Za-z]/.test(m[0]) ? m[0] : Number(m[0])));
+  const pts = [];
+  let i = 0, cmd = null, cur = null;
+  while (i < seq.length) {
+    if (typeof seq[i] === 'string') { cmd = seq[i]; i += 1; continue; }
+    if (cmd === 'M') { cur = [seq[i], seq[i + 1]]; i += 2; }
+    else if (cmd === 'C') {
+      const [x0, y0] = cur;
+      const [x1, y1] = [seq[i], seq[i + 1]];
+      const [x2, y2] = [seq[i + 2], seq[i + 3]];
+      const [x3, y3] = [seq[i + 4], seq[i + 5]];
+      for (let k = 0; k <= steps; k += 1) {
+        const u = k / steps, v = 1 - u;
+        pts.push([
+          v ** 3 * x0 + 3 * v * v * u * x1 + 3 * v * u * u * x2 + u ** 3 * x3,
+          v ** 3 * y0 + 3 * v * v * u * y1 + 3 * v * u * u * y2 + u ** 3 * y3,
+        ]);
+      }
+      cur = [x3, y3]; i += 6;
+    } else throw new Error('unhandled path command: ' + cmd);
+  }
+  return pts;
+}
+
+/** Smallest distance from the drawn face to the body's outline. */
+function nearestApproach() {
+  const pet = petGroup();
+  const m = faceMatrix();
+  const body = pathPoints(bodyOf(pet));
+
+  // Every drawn mark, in the glyph's own coordinates, then placed.
+  const face = pathPoints(pet.match(/<path id="pet-three"\s+d="([^"]+)"/)[1]);
+  for (const [, cx, cy] of pet.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)"/g)) {
+    face.push([Number(cx), Number(cy)]);
+  }
+
+  let best = Infinity, at = null;
+  for (const f of face) {
+    const p = place(m, f);
+    for (const b of body) {
+      const d = Math.hypot(p[0] - b[0], p[1] - b[1]);
+      if (d < best) { best = d; at = [p, b]; }
+    }
+  }
+  return { best, at };
+}
+
+test('the face sits fully inside the body, with room to spare', () => {
+  // The rotation is what breaks this: the glyph is drawn upright and then turned a
+  // quarter turn about a pivot, so its drawn coordinates say nothing about where it
+  // lands. At the original pivot (20.5, 39.5) the turned 3 came within 0.8 units of
+  // the shoulder -- the face overhung the animal, which is what made it read as a
+  // sticker rather than a face.
+  //
+  // HALF THE STROKE WIDTH is counted because the centreline is not the ink: a
+  // stroke-width .55 numeral puts .275 of dark on either side of its path, and the
+  // dot of the colon is a filled .72 circle whose edge is a further .72 out. The
+  // 1.6-unit floor is a floor on the INK, so it is measured from the edge.
+  const pet = petGroup();
+  const stroke = Number(
+    /stroke-width="([\d.]+)"/.exec(pet.match(/<path id="pet-three"[^>]*>/)[0])[1]);
+
+  const { best, at } = nearestApproach();
+  const ink = best - stroke / 2;
+  assert.ok(ink >= 1.6,
+    `the face clears the body by only ${ink.toFixed(2)} units `
+    + `(centreline ${best.toFixed(2)} - half of the ${stroke} stroke); `
+    + `nearest pair ${JSON.stringify(at.map((p) => p.map((v) => +v.toFixed(2))))}. `
+    + 'It needs at least 1.6.');
+
+  // And it is inside, not merely far from the outline in some direction: the whole
+  // turned glyph sits within the body's bounding box.
+  const bx = xs(bodyOf(pet)), by = ys(bodyOf(pet));
+  const m = faceMatrix();
+  const face = pathPoints(pet.match(/<path id="pet-three"\s+d="([^"]+)"/)[1])
+    .concat([...pet.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)"/g)]
+      .map(([, cx, cy]) => [Number(cx), Number(cy)]))
+    .map((p) => place(m, p));
+  const fx = face.map((p) => p[0]), fy = face.map((p) => p[1]);
+  assert.ok(Math.min(...fx) > Math.min(...bx) && Math.max(...fx) < Math.max(...bx),
+    'the face is inside the body left-to-right');
+  assert.ok(Math.min(...fy) > Math.min(...by) && Math.max(...fy) < Math.max(...by),
+    'the face is inside the body top-to-bottom');
+});
+
+/* -------------------------------- the face, in FINAL scene coordinates */
+
+/** Points along the numeral 3's path, in markup coordinates. */
+function threePoints(doc) {
+  return cubics(doc.getElementById('pet-three').getAttribute('d'))
+    .flatMap(([a, q]) => [a, q[0], q[1], q[2]]);
+}
+
+/** Every drawn point of the :3 glyph -- numeral plus colon -- in markup coordinates. */
+function glyphPoints(doc) {
+  const pts = threePoints(doc);
+  for (const c of doc.querySelectorAll('#pet-colon circle')) {
+    pts.push([Number(c.getAttribute('cx')), Number(c.getAttribute('cy'))]);
+  }
+  return pts;
+}
+
+/**
+ * A path as its cubic segments: [[start, [c1, c2, end]], ...]. Only what these two
+ * paths use -- an M and a run of cubics.
+ */
+function cubics(d) {
+  const seq = [...d.matchAll(/[A-Za-z]|-?\d*\.?\d+/g)]
+    .map((m) => (/[A-Za-z]/.test(m[0]) ? m[0] : Number(m[0])));
+  const segs = [];
+  let i = 0, cmd = null, cur = null;
+  while (i < seq.length) {
+    if (typeof seq[i] === 'string') { cmd = seq[i]; i += 1; continue; }
+    if (cmd === 'M') { cur = [seq[i], seq[i + 1]]; i += 2; }
+    else if (cmd === 'C') {
+      const q = [[seq[i], seq[i + 1]], [seq[i + 2], seq[i + 3]], [seq[i + 4], seq[i + 5]]];
+      segs.push([cur, q]);
+      cur = q[2];
+      i += 6;
+    } else throw new Error('unhandled path command: ' + cmd);
+  }
+  return segs;
+}
+
+/**
+ * The seal face as the BROWSER lays it out.
+ *
+ * Everything above measures the MARKUP: the glyph, and the body, in the coordinates
+ * they are drawn in. That is not what the player sees. The scene is drawn with
+ * preserveAspectRatio="none", so fitPet() counter-squeezes the seal's x by
+ * lake.height/lake.width -- about 0.47 on a 1920x1080 desktop -- while #pet-face
+ * carries the INVERSE correction so the face keeps the size it was drawn at.
+ *
+ * The body therefore gets NARROWER as the window gets wider, and the face does not.
+ * A glyph that sits comfortably inside the body in the markup can still cross the
+ * outline on screen, which is exactly what happened: the mouth ran off the seal's
+ * right shoulder while every markup-level assertion stayed green.
+ *
+ * So these tests run the real fitPet(), read the transforms it wrote, and compose the
+ * whole chain -- #pet-tilt then #pet-face then #fa-pet-fit -- before measuring.
+ */
+
+/**
+ * The seal's whole SVG subtree, including the #fa-pet-fit wrapper.
+ *
+ * petGroup() slices #fa-pet alone, which is right for reading the drawing but WRONG
+ * for measuring on screen: fitPet() writes its counter-squeeze onto #fa-pet-fit, the
+ * group OUTSIDE #fa-pet. Parse without it and getElementById('fa-pet-fit') is null,
+ * which is how the first version of this measured nothing at all.
+ */
+function petSvg() {
+  const start = PAGE.indexOf('<g id="fa-pet-fit"');
+  const open = PAGE.lastIndexOf('<g', start);
+  assert.ok(start > 0 && open > 0, 'the pet must live in a #fa-pet-fit group');
+  return PAGE.slice(open, PAGE.indexOf('</svg>'));
+}
+
+/**
+ * Lake aspects to hold the 1.6-unit margin across.
+ *
+ * s = lake.height / lake.width, measured from the real layout: a 1920x1080 desktop
+ * lands near 0.47, a 1440x900 laptop near 0.50, a 1280x720 near 0.42, and a portrait
+ * window near 1.24. So 0.44..1.26 is what ordinary screens produce.
+ *
+ * Below about 0.44 -- a very wide AND short window -- the body is squeezed so narrow
+ * that no right-facing face clears 1.6 units; that limit is asserted on its own
+ * rather than hidden by quietly narrowing this range.
+ */
+const LAKE_ASPECTS = [];
+for (let s = 0.44; s <= 1.26; s += 0.02) LAKE_ASPECTS.push(Number(s.toFixed(2)));
+
+/** A transform list as a 2x3 matrix, applied left to right as SVG does. */
+function matrix(list) {
+  let m = [1, 0, 0, 1, 0, 0];                        // a b c d e f
+  const mul = (p, q) => [
+    p[0] * q[0] + p[2] * q[1],
+    p[1] * q[0] + p[3] * q[1],
+    p[0] * q[2] + p[2] * q[3],
+    p[1] * q[2] + p[3] * q[3],
+    p[0] * q[4] + p[2] * q[5] + p[4],
+    p[1] * q[4] + p[3] * q[5] + p[5],
+  ];
+  for (const [, op, args] of list.matchAll(/([a-z]+)\(([^)]*)\)/g)) {
+    const n = args.split(/[\s,]+/).filter(Boolean).map(Number);
+    if (op === 'rotate') {
+      const t = (n[0] * Math.PI) / 180;
+      const c = Math.cos(t), sn = Math.sin(t);
+      const cx = n[1] ?? 0, cy = n[2] ?? 0;
+      m = mul(m, mul([1, 0, 0, 1, cx, cy],
+        mul([c, sn, -sn, c, 0, 0], [1, 0, 0, 1, -cx, -cy])));
+    } else if (op === 'translate') {
+      m = mul(m, [1, 0, 0, 1, n[0], n[1] ?? 0]);
+    } else if (op === 'scale') {
+      m = mul(m, [n[0], 0, 0, n[1] ?? n[0], 0, 0]);
+    } else {
+      throw new Error('unhandled transform op: ' + op);
+    }
+  }
+  return m;
+}
+
+const on = (m, p) => [m[0] * p[0] + m[2] * p[1] + m[4], m[1] * p[0] + m[3] * p[1] + m[5]];
+
+/** Two 2x3 matrices composed: p applied first, then q. */
+const compose = (p, q) => [
+  p[0] * q[0] + p[2] * q[1], p[1] * q[0] + p[3] * q[1],
+  p[0] * q[2] + p[2] * q[3], p[1] * q[2] + p[3] * q[3],
+  p[0] * q[4] + p[2] * q[5] + p[4], p[1] * q[4] + p[3] * q[5] + p[5],
+];
+
+/** Even-odd point-in-polygon. */
+function within(x, y, poly) {
+  let hit = false;
+  for (let i = 0; i < poly.length; i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[(i + 1) % poly.length];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+
+/**
+ * Run the real fitPet() for a lake of the given aspect and hand back the composed
+ * transforms. fitPet is read out of angler.js rather than restated, so this measures
+ * the code that actually runs -- if the anchors move, these numbers move with them.
+ */
+function fittedTransforms(doc, aspect) {
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('function fitPet'), src.indexOf('function placeBobber'));
+  assert.ok(body.includes('fitPet'), 'fitPet() must exist to measure against');
+
+  const petY = Number(/const PET_Y = ([\d.]+);/.exec(body)[1]);
+  const faceX = Number(/const FACE_X = ([\d.]+);/.exec(body)[1]);
+  const anchor = Number(/translate\((\d+(?:\.\d+)?) 0\) scale/.exec(body)[1]);
+
+  // fitPet() derives its scale from box.height / box.width, so a lake one unit wide
+  // and `aspect` tall makes the ratio exactly the aspect under test.
+  const s = aspect;
+  doc.getElementById('fa-pet-fit').setAttribute('transform',
+    `translate(${anchor} 0) scale(${s} 1) translate(${-anchor} 0) translate(0 ${petY})`);
+  doc.getElementById('pet-face').setAttribute('transform',
+    `translate(${faceX} 0) scale(${(1 / s).toFixed(4)} 1) translate(${-faceX} 0)`);
+  return { petY, faceX, anchor };
+}
+
+/** The body outline in final coordinates for a given aspect. */
+function bodyOutline(doc, m) {
+  const d = doc.getElementById('pet-body').getAttribute('d');
+  return cubics(d).flatMap(([a, [c1, c2, e]]) => {
+    const pts = [];
+    for (let i = 0; i <= 60; i++) {
+      const u = i / 60, v = 1 - u;
+      pts.push(on(m, [
+        v ** 3 * a[0] + 3 * v * v * u * c1[0] + 3 * v * u * u * c2[0] + u ** 3 * e[0],
+        v ** 3 * a[1] + 3 * v * v * u * c1[1] + 3 * v * u * u * c2[1] + u ** 3 * e[1],
+      ]));
+    }
+    return pts;
+  });
+}
+
+/** Every ink mark of the face, in final coordinates, with its radius. */
+function faceInk(doc, m) {
+  const three = doc.getElementById('pet-three');
+  const stroke = Number(three.getAttribute('stroke-width'));
+  // cubics() returns [start, [c1, c2, end]] segments; place each segment's points,
+  // not the segment itself -- on(m, segment) is a point times an array, i.e. NaN.
+  const ink = cubics(three.getAttribute('d')).flatMap(([a, q]) =>
+    [a, q[0], q[1], q[2]].map((p) => [on(m, p), stroke / 2]));
+  for (const c of doc.querySelectorAll('#pet-colon circle')) {
+    ink.push([on(m, [Number(c.getAttribute('cx')), Number(c.getAttribute('cy'))]),
+      Number(c.getAttribute('r'))]);
+  }
+  return ink;
+}
+
+test('the face is inside the seal at every realistic lake shape, not just in the markup', () => {
+  // THE bug. The face is counter-corrected so it keeps its drawn size, while the
+  // body gets squeezed by the scene's preserveAspectRatio="none". On a wide desktop
+  // the body narrows to about 47% and the face does not, so a glyph that fits in the
+  // markup crosses the outline on screen -- the mouth ran off the right shoulder.
+  //
+  // Every earlier seal test measured markup coordinates, which is why a face visibly
+  // outside the animal passed a suite full of assertions about the face.
+  const doc = new JSDOM(petSvg()).window.document;
+
+  let worst = Infinity, outside = 0, at = null;
+  for (const aspect of LAKE_ASPECTS) {
+    const { anchor } = fittedTransforms(doc, aspect);
+    const outer = matrix(doc.getElementById('fa-pet-fit').getAttribute('transform'));
+    const faceM = matrix(doc.getElementById('pet-face').getAttribute('transform'));
+    const tiltM = matrix(doc.getElementById('pet-tilt').getAttribute('transform'));
+    const M = matrix(doc.getElementById('fa-pet-fit').getAttribute('transform'));
+    const full = compose(compose(outer, faceM), tiltM);
+    assert.ok(anchor);
+
+    const body = bodyOutline(doc, outer);
+    for (const [p, r] of faceInk(doc, full)) {
+      if (!within(p[0], p[1], body)) outside++;
+      let d = Infinity;
+      for (const b of body) {
+        const dd = Math.hypot(p[0] - b[0], p[1] - b[1]) - r;
+        if (dd < d) d = dd;
+      }
+      if (d < worst) { worst = d; at = { aspect, p: p.map((v) => +v.toFixed(2)) }; }
+    }
+  }
+
+  assert.equal(outside, 0,
+    `${outside} ink points fall outside the seal's outline once fitPet() is applied. `
+    + 'The face must be inside the body as the player sees it, not only in the markup.');
+  assert.ok(worst >= 1.6,
+    `the face clears the body by only ${worst.toFixed(2)} units of ink `
+    + `(worst at aspect ${at.aspect}, near ${JSON.stringify(at.p)}); it needs 1.6. `
+    + 'The body is squeezed on wide lakes while the face keeps its size, so the glyph '
+    + 'has to be small enough to clear the shoulder at the widest lake.');
+});
+
+test("FACE_X is the seal's own anchor, so the face cannot drift", () => {
+  // THE SECOND HALF OF THE BUG, and the one that made the first look impossible.
+  //
+  // fitPet() squeezes the whole pet's x by s = lake.height / lake.width about x=13,
+  // and then scales the face back by 1/s about FACE_X. When both turn about the SAME
+  // point the two cancel exactly and the chain is a pure translation: the face keeps
+  // the size it was drawn at and never moves relative to the body.
+  //
+  // Anchored anywhere else they do NOT cancel, and the face slides by
+  // (1 - s) * (13 - FACE_X) -- about 2 units on a wide desktop, and changing as the
+  // window changes shape. It was 20.4, which is the UPRIGHT glyph's centre rather than
+  // the turned one's, so every pass was measuring a face quietly sliding off the
+  // animal and calling the result correct.
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+  const declared = Number(/const FACE_X = ([\d.]+);/.exec(src)[1]);
+  const fitPetSrc = src.slice(src.indexOf('function fitPet'), src.indexOf('function placeBobber'));
+  const anchor = Number(/translate\((\d+(?:\.\d+)?) 0\) scale/.exec(fitPetSrc)[1]);
+
+  assert.equal(declared, anchor,
+    `FACE_X is ${declared} but the pet's counter-squeeze turns about ${anchor}. `
+    + 'The two corrections only cancel when they share an anchor; otherwise the face '
+    + 'slides by (1 - s) * (anchor - FACE_X), which grows on wider windows.');
+
+  // And prove the cancellation holds, by composing the chain at three very different
+  // window shapes. A pure translation has a == d == 1: nothing scaled, nothing moved.
+  const doc = new JSDOM(petSvg()).window.document;
+  const seen = [];
+  for (const aspect of [0.44, 0.75, 1.26]) {
+    fittedTransforms(doc, aspect);
+    const composed = compose(
+      matrix(doc.getElementById('fa-pet-fit').getAttribute('transform')),
+      matrix(doc.getElementById('pet-face').getAttribute('transform')));
+    // Not exactly 1: fitPet writes the scale with toFixed(4), so the product is
+    // 1 to within about 1e-5. Anything larger means the two anchors disagree again.
+    assert.ok(Math.abs(composed[0] - 1) < 1e-4,
+      `the chain scales x by ${composed[0]} at aspect ${aspect}; with a shared anchor it `
+      + 'must be a pure translation up to fitPet\'s own rounding');
+    assert.equal(composed[3], 1, 'and must not scale y either');
+    seen.push(on(composed, [20, 40])[0]);
+  }
+  const spread = Math.max(...seen) - Math.min(...seen);
+  assert.ok(spread < 0.001,
+    `the face moves ${spread.toFixed(3)} units between window shapes `
+    + `(${seen.join(' vs ')}); with a shared anchor it must not move at all.`);
+});
+
+test('the face is still inside at the widest windows that are still playable', () => {
+  // Below s=0.44 -- an unusually wide AND short window -- the body is squeezed so
+  // narrow that 1.6 units of margin is impossible for a right-facing face. Rather
+  // than pretend otherwise, pin what actually happens there: still fully INSIDE, just
+  // with a thinner margin. If this ever starts reporting ink outside the outline, the
+  // face is hanging off the seal again on small screens.
+  const doc = new JSDOM(petSvg()).window.document;
+  for (const aspect of [0.30, 0.34, 0.38]) {
+    fittedTransforms(doc, aspect);
+    const composeAll = compose(
+      compose(
+        matrix(doc.getElementById('fa-pet-fit').getAttribute('transform')),
+        matrix(doc.getElementById('pet-face').getAttribute('transform'))),
+      matrix(doc.getElementById('pet-tilt').getAttribute('transform')));
+    const body = bodyOutline(doc, matrix(doc.getElementById('fa-pet-fit').getAttribute('transform')));
+    const outside = faceInk(doc, composeAll).filter(([p]) => !within(p[0], p[1], body));
+    assert.equal(outside.length, 0,
+      `${outside.length} ink points fall outside the seal at aspect ${aspect}. `
+      + 'The face must stay on the animal at every window size, not only wide ones.');
+  }
+});
+
+test('the face still looks at the angler, and stays clear of him', () => {
+  // Making it fit must not turn it into a face in the middle of the animal looking
+  // out to sea. The angler stands at x=25.7 on the dock.
+  const doc = new JSDOM(petSvg()).window.document;
+  const bodyD = doc.getElementById('pet-body').getAttribute('d');
+  const bodyMid = (Math.min(...xs(bodyD)) + Math.max(...xs(bodyD))) / 2;
+
+  const tiltM = matrix(doc.getElementById('pet-tilt').getAttribute('transform'));
+  const pts = glyphPoints(doc).map((p) => on(tiltM, p));
+  const fx = pts.map((p) => p[0]), fy = pts.map((p) => p[1]);
+  const centre = (Math.min(...fx) + Math.max(...fx)) / 2;
+
+  assert.ok(centre > bodyMid + 2,
+    `the face must sit well right of the body's middle so it looks at the angler, `
+    + `got ${centre.toFixed(2)} vs ${bodyMid.toFixed(2)}`);
+  assert.ok(Math.max(...fx) < 24,
+    'and stay off the angler at x=25.7, reaches ' + Math.max(...fx).toFixed(2));
+
+  // The ":" is still left of the "3" once turned, or it reads as "3:".
+  // Rotating 90 degrees clockwise maps the upright left-to-right order onto a
+  // top-to-bottom one, so the colon must END UP BELOW the numeral's top edge and the
+  // numeral's lower lobe must start above it -- assert on the drawn ordering instead:
+  // the colon's centre x in markup is left of the 3's, which is what makes it ":3".
+  // Compare the colon against the NUMERAL's own points. Using glyphPoints() here
+  // folded the colon's own x into the minimum, so the test asked whether 18.2 was
+  // less than 18.2 and failed for a reason that had nothing to do with the drawing.
+  const colonX = [...doc.querySelectorAll('#pet-colon circle')]
+    .map((c) => Number(c.getAttribute('cx')));
+  const threeX = threePoints(doc).map((p) => p[0]);
+  assert.ok(Math.max(...colonX) < Math.min(...threeX),
+    `the colon is still left of the 3 in the drawing, or it reads "3:" `
+    + `(colon ${colonX}, numeral starts at ${Math.min(...threeX)})`);
+  assert.ok(Math.max(...fy) > Math.min(...fy));
+});
