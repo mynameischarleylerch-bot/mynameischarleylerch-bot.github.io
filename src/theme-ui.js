@@ -2,7 +2,7 @@
  * Binds the theme toggle button. No persistence by design: a fresh load always
  * starts on the default theme, so there is no flash of a previously chosen theme.
  */
-import { DEFAULT_THEME, isKnownTheme, nextTheme, themeLabel } from './themes.js?v=2026-10-04-x';
+import { DEFAULT_THEME, isKnownTheme, nextTheme, themeLabel } from './themes.js?v=2026-10-04-y';
 
 const BUTTON_ID = 'theme-toggle';
 
