@@ -2875,10 +2875,15 @@ export const AREAS = [
       'zephyr', 'quicksilver', 'horizon'],
     fish: ['glidefin', 'aero-minnow', 'sunscale', 'ripplefin', 'bubbleperch', 'glossdace',
       'prismminnow', 'haloherring', 'daylight', 'zenith'],
+    // `art` is the lake's own illustration, and only Aero Lake has one. It is
+    // data rather than a stylesheet rule so the painted lake is a one-line change
+    // here instead of a lake-id selector in the CSS, and so the lake picker can
+    // show the same picture in its swatch. Stamped because Pages caches it.
     palette: {
       skyTop: '#81d4fa', skyMid: '#b3e5fc', skyFloor: '#f4fbff',
       water: '#2f81c4', accent: '#4fc3f7',
       haze: 'rgba(255, 255, 255, 0.75)', sun: 'rgba(255, 255, 255, 0.95)',
+      art: './media/aero-lake.jpg?v=2026-10-04-W',
     },
   },
   {

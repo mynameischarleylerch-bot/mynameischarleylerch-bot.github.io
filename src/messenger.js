@@ -6,7 +6,7 @@
  * and there are sixteen avatars because MSN display pictures were a 4x4 grid.
  */
 
-import { versioned } from './build.js?v=2026-10-04-V';
+import { versioned } from './build.js?v=2026-10-04-W';
 
 export const SAVE_KEY = 'aero-arcade-profile';
 export const DEFAULT_NICK = 'Karin';

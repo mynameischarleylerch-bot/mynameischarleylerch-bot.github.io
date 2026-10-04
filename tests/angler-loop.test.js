@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
          RODS, RODS_BY_PRICE, SEALS, startingLoadout, TIMES, WEATHER, LOST_ITEMS,
+         UPGRADES, BASE_BAG_CAP, bagCap,
 } from '../vendor/fru-angler/fishing.js?v=2026-10-04-z';
 
 const PAGE = readFileSync(
@@ -4222,4 +4223,94 @@ test('the dock holds a list of seals, and old saves naming one still load', asyn
   }), 9745);
   assert.deepEqual(JSON.parse(roomy.win.localStorage.getItem('fru-angler-save')).equippedSeal,
     ['bubbles', 'tangerine'], 'a bought second slot really does hold a second seal');
+});
+
+test('the upgrades panel lists every perk, says the gate, and buys what you can afford', async () => {
+  const ctx = await seedSave({
+    coins: 30_000, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  }, 9750);
+
+  ctx.doc.getElementById('upgrade-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+
+  const panel = ctx.doc.getElementById('upgrade-panel');
+  assert.equal(panel.hidden, false, 'the panel must actually open');
+  // The dialog role lives on the inner panel, as it does in every other panel in this
+  // page -- the outer div is the scrim, not the dialog.
+  const dialog = panel.querySelector('[role="dialog"]');
+  assert.ok(dialog, 'the panel holds a dialog');
+  assert.equal(dialog.getAttribute('aria-modal'), 'true', 'and it is modal');
+  assert.equal(dialog.getAttribute('aria-labelledby'), 'upgrade-title',
+    'labelled by its own heading');
+
+  const rows = () => [...panel.querySelectorAll('#upgrade-list .upgrade')];
+  assert.equal(rows().length, Object.keys(UPGRADES).length,
+    `every perk is listed exactly once; expected ${Object.keys(UPGRADES).length}`);
+
+  // Affordable, unowned, at a reachable rank -> a live Buy button.
+  const tin = panel.querySelector('[data-upgrade="tin_lid"]');
+  assert.ok(tin, 'tin_lid has a row');
+  const buy = tin.querySelector('.upgrade__buy');
+  assert.ok(buy && !buy.disabled, 'and Tin Lid at 250 coins is affordable with 30,000');
+
+  // Out of reach on rank: the row must SAY WHY before the click, not refuse after.
+  const longLine = panel.querySelector('[data-upgrade="the_long_line"]');
+  assert.ok(longLine.querySelector('.upgrade__buy').disabled,
+    'The Long Line needs rank 20, so its button must be disabled');
+  assert.match(longLine.querySelector('.upgrade__state')?.textContent ?? '', /rank 20/i,
+    'and the row must state the gate, not just go quiet');
+
+  // Buying: money leaves, the upgrade lands, the row becomes fitted, and the save
+  // records it. All through the real button.
+  const wallet = () => Number(ctx.doc.getElementById('upgrade-coins').textContent.replace(/,/g, ''));
+  const before = wallet();
+  buy.dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+
+  assert.equal(wallet(), before - UPGRADES.tin_lid.price, 'the price is charged exactly');
+  const fitted = panel.querySelector('[data-upgrade="tin_lid"]');
+  assert.ok(fitted.classList.contains('upgrade--owned'), 'the row now reads as fitted');
+  assert.equal(fitted.querySelector('.upgrade__buy'), null,
+    'a fitted upgrade must not offer a Buy button again');
+  assert.deepEqual(
+    JSON.parse(ctx.win.localStorage.getItem('fru-angler-save')).upgrades, ['tin_lid'],
+    'and it is in the save');
+
+  // The HUD badge counts what you have bought.
+  assert.equal(ctx.doc.getElementById('upgrade-count').textContent,
+    `1/${Object.keys(UPGRADES).length}`);
+
+  // Closing works, and Escape-equivalent backdrop click works.
+  ctx.doc.getElementById('upgrade-close').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.equal(panel.hidden, true, 'the Close button closes the panel');
+});
+
+test('the bag cap and the dock change the moment Bigger Dock is bought', async () => {
+  const ctx = await seedSave({
+    coins: 200_000, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    // Rank 14: xpForLevel(14) = 120 * 13^2.1 = 26,210, so 22,000 would only be rank
+    // 13. Fish Basket is gated at rank 5, which this clears comfortably. The gate is
+    // real and is proved separately -- the panel test watches a rank-20 upgrade stay
+    // locked -- and Bigger Dock (rank 14) is deliberately NOT reachable here.
+    xp: 27_000, ownedSeals: ['bubbles'], equippedSeal: ['bubbles'], lost: [], giftedRods: [],
+    sealCoins: 0, upgrades: [],
+    bag: Array.from({ length: 10 }, () => ({
+      fishId: 'glidefin', weight: 1, mutation: null, multiplier: 1,
+    })),
+  }, 9751);
+
+  ctx.doc.getElementById('upgrade-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.ok(ctx.doc.querySelector('[data-upgrade="bigger_dock"]'), 'Bigger Dock is listed');
+
+  // Buy Fish Basket first: it needs rank 5 and 9,000 coins, both affordable here.
+  const basket = ctx.doc.querySelector('[data-upgrade="fish_basket"] .upgrade__buy');
+  assert.ok(basket && !basket.disabled,
+    'Fish Basket is affordable at rank 6 with 200,000 coins');
+  basket.dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+
+  // The badge denominator must follow immediately, without a reload.
+  assert.equal(ctx.doc.getElementById('bag-count').textContent, '(10/20)',
+    'buying Fish Basket must widen the bag badge on the spot, not after a reload');
 });

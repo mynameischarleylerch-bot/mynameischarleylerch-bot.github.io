@@ -23,13 +23,13 @@ import {
  SEALS, LOST_ITEMS,
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
- addToBag, bagCap, BASE_BAG_CAP, UPGRADES, sealSlots, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
+ addToBag, bagCap, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-V';
+} from './fishing.js?v=2026-10-04-W';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-V';
+} from './reel.js?v=2026-10-04-W';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -60,6 +60,11 @@ const ui = {
   catchValue: el('catch-value'), catchAgain: el('catch-again'),
   catchArt: el('catch-art'), catchWeight: el('catch-weight'), catchWorth: el('catch-worth'),
   catchMutation: el('catch-mutation'),
+  // The dock upgrades: 22 permanent one-off perks, paid for in rod coins.
+  upgradePanel: el('upgrade-panel'), upgradeList: el('upgrade-list'),
+  upgradeCoins: el('upgrade-coins'), upgradeSlots: el('upgrade-slots'),
+  upgradeOpen: el('upgrade-open'), upgradeClose: el('upgrade-close'),
+  upgradeCount: el('upgrade-count'),
   shopPanel: el('shop-panel'), shopList: el('shop-list'), shopCoins: el('shop-coins'),
   shopTabs: el('shop-tabs'),
   shopOpen: el('shop-open'), shopClose: el('shop-close'),
@@ -1383,7 +1388,7 @@ function paintSky(sky) {
 }
 
 function paintArea(area) {
-  const { skyTop, skyMid, skyFloor, water, accent, haze, sun } = area.palette;
+  const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art } = area.palette;
   ui.lake.style.setProperty('--sky-top', skyTop);
   ui.lake.style.setProperty('--sky-mid', skyMid);
   ui.lake.style.setProperty('--sky-floor', skyFloor);
@@ -1405,6 +1410,21 @@ function paintArea(area) {
   stop('fa-shore', water, '1');
 
   ui.lake.dataset.area = area.id;
+
+  // The painted lake. `--lake-art` carries the illustration and `data-art` says
+  // one is in play, so every art-specific rule keys off the ATTRIBUTE and not off
+  // a lake id: a second painted lake is then a data change, not a CSS one.
+  // Clearing both on the way through matters because paintArea() also runs when
+  // you move to a lake that has no art, and a stale `url()` left on the element
+  // would keep painting the picture you just fished and left.
+  if (art) {
+    ui.lake.style.setProperty('--lake-art', `url("${art}")`);
+    ui.lake.dataset.art = 'painted';
+  } else {
+    ui.lake.style.removeProperty('--lake-art');
+    delete ui.lake.dataset.art;
+  }
+
   if (ui.lakeName) ui.lakeName.textContent = area.name;
   say(area.blurb);
 }
@@ -1424,12 +1444,15 @@ function renderLakes() {
     if (here) row.setAttribute('aria-current', 'true');
     row.dataset.area = area.id;
 
-    // A swatch of the lake itself, so the picker reads at a glance.
+    // A swatch of the lake itself, so the picker reads at a glance. A lake that
+    // has been PAINTED shows its own picture, anchored low so the swatch reads as
+    // water over hills rather than as the empty middle of the sky.
     const swatch = document.createElement('span');
     swatch.className = 'lake-row__swatch';
     swatch.setAttribute('aria-hidden', 'true');
-    swatch.style.background =
-      `linear-gradient(180deg, ${area.palette.skyTop}, ${area.palette.skyMid} 46%, ${area.palette.water})`;
+    swatch.style.background = area.palette.art
+      ? `#e8f4fd url("${area.palette.art}") center 72% / cover no-repeat`
+      : `linear-gradient(180deg, ${area.palette.skyTop}, ${area.palette.skyMid} 46%, ${area.palette.water})`;
 
     const label = document.createElement('span');
     label.className = 'lake-row__label';
@@ -1957,6 +1980,106 @@ function primarySeal() {
   return SEALS.find((seal) => seal.id === id) ?? null;
 }
 
+/**
+ * The upgrades panel.
+ *
+ * Every row quotes buyUpgrade() BEFORE the click, so a row can never offer a Buy
+ * button for something the purchase rule would then refuse. That is the reason this
+ * asks the rule rather than hard-coding a price check: the gate shown to the player
+ * and the gate enforced on the click are the same gate.
+ *
+ * Buying repaints the bag badge and the dock too, because one upgrade can change the
+ * bag's capacity or the number of seals that fit. Not repainting them leaves the HUD
+ * lying until the next reload.
+ */
+function openUpgrades() {
+  if (!ui.upgradePanel) return;
+  ui.upgradePanel.hidden = false;
+  renderUpgrades();
+}
+
+function closeUpgrades() {
+  if (ui.upgradePanel) ui.upgradePanel.hidden = true;
+}
+
+function renderUpgrades() {
+  if (!ui.upgradeList) return;
+  const rank = levelFrom({ xp: state.xp }).level;
+  const total = Object.keys(UPGRADES).length;
+
+  ui.upgradeCoins.textContent = state.coins.toLocaleString('en-US');
+  if (ui.upgradeSlots) {
+    ui.upgradeSlots.textContent = sealSlots(state.upgrades) > 1
+      ? `${sealSlots(state.upgrades)} seals can sit with you at once.`
+      : 'One seal can sit with you at a time. Bigger Dock makes room for two.';
+  }
+  ui.upgradeList.textContent = '';
+
+  for (const id of Object.keys(UPGRADES)) {
+    const up = UPGRADES[id];
+    const owned = state.upgrades.includes(id);
+
+    // Owned rows are exempt: the gate is on BUYING, and a fitted perk has no price.
+    const quote = owned ? { ok: true } : buyUpgrade({ coins: state.coins }, id, rank, state.upgrades);
+
+    const row = document.createElement('div');
+    row.className = 'upgrade'
+      + (owned ? ' upgrade--owned' : quote.ok ? ' upgrade--for-sale' : ' upgrade--locked');
+    row.dataset.upgrade = id;
+
+    const head = document.createElement('div');
+    head.className = 'upgrade__head';
+    const name = document.createElement('span');
+    name.className = 'upgrade__name';
+    name.textContent = up.name;
+    const price = document.createElement('span');
+    price.className = 'upgrade__price';
+    price.textContent = owned
+      ? 'Fitted'
+      : `${up.price.toLocaleString('en-US')} coins${up.level > 1 ? ` · rank ${up.level}` : ''}`;
+    head.append(name, price);
+
+    const blurb = document.createElement('div');
+    blurb.className = 'upgrade__blurb';
+    blurb.textContent = up.blurb;
+
+    row.append(head, blurb);
+
+    if (!owned) {
+      const why = document.createElement('div');
+      why.className = 'upgrade__state';
+      // A locked row says WHY. A dead button with no explanation reads as a bug.
+      why.textContent = quote.ok ? '' : quote.reason;
+      row.appendChild(why);
+
+      const buy = document.createElement('button');
+      buy.type = 'button';
+      buy.className = 'btn btn--small upgrade__buy';
+      buy.textContent = quote.ok ? 'Buy' : 'Locked';
+      buy.disabled = !quote.ok;
+      buy.addEventListener('click', () => {
+        const result = buyUpgrade({ coins: state.coins }, id, rank, state.upgrades);
+        if (!result.ok) return say(result.reason);
+        state.coins = result.coins;
+        state.upgrades = result.owned;
+        save();
+        paintChrome();
+        renderUpgrades();
+        // One upgrade can widen the bag or open a dock slot, so both readouts are
+        // repainted here rather than left lying until a reload.
+        paintBag();
+        paintPet();
+        say(`${up.name} fitted.`);
+      });
+      row.appendChild(buy);
+    }
+
+    ui.upgradeList.appendChild(row);
+  }
+
+  if (ui.upgradeCount) ui.upgradeCount.textContent = `${state.upgrades.length}/${total}`;
+}
+
 function paintBagBadge(count, cap = BASE_BAG_CAP) {
   const badge = ui.bagCount;
   if (!badge) return;
@@ -2291,6 +2414,12 @@ ui.indexPanel?.addEventListener('click', (event) => {
   if (event.target === ui.indexPanel) closeIndex();
 });
 ui.inventoryClose?.addEventListener('click', closeBag);
+ui.upgradeOpen?.addEventListener('click', () => togglePanel(ui.upgradePanel, openUpgrades, closeUpgrades));
+ui.upgradeClose?.addEventListener('click', closeUpgrades);
+// Click the scrim to dismiss, like every other panel here.
+ui.upgradePanel?.addEventListener('click', (event) => {
+  if (event.target === ui.upgradePanel) closeUpgrades();
+});
 ui.bagCloseBtn?.addEventListener('click', closeBagPanel);
   ui.sellAllFish?.addEventListener('click', sellEveryFish);
 // Clicking the scrim outside the panel closes it, same as the shop.

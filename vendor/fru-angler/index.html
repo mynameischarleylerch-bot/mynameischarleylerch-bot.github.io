@@ -115,6 +115,40 @@
   }
 
   
+  /* A LAKE THAT HAS BEEN PAINTED. Aero Lake carries a real illustration and the
+     scene is drawn on top of it, so the picture has to line up WITH the scene
+     instead of sitting behind it politely.
+
+     The scene is a 0 0 100 100 viewBox stretched to the lake's shape
+     (preserveAspectRatio="none"), so its far shore fills from 56% down and its
+     water from 78%. This illustration is stretched to match -- background-size:
+     100% 100% -- which puts its own sky / hills / water bands at those same
+     fractions at EVERY window shape. Sizing it "cover" instead looks better in
+     isolation and drifts the waterline somewhere else on a phone than on a
+     desktop, and this scene cannot absorb that: the glints, the pier legs and
+     the bobber are all positioned against those fractions.
+
+     The palette gradient stays UNDER the picture, so it is both the fallback and
+     what shows if the file ever fails to load. */
+  .lake[data-art] {
+    background-image:
+      linear-gradient(105deg, rgba(255,255,255,0) 38%, rgba(255,255,255,.22) 50%, rgba(255,255,255,0) 62%),
+      var(--lake-art, none),
+      linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 42%, var(--sky-floor) 100%);
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  /* The scene's own landscape gives way to the illustration: the shore becomes
+     haze over the painted hills, the water a tint over the painted shallows.
+     The glints, the pier, the angler, the rod and the seal stay SOLID, because
+     those are the things the game actually plays against -- the bobber and the
+     splash read as being in water only if the water is there to land in. */
+  .lake[data-art] .scene__shore { opacity: .3; }
+  .lake[data-art] .scene__water { opacity: .5; }
+
+  
   /* Sky and weather, written from JS per visit, so one visit of a lake can look
      completely different from the last without a class per combination. */
   .lake {
@@ -1237,6 +1271,47 @@
   .seal__equip.is-active{
     background: #2ea043; color: #fff; border-color: rgba(255,255,255,.6);
   }
+  /* Upgrade rows. Reuse the rod and seal row shape so the three shops read as one
+     family; what differs is only the state -- fitted, buyable, or locked. */
+  .upgrade {
+    display: grid; gap: .12rem; padding: .55rem .65rem;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.66));
+    border: 1px solid var(--hairline);
+    box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(1,87,155,.08);
+  }
+  /* Fitted: quieter than a buyable row, and green-bordered so it reads as done
+     rather than merely dimmed. An upgrade you bought should look kept. */
+  .upgrade--owned {
+    opacity: .78;
+    border-color: rgba(31, 122, 74, .45);
+    background: linear-gradient(180deg, rgba(240,252,244,.9), rgba(226,244,232,.7));
+  }
+  /* Locked: NOT the dimmed-and-dead look. The row is still readable, because a
+     locked upgrade is the one the player is most curious about. */
+  .upgrade--locked { border-style: dashed; border-color: rgba(1,87,155,.3); }
+  .upgrade__head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: .6rem;
+  }
+  .upgrade__name { font-weight: 700; color: var(--deep); }
+  .upgrade__price {
+    margin-left: auto; white-space: nowrap;
+    font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    color: #5b2d91;
+  }
+  .upgrade--owned .upgrade__price { color: #1d7a4a; }
+  .upgrade__blurb { font-size: .82rem; color: var(--ink-soft); }
+  /* Why a row is locked. It must SAY why: a disabled button on its own reads as a
+     bug, and this is the line that turns a dead row into a goal. */
+  .upgrade__state {
+    font-size: .76rem; font-weight: 700; color: #7a4e00;
+  }
+  .upgrade__state:empty { display: none; }
+  .upgrade__buy { justify-self: start; }
+  .upgrade__buy:disabled { opacity: .5; cursor: not-allowed; }
+  /* A bought perk that changes the dock says so on the panel, not only in the HUD. */
+  #upgrade-slots { font-weight: 700; }
+
 /* The bag: a landed fish, unsold, with both choices on one row. Sell pays rod
    coins, feed raises the seal's bond, and they compete for the same fish. */
 .bag__row {
@@ -1916,6 +1991,18 @@
         </div>
       </div>
 
+      <div class="shop" id="upgrade-panel" hidden>
+        <div class="shop__panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
+          <h2 class="shop__title" id="upgrade-title">Upgrades</h2>
+          <p class="shop__wallet">You have <b id="upgrade-coins">0</b> rod coins</p>
+          <p class="shop__wallet" id="upgrade-slots">One seal can sit with you at a time.</p>
+          <div class="shop__list" id="upgrade-list"></div>
+          <p style="margin:.9rem 0 0">
+            <button class="btn" id="upgrade-close" type="button">Close</button>
+          </p>
+        </div>
+      </div>
+
       <div class="shop" id="seal-shop-panel" hidden>
         <div class="shop__panel" role="dialog" aria-modal="true" aria-labelledby="seal-shop-title">
           <h2 class="shop__title" id="seal-shop-title">Seals</h2>
@@ -1946,6 +2033,9 @@
     </div>
 
     <div class="hud" style="justify-content:space-between">
+      <button class="btn" id="upgrade-open" type="button" aria-haspopup="dialog">
+        Upgrades <b id="upgrade-count" class="hud__badge">0/22</b>
+      </button>
       <button class="btn" id="shop-open" type="button">Rods &amp; shop</button>
       <button class="btn" id="seal-shop-open" type="button">Seals</button>
       <button class="btn" id="bag-open" type="button">Bag <span id="bag-count"></span></button>
@@ -1955,6 +2045,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-V"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-W"></script>
 </body>
 </html>

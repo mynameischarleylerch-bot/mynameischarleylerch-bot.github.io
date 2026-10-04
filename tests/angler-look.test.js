@@ -2087,3 +2087,37 @@ test('a full bag badge is red, and legible', () => {
   assert.ok(!/^#(7f1d1d|8c1c18|991b1b|a01b12|b3261e|c62828)$/i.test(ink || ''),
     'red text on a pale badge fails contrast; fill it red instead');
 });
+
+test('upgrade rows are legible in all three states, and locked rows still read', () => {
+  const body = PAGE.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = (sel) => {
+    const m = body.match(new RegExp(sel.replace(/[.[\]]/g, '\\$&') + '\\s*\\{([^}]*)\\}'));
+    assert.ok(m, `${sel} must be styled`);
+    return m[1];
+  };
+
+  // Three visually distinct states, each with its own rule.
+  for (const sel of ['.upgrade--owned', '.upgrade--locked', '.upgrade__state']) {
+    assert.ok(rule(sel).trim().length > 0, `${sel} has declarations`);
+  }
+  // Fitted must be visually distinct from buyable -- the panel shows many rows at
+  // once and a bought perk has to be findable without reading every line.
+  const owned = rule('.upgrade--owned');
+  assert.match(owned, /border-color|background/, 'a fitted row changes its colour, not only its opacity');
+
+  // A locked row is dimmed far less than the old .55 used elsewhere in this page:
+  // it is the row the player most wants to read, and at .55 it was all but invisible.
+  const locked = rule('.upgrade--locked');
+  const dim = /opacity:\s*([\d.]+)/.exec(locked);
+  if (dim) assert.ok(Number(dim[1]) > 0.7,
+    `a locked row must stay readable; opacity ${dim[1]} is too faint`);
+  assert.match(locked, /dashed/, 'and it is dashed, so a locked row reads as unavailable');
+
+  // The "why" line has a real ink colour, not an inherited one that may vanish.
+  const why = rule('.upgrade__state');
+  assert.match(why, /color:\s*#/, 'the gate line must name its own colour');
+  assert.match(why, /font-weight:\s*[6-9]00/, 'and be bold enough to notice');
+
+  // An empty "why" line must collapse rather than leave a gap.
+  assert.match(body, /\.upgrade__state:empty\s*\{\s*display:\s*none/, 'an empty gate line collapses');
+});
