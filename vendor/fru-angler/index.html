@@ -126,17 +126,20 @@
      <g>, so the reel was drawn on rods that have none. Same trap as the pet seal. */
   #rod-reel[hidden] { display: none; }
 
-  /* The boost readout. Bottom-left, always on, and BEHIND the reel and the catch
+  /* The boost readout. Top-right, always on, and BEHIND the reel and the catch
      card -- z-index 1 puts it under both, because a number you cannot read at the
      moment you are reeling is a number that is not doing its job. */
   .lake__boosts {
-    /* Top-left, as asked. It was bottom-left, where it sat under the reel and the
-       catch card and was easy to never look at again. */
+    /* Top-RIGHT, as asked. It was top-left, which put it in the same corner the
+       seal's own speech bubble has moved into. */
+       Anchored with right rather than left: a fixed left would leave the panel
+       drifting away from the corner as the lake narrows. justify-items and
+       text-align follow it, or the rows stay ragged against the wrong edge. */
     /* z-index 2, not 1: .scene (the water) is 1, so at a tie the stack could be
        hidden under the scene. Still strictly below .catch__card (2) and .reel (7),
        which cover the lake and are what the player is actually looking at. */
-    position: absolute; left: .7rem; top: .7rem; z-index: 2;
-    display: grid; gap: .2rem; justify-items: start;
+    position: absolute; right: .7rem; top: .7rem; z-index: 2;
+    display: grid; gap: .2rem; justify-items: end; text-align: right;
     padding: .5rem .6rem .55rem; max-width: 12rem;
     border-radius: var(--pill);
     background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.62));

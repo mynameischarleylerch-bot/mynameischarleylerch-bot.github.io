@@ -1063,8 +1063,8 @@ test('there is a boost panel in the corner of the lake, always visible', () => {
   const css = rule('.lake__boosts');
   assert.ok(css, 'the boost panel must be styled');
   assert.match(css, /position:\s*absolute/);
-  assert.match(css, /left:\s*[\d.]+(rem|px|%)/,
-    'and it must sit on the LEFT, not centred or right');
+  assert.match(css, /(?:left|right):\s*[\d.]+(rem|px|%)/,
+    'and it must be anchored to a side, not centred or full width');
   assert.match(css, /pointer-events:\s*none/,
     'and never swallow a cast');
 });
@@ -1267,24 +1267,38 @@ test('every element the JS reaches for has a rule in the stylesheet', () => {
     'the Bond pill must be a .btn on the bottom bar');
 });
 
-test('the boost stack is in the top-left corner, not the bottom', () => {
+test('the boost stack is in the top-right corner, not the bottom', () => {
   const css = rule('.lake__boosts');
   const top = /top:\s*([\d.]+)rem/.exec(css);
   const bottom = /bottom:\s*([\d.]+)rem/.exec(css);
-  const left = /left:\s*([\d.]+)rem/.exec(css);
+  const right = /right:\s*([\d.]+)rem/.exec(css);
+  const left = /\bleft:\s*([\d.]+)rem/.exec(css);
 
   assert.ok(top, 'the stack must be pinned to the top');
   assert.equal(bottom, null, 'and must NOT still be pinned to the bottom');
-  assert.ok(left, 'and to the left');
-  assert.equal(Number(left[1]) < 2, true, 'hard against the left edge, got ' + left[1]);
+  assert.ok(right, 'and to the right');
+  assert.equal(Number(right[1]) < 2, true, 'hard against the right edge, got ' + right[1]);
+
+  // Anchored by right, NOT by left. Setting both would leave the panel's own width
+  // deciding which edge wins, so on a narrow lake it would drift back across the
+  // screen as the content reflowed -- and nothing would look wrong.
+  assert.equal(left, null,
+    'the stack must be anchored by right alone; a left offset would fight it');
+
+  // The rows align to the same edge, or they stay ragged against the corner the
+  // panel no longer occupies.
+  assert.match(css, /justify-items:\s*end/,
+    'the rows must sit against the right edge now');
 });
 
-test('the seal bubble moves clear of the boost stack', () => {
-  // Both want the top-left corner. The bubble sat at left 1.5% / top 4%, so moving
-  // the boosts there would have stacked the stack on top of the seal's own words.
+test('the seal bubble does not collide with the boost stack', () => {
+  // These two used to share the top-left corner, which is why the bubble had to sit
+  // so far down: it was dodging the stack. The stack is now top-RIGHT and the bubble
+  // is on the LEFT, so the two are in different corners and cannot overlap.
   //
-  // So they cannot both be at the top-left, and the test has to say which corner
-  // the bubble is in -- otherwise a later tidy-up can quietly put it back.
+  // That is a stronger guarantee than a hand-tuned offset, so assert the corners
+  // differ rather than asserting a magic top percentage -- which would drift out of
+  // date the next time either panel moves, and fail for the wrong reason.
   const boost = rule('.lake__boosts');
   const bubble = rule('.bubble');
 
@@ -1293,17 +1307,16 @@ test('the seal bubble moves clear of the boost stack', () => {
   assert.ok(bubbleTop >= 0, 'the bubble must have a top, got ' + bubbleTop);
   assert.ok(bubbleLeft >= 0, 'the bubble must have a left, got ' + bubbleLeft);
 
-  // The bubble is placed in PERCENTAGES and the stack in rem, so they cannot be
-  // compared directly. What matters is that the bubble is not in the corner
-  // the stack now owns: it must be far enough down to clear a stack that
-  // runs to roughly a third of a small lake. A bubble at top 4% would sit
-  // directly on top of it.
-  assert.ok(bubbleTop >= 25,
-    `the bubble must clear the stack at the top, got ${bubbleTop}%`);
+  // The stack is on the RIGHT, so the bubble being on the LEFT is what keeps them
+  // apart -- and that is now a layout fact rather than a tuned number.
+  assert.match(boost, /\bright:\s*[\d.]+rem/,
+    'the stack must be anchored to the right, or it can overlap the bubble again');
+  assert.ok(bubbleLeft < 50,
+    `the bubble must stay on the left half, got left: ${bubbleLeft}%`);
 
-
-  // And the bubble must still be ABOVE the boost stack in z, or a long line would
-  // be unreadable while the seal speaks.
+  // And the bubble must still be ABOVE the boost stack in z, so a long line is
+  // readable while the seal speaks -- the panels are in different corners but they
+  // are still both inside the lake.
   const bz = Number(/z-index:\s*(\d+)/.exec(bubble)?.[1] ?? 0);
   const sz = Number(/z-index:\s*(\d+)/.exec(boost)?.[1] ?? 0);
   assert.ok(bz > sz, `the bubble (z=${bz}) must sit above the stack (z=${sz})`);
