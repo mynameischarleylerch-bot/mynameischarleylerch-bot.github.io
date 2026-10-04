@@ -934,9 +934,12 @@
     display: inline-flex; align-items: center; gap: .35rem; margin-left: auto;
   }
   .bubble {
-    /* Below the boost stack, which now owns the top-left corner. It still reads
-       as the seal's own words because it sits directly over the seal. */
-    position: absolute; left: 2%; top: 34%; z-index: 3;
+    /* Above the seal, clear of its face. It used to sit at top:34%, level with the
+       animal's back, and the tail was a 7px stub that just about reached it. Raised
+       to 26% so it reads as speech coming from the seal rather than as a label lying
+       on top of it -- and the boost stack no longer owns this corner, it is top-RIGHT
+       now, so there is nothing in the way up here. */
+    position: absolute; left: 2%; top: 26%; z-index: 3;
     max-width: 32%; min-width: 7rem;
     padding: .45rem .7rem .5rem;
     border-radius: 1rem; border: 1px solid rgba(1, 87, 155, .26);
@@ -1012,7 +1015,14 @@
     opacity: 1; transform: translateY(0) scale(1);
   }
   .bubble__tail {
-    position: absolute; left: 1.7rem; bottom: -7px; width: 12px; height: 12px;
+    /* Still the rotated square it always was -- a 12x12 diamond -- just pushed
+       further down so its tip reaches the raised bubble's new distance.
+       A 12x12 square rotated 45deg is 17px tall and 8.5px from centre to tip, so
+       bottom:-7px put the tip ~9.5px below the bubble; bottom:-23px puts it ~25px
+       down, which is what the gap needs now the bubble sits higher. The upper half
+       stays inside the bubble, whose own background hides it, so only the point
+       shows. Widening it a little keeps the stroke from thinning as it stretches. */
+    position: absolute; left: 1.7rem; bottom: -23px; width: 13px; height: 13px;
     background: rgba(255,255,255,.94);
     border-right: 1px solid rgba(1, 87, 155, .26);
     border-bottom: 1px solid rgba(1, 87, 155, .26);
@@ -1909,6 +1919,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-N"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-P"></script>
 </body>
 </html>

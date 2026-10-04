@@ -1990,3 +1990,54 @@ test('the sun bloom is a rounded rectangle, not a disc behind the boosts', () =>
   assert.match(body, /top:\s*4%/, 'at the same offset');
   assert.match(body, /pointer-events:\s*none/, 'and must stay click-through');
 });
+
+test("the seal's bubble sits above the seal, with a tail that still reaches it", () => {
+  // Raised from top:34% to 26%. It used to sit level with the animal's back, which
+  // read as a label lying on the seal rather than as something the seal is saying.
+  //
+  // The consequence is the part that is easy to miss: the tail is a FIXED-PX stub, so
+  // moving the bubble up lengthens the gap it has to bridge. Left at the old length
+  // it stops short and the bubble reads as floating text. The two must move together.
+  // Strip comments: rule() returns the raw body, and this rule's own comment
+  // explains that it WAS at top:34% -- which the check below then read as the
+  // current value.
+  const bubble = rule('.bubble').replace(/\/\*[\s\S]*?\*\//g, '');
+  const top = Number(/top:\s*([\d.]+)%/.exec(bubble)?.[1] ?? -1);
+  assert.ok(top >= 0, `the bubble must have a top, got ${top}`);
+  assert.ok(top <= 28,
+    `the bubble sits at top:${top}%; it was raised to 26% to clear the seal's back`);
+
+  // Still on the left half -- the collision test covers the corner, this only
+  // confirms raising it did not also slide it across.
+  const left = Number(/left:\s*([\d.]+)%/.exec(bubble)?.[1] ?? -1);
+  assert.ok(left >= 0 && left < 50, `the bubble must stay on the left, got left:${left}%`);
+
+  // The tail must actually reach below the bubble: a rotated square of side N is
+  // N*sqrt(2) tall with its tip N*sqrt(2)/2 below centre, so `bottom` is negative by
+  // that reach. A tail whose bottom is positive would sit entirely INSIDE the bubble
+  // and never appear at all.
+  const tail = rule('.bubble__tail').replace(/\/\*[\s\S]*?\*\//g, '');
+  const bottom = Number(/bottom:\s*(-?[\d.]+)px/.exec(tail)?.[1] ?? 999);
+  const size = Number(/(?:width|height):\s*([\d.]+)px/.exec(tail)?.[1] ?? 0);
+  assert.ok(bottom < 0,
+    `the tail's bottom is ${bottom}px; it must be negative or it never emerges from `
+    + 'the bubble and the speech has no visible pointer');
+
+  // And it must be long enough for the gap the raised bubble opened. 34% -> 26% is
+  // 8% of the lake height; on the shortest lake worth playing that is well over 20px,
+  // so a stub shorter than about 20px leaves the bubble visibly detached.
+  assert.ok(bottom <= -20,
+    `the tail reaches ${-bottom}px, too short to bridge the raised bubble -- the `
+    + 'bubble will read as floating text');
+
+  // The diamond is what makes it a tail rather than a box, and it is load-bearing
+  // geometry, not decoration.
+  assert.match(tail, /rotate\(45deg\)/, 'the tail is a rotated square');
+  assert.match(tail, /background:\s*rgba\(255,\s*255,\s*255/, 'and takes the bubble fill');
+  assert.ok(size >= 10, `the tail is ${size}px; too small to see`);
+
+  // The tail is decorative: the words live in the bubble's own text node, and the
+  // tail is aria-hidden so a screen reader never announces a shape.
+  assert.match(PAGE, /class="bubble__tail" aria-hidden="true"/,
+    'the tail must stay aria-hidden');
+});
