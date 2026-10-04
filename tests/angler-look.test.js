@@ -10,7 +10,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import {readFileSync, readdirSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
 
 const GAME = new URL('../vendor/fru-angler/', import.meta.url);
@@ -171,7 +172,7 @@ test('the figure group is wrapped so it can be counter-scaled', () => {
   const inside = PAGE.slice(open, close);
   assert.ok(inside.includes('id="rod-blank"'), 'the rod rig travels with the figure');
   assert.ok(inside.includes('id="rod-tip"'), 'and so does the lure');
-  for (const scenery of ['scene__water', 'scene__shore', 'scene__wood', 'id="fa-pet"']) {
+  for (const scenery of ['scene__water', 'scene__shore', 'scene__wood', 'id="fa-pet-0"']) {
     assert.equal(inside.includes(scenery), false,
       `${scenery} must not be counter-scaled with the figure`);
   }
@@ -269,9 +270,15 @@ test('the cover art is Aero too', () => {
 });
 
 test('the game folder holds only the files it needs', () => {
-  const files = readdirSync(GAME).filter((f) => !f.startsWith('.')).sort();
+  // Directories are allowed: `media/` is where the lake background pictures live,
+  // and the user is actively adding to it from another session. What this guards is
+  // loose SOURCE files at the top level -- a stray copy of a module, a scratch
+  // probe -- which is the mistake that actually happened here more than once.
+  const entries = readdirSync(GAME).filter((f) => !f.startsWith('.'));
+  const dirs = entries.filter((f) => statSync(fileURLToPath(new URL(`${f}/`, GAME))).isDirectory());
+  const files = entries.filter((f) => !dirs.includes(f)).sort();
   assert.deepEqual(files, ['angler.js', 'fishing.js', 'index.html', 'reel.js'],
-    `unexpected files: ${files.join(', ')}`);
+    `unexpected source files: ${files.join(', ')}`);
 });
 
 
@@ -612,19 +619,22 @@ test('the pet is counter-scaled so the scene cannot stretch it', () => {
   // stretched to the lake's shape. The pet is outside it (it sits at a fixed
   // point on the deck), so it needs the same correction fitFigure() applies to the
   // angler -- otherwise a seal comes out as a wide smear.
-  assert.match(PAGE, /id="fa-pet-fit"/, 'the pet needs its own fitted group');
-  assert.match(PAGE, /id="fa-pet"/, 'and the pet itself');
+  assert.match(PAGE, /id="fa-pet-fit-0"/, 'the pet needs its own fitted group');
+  assert.match(PAGE, /id="fa-pet-0"/, 'and the pet itself');
   // The fitted group WRAPS the pet, so it comes first in document order.
   const order = PAGE.indexOf('id="fa-pet-fit');
-  assert.ok(order < PAGE.indexOf('id="fa-pet"'),
+  assert.ok(order < PAGE.indexOf('id="fa-pet-0"'),
     'the pet must be inside the group that counter-stretches it');
-  assert.match(PAGE.slice(order, order + 400), /<g id="fa-pet"/,
+  assert.match(PAGE.slice(order, order + 400), /<g id="fa-pet-0"/,
     'and the pet must open inside it');
 });
 
 test('the pet is a group the controller actually counter-scales', () => {
   const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
-  assert.match(src, /fa-pet-fit/, 'the controller must reference the fitted group');
+  // The fitted groups are now SLOT-SUFFIXED and found through #fa-pet-dock, so the
+  // controller must name the dock rather than a single id.
+  assert.match(src, /fa-pet-dock/, 'the controller must find the dock');
+  assert.match(src, /fa-pet-slot/, 'and each slot inside it');
   assert.match(src, /scale\(/, 'and apply a scale transform to it');
 });
 
@@ -757,11 +767,11 @@ test('the seal is drawn from the photographs, and keeps its Aero finish', () => 
   //
   // What still holds, and is the part worth keeping: the body is drawn, not an
   // ellipse, and it keeps the Aero gradient rather than going flat.
-  const start = PAGE.indexOf('<g id="fa-pet">');
+  const start = PAGE.indexOf('<g id="fa-pet-0">');
   const pet = PAGE.slice(start, PAGE.indexOf('\n        </g>', start));
-  assert.match(pet, /<path id="pet-body"\s+d="M[^"]*C/,
+  assert.match(pet, /<path id="pet-body-0"[^>]*\sd="M[^"]*C/,
     'the body must be a drawn path, not an ellipse');
-  assert.match(pet, /fill="url\(#fa-pet-/, 'and it keeps the Aero gradient');
+  assert.match(pet, /fill="url\(#pet-fill-/, 'and it keeps the Aero gradient');
 });
 
 
@@ -975,8 +985,8 @@ test('the pet is hidden by CSS, not by the hidden attribute alone', () => {
   // dock with no seal equipped, sitting over a bubble that correctly stayed
   // silent. jsdom disagrees (it applies the HTML sheet to SVG), so no DOM test can
   // catch this; only the stylesheet can be asserted.
-  assert.match(PAGE, /#fa-pet-fit\[hidden\]\s*\{[^}]*display:\s*none/,
-    `#fa-pet-fit needs its own [hidden] rule -- the attribute alone does nothing on an SVG <g>`);
+  assert.match(PAGE, /\.fa-pet-slot\[hidden\]\s*\{[^}]*display:\s*none/,
+    'the dock slots need their own [hidden] rule -- the attribute alone does nothing on an SVG <g>');
 });
 
 test('every SVG group that JS toggles has a matching hidden rule', () => {
@@ -996,7 +1006,11 @@ test('every SVG group that JS toggles has a matching hidden rule', () => {
     /<g(?=[^>]*\bid="([^"]+)")(?=[^>]*\shidden(?:\s|=|>))[^>]*>/g,
   )].map((m) => m[1]);
   for (const id of svgGroups) {
-    const covered = new RegExp(`#?\\.?${id}\\[hidden\\]`).test(PAGE);
+  const covered = new RegExp(`#?\\.?${id}\\[hidden\\]`).test(PAGE)
+      // Either an id-keyed rule or the slot class covers it. Both are legitimate:
+      // the dock slots are hidden BY CLASS precisely because there are two of them,
+      // and a rule naming one id would leave the other visible.
+      || (id.startsWith('fa-pet-fit-') && /\.fa-pet-slot\[hidden\]/.test(PAGE));
     assert.ok(covered, `<g id="${id}" hidden> has no CSS rule to hide it`);
   }
 
@@ -1182,7 +1196,7 @@ test('the scene markup parses, which presence checks cannot tell', () => {
 
 /** The seal's own group, so the tests read the animal and not the lake. */
 function petGroup() {
-  const start = PAGE.indexOf('<g id="fa-pet">');
+  const start = PAGE.indexOf('<g id="fa-pet-0">');
   assert.ok(start > 0, 'the seal group must exist');
   return PAGE.slice(start, PAGE.indexOf('\n        </g>', start));
 }
@@ -1202,7 +1216,9 @@ function count(s, needle) {
   return s.split(needle).length - 1;
 }
 function bodyOf(pet) {
-  return pet.match(/<path id="pet-body"\s+d="([^"]+)"/)[1];
+  // [^>]* between the id and d=, not \s*: the body carries a class as well as an
+  // id, and the old \s* stopped matching the moment it did.
+  return pet.match(/<path id="pet-body-0"[^>]*\sd="([^"]+)"/)[1];
 }
 
 test('the head is tucked in, so the whole seal is one round mass', () => {
@@ -1211,7 +1227,7 @@ test('the head is tucked in, so the whole seal is one round mass', () => {
   // in, there is no head and no snout -- one continuous round animal, the way a
   // seal loafs with its head drawn back into its shoulders.
   const pet = petGroup();
-  assert.match(pet, /<path id="pet-body"/, 'one body');
+  assert.match(pet, /<path id="pet-body-0"/, 'one body');
   assert.doesNotMatch(pet, /id="pet-head"/, 'no separate head -- it is tucked in');
   assert.doesNotMatch(pet, /id="pet-snout"/, 'and no snout sticking out');
   assert.equal(count(pet, 'id="pet-body'), 1, 'exactly one mass');
@@ -1233,7 +1249,7 @@ test('the face sits on the right, so the seal is still facing that way', () => {
   const body = bodyOf(pet);
   const mid = xs(body).reduce((s, v) => s + v, 0) / coords(body).length;
   const eye = pet.slice(pet.indexOf('<g id="pet-eye">'), pet.indexOf('</g>', pet.indexOf('<g id="pet-eye">')));
-  const mouth = pet.match(/<path id="pet-three"\s+d="([^"]+)"/)[1];
+  const mouth = pet.match(/<path id="pet-three-0"[^>]*\sd="([^"]+)"/)[1];
 
   const mean = (d) => xs(d).reduce((s, v) => s + v, 0) / coords(d).length;
   assert.ok(mean(mouth) > mid + 1.5,
@@ -1248,8 +1264,8 @@ test('the coat is still ringed, and the flipper still tucked low', () => {
   const pet = petGroup();
   assert.ok(count(pet, 'class="pet__ring"') >= 3,
     'the coat must carry rings; found ' + count(pet, 'class="pet__ring"'));
-  assert.match(pet, /id="pet-flipper"/, 'and it is still a seal, so it has a flipper');
-  const fl = pet.match(/<path id="pet-flipper"\s+d="([^"]+)"/)[1];
+  assert.match(pet, /id="pet-flipper-0"/, 'and it is still a seal, so it has a flipper');
+  const fl = pet.match(/<path id="pet-flipper-0"\s+d="([^"]+)"/)[1];
   const body = bodyOf(pet);
   const top = Math.min(...ys(body));
   const belly = Math.max(...ys(body));
@@ -1372,10 +1388,10 @@ test('the face is the literal :3 -- a colon, then a numeral 3', () => {
   // ":3" is a colon and a digit. The colon is two dots STACKED VERTICALLY. The
   // digit is a vertical, two-lobed curve opening to the LEFT -- not an arc.
   const pet = petGroup();
-  const start = pet.indexOf('<g id="pet-face">');
-  const face = pet.slice(start, pet.indexOf('</g>', pet.indexOf('id="pet-three"')));
-  assert.match(face, /id="pet-colon"/, 'the colon');
-  assert.match(face, /id="pet-three"/, 'the numeral 3');
+  const start = pet.indexOf('<g id="pet-face-0">');
+  const face = pet.slice(start, pet.indexOf('</g>', pet.indexOf('id="pet-three-0"')));
+  assert.match(face, /id="pet-colon-0"/, 'the colon');
+  assert.match(face, /id="pet-three-0"/, 'the numeral 3');
 });
 
 
@@ -1383,7 +1399,7 @@ test('the colon is two dots stacked VERTICALLY', () => {
   // The whole difference between a smiley and ":3". A colon's dots share an x and
   // differ in y. Every previous pass put them side by side, which is eyes.
   const pet = petGroup();
-  const s = pet.indexOf('<g id="pet-colon">');
+  const s = pet.indexOf('<g id="pet-colon-0">');
   const colon = pet.slice(s, pet.indexOf('</g>', s));
   const dots = [...colon.matchAll(/cx="([\d.]+)"[^>]*cy="([\d.]+)"/g)].map((m) => [Number(m[1]), Number(m[2])]);
   assert.equal(dots.length, 2, 'a colon is two dots, found ' + dots.length);
@@ -1401,7 +1417,7 @@ test('the 3 is a two-lobed curve opening LEFT, taller than wide', () => {
   // its right END. A "3" bulges to the right in the middle and comes back LEFT at
   // the bottom, so its right end sits well inside its own width.
   const pet = petGroup();
-  const d = pet.match(/<path id="pet-three"\s+d="([^"]+)"/)[1];
+  const d = pet.match(/<path id="pet-three-0"[^>]*\sd="([^"]+)"/)[1];
   const pts = coords(d);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
@@ -1426,7 +1442,7 @@ test('the 3 is a two-lobed curve opening LEFT, taller than wide', () => {
     + w.toFixed(1) + ' by ' + hgt.toFixed(1));
 
   // Drawn as a stroke, so it reads as the character rather than a filled blob.
-  const tag = pet.match(/<path id="pet-three"[^>]*>/)[0];
+  const tag = pet.match(/<path id="pet-three-0"[^>]*>/)[0];
   assert.match(tag, /fill="none"/, 'the 3 is an outline, not a solid shape');
   assert.ok(Number(/stroke-width="([\d.]+)"/.exec(tag)[1]) >= 0.45,
     'and thick enough to see');
@@ -1434,20 +1450,20 @@ test('the 3 is a two-lobed curve opening LEFT, taller than wide', () => {
 
 test('the colon sits to the LEFT of the 3, as the characters do', () => {
   const pet = petGroup();
-  const colon = pet.match(/<g id="pet-colon">([\s\S]*?)<\/g>/)[1];
+  const colon = pet.match(/<g id="pet-colon-0">([\s\S]*?)<\/g>/)[1];
   const dots = [...colon.matchAll(/cx="([\d.]+)"/g)].map((m) => Number(m[1]));
-  const three = coords(pet.match(/<path id="pet-three"\s+d="([^"]+)"/)[1]).map((p) => p[0]);
+  const three = coords(pet.match(/<path id="pet-three-0"[^>]*\sd="([^"]+)"/)[1]).map((p) => p[0]);
   assert.ok(Math.max(...dots) < Math.min(...three),
     'the colon is left of the 3 -- in ":3" it reads ":3", not "3:"');
 });
 
 test('the whole face reads :3 compactly, sitting on the seal', () => {
   const pet = petGroup();
-  const face = pet.slice(pet.indexOf('<g id="pet-face">'),
-    pet.indexOf('</g>', pet.indexOf('id="pet-three"')));
+  const face = pet.slice(pet.indexOf('<g id="pet-face-0">'),
+    pet.indexOf('</g>', pet.indexOf('id="pet-three-0"')));
   const colon = [...pet.matchAll(/<circle cx="([\d.]+)"[^>]*cy="([\d.]+)"/g)]
     .map((m) => [Number(m[1]), Number(m[2])]);
-  const three = coords(pet.match(/<path id="pet-three"\s+d="([^"]+)"/)[1]);
+  const three = coords(pet.match(/<path id="pet-three-0"[^>]*\sd="([^"]+)"/)[1]);
 
   // The glyph has to fit ON the animal, not float off it.
   const body = bodyOf(pet);
@@ -1508,7 +1524,7 @@ function mat(list) {
 
 /** The #pet-tilt transform, parsed from the markup. */
 function faceMatrix() {
-  const t = PAGE.match(/id="pet-tilt"\s+transform="([^"]+)"/);
+  const t = PAGE.match(/id="pet-tilt-0"\s+transform="([^"]+)"/);
   assert.ok(t, '#pet-tilt must carry the tilt transform');
   const list = [...t[1].matchAll(/([a-z]+)\(([^)]*)\)/g)]
     .map((m) => [m[1], m[2].split(/[\s,]+/).filter(Boolean)]);
@@ -1558,7 +1574,7 @@ function nearestApproach() {
   const body = pathPoints(bodyOf(pet));
 
   // Every drawn mark, in the glyph's own coordinates, then placed.
-  const face = pathPoints(pet.match(/<path id="pet-three"\s+d="([^"]+)"/)[1]);
+  const face = pathPoints(pet.match(/<path id="pet-three-0"[^>]*\sd="([^"]+)"/)[1]);
   for (const [, cx, cy] of pet.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)"/g)) {
     face.push([Number(cx), Number(cy)]);
   }
@@ -1587,7 +1603,7 @@ test('the face sits fully inside the body, with room to spare', () => {
   // 1.6-unit floor is a floor on the INK, so it is measured from the edge.
   const pet = petGroup();
   const stroke = Number(
-    /stroke-width="([\d.]+)"/.exec(pet.match(/<path id="pet-three"[^>]*>/)[0])[1]);
+    /stroke-width="([\d.]+)"/.exec(pet.match(/<path id="pet-three-0"[^>]*>/)[0])[1]);
 
   const { best, at } = nearestApproach();
   const ink = best - stroke / 2;
@@ -1601,7 +1617,7 @@ test('the face sits fully inside the body, with room to spare', () => {
   // turned glyph sits within the body's bounding box.
   const bx = xs(bodyOf(pet)), by = ys(bodyOf(pet));
   const m = faceMatrix();
-  const face = pathPoints(pet.match(/<path id="pet-three"\s+d="([^"]+)"/)[1])
+  const face = pathPoints(pet.match(/<path id="pet-three-0"[^>]*\sd="([^"]+)"/)[1])
     .concat([...pet.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)"/g)]
       .map(([, cx, cy]) => [Number(cx), Number(cy)]))
     .map((p) => place(m, p));
@@ -1616,7 +1632,7 @@ test('the face sits fully inside the body, with room to spare', () => {
 
 /** Points along the numeral 3's path, in markup coordinates. */
 function threePoints(doc) {
-  return cubics(doc.getElementById('pet-three').getAttribute('d'))
+  return cubics(doc.getElementById('pet-three-0').getAttribute('d'))
     .flatMap(([a, q]) => [a, q[0], q[1], q[2]]);
 }
 
@@ -1674,13 +1690,16 @@ function cubics(d) {
  *
  * petGroup() slices #fa-pet alone, which is right for reading the drawing but WRONG
  * for measuring on screen: fitPet() writes its counter-squeeze onto #fa-pet-fit, the
- * group OUTSIDE #fa-pet. Parse without it and getElementById('fa-pet-fit') is null,
+ * group OUTSIDE #fa-pet. Parse without it and getElementById('fa-pet-fit-0') is null,
  * which is how the first version of this measured nothing at all.
  */
 function petSvg() {
-  const start = PAGE.indexOf('<g id="fa-pet-fit"');
+  // Slot 0, not "the pet" -- there are now two of them. Slot 0 is the animal that
+  // has always been here, so every geometry assertion below still describes the
+  // drawing it was written for.
+  const start = PAGE.indexOf('<g id="fa-pet-fit-0"');
   const open = PAGE.lastIndexOf('<g', start);
-  assert.ok(start > 0 && open > 0, 'the pet must live in a #fa-pet-fit group');
+  assert.ok(start > 0 && open > 0, 'the pet must live in a #fa-pet-fit-0 group');
   return PAGE.slice(open, PAGE.indexOf('</svg>'));
 }
 
@@ -1759,21 +1778,27 @@ function fittedTransforms(doc, aspect) {
 
   const petY = Number(/const PET_Y = ([\d.]+);/.exec(body)[1]);
   const faceX = Number(/const FACE_X = ([\d.]+);/.exec(body)[1]);
-  const anchor = Number(/translate\((\d+(?:\.\d+)?) 0\) scale/.exec(body)[1]);
+  // The anchor is written as ${FACE_X}, not a literal: fitPet() now builds one
+  // transform string for both dock slots, so the old /translate\(\d+ 0\) scale/
+  // matched nothing and this threw on a null. FACE_X IS the anchor -- that is the
+  // whole point of the constant -- so read it from there.
+  assert.match(body, /translate\(\$\{FACE_X\} 0\) scale/,
+    "the slot transform must be anchored on FACE_X, or the face slides as the lake changes shape");
+  const anchor = faceX;
 
   // fitPet() derives its scale from box.height / box.width, so a lake one unit wide
   // and `aspect` tall makes the ratio exactly the aspect under test.
   const s = aspect;
-  doc.getElementById('fa-pet-fit').setAttribute('transform',
+  doc.getElementById('fa-pet-fit-0').setAttribute('transform',
     `translate(${anchor} 0) scale(${s} 1) translate(${-anchor} 0) translate(0 ${petY})`);
-  doc.getElementById('pet-face').setAttribute('transform',
+  doc.getElementById('pet-face-0').setAttribute('transform',
     `translate(${faceX} 0) scale(${(1 / s).toFixed(4)} 1) translate(${-faceX} 0)`);
   return { petY, faceX, anchor };
 }
 
 /** The body outline in final coordinates for a given aspect. */
 function bodyOutline(doc, m) {
-  const d = doc.getElementById('pet-body').getAttribute('d');
+  const d = doc.getElementById('pet-body-0').getAttribute('d');
   return cubics(d).flatMap(([a, [c1, c2, e]]) => {
     const pts = [];
     for (let i = 0; i <= 60; i++) {
@@ -1789,7 +1814,7 @@ function bodyOutline(doc, m) {
 
 /** Every ink mark of the face, in final coordinates, with its radius. */
 function faceInk(doc, m) {
-  const three = doc.getElementById('pet-three');
+  const three = doc.getElementById('pet-three-0');
   const stroke = Number(three.getAttribute('stroke-width'));
   // cubics() returns [start, [c1, c2, end]] segments; place each segment's points,
   // not the segment itself -- on(m, segment) is a point times an array, i.e. NaN.
@@ -1815,10 +1840,10 @@ test('the face is inside the seal at every realistic lake shape, not just in the
   let worst = Infinity, outside = 0, at = null;
   for (const aspect of LAKE_ASPECTS) {
     const { anchor } = fittedTransforms(doc, aspect);
-    const outer = matrix(doc.getElementById('fa-pet-fit').getAttribute('transform'));
-    const faceM = matrix(doc.getElementById('pet-face').getAttribute('transform'));
-    const tiltM = matrix(doc.getElementById('pet-tilt').getAttribute('transform'));
-    const M = matrix(doc.getElementById('fa-pet-fit').getAttribute('transform'));
+    const outer = matrix(doc.getElementById('fa-pet-fit-0').getAttribute('transform'));
+    const faceM = matrix(doc.getElementById('pet-face-0').getAttribute('transform'));
+    const tiltM = matrix(doc.getElementById('pet-tilt-0').getAttribute('transform'));
+    const M = matrix(doc.getElementById('fa-pet-fit-0').getAttribute('transform'));
     const full = compose(compose(outer, faceM), tiltM);
     assert.ok(anchor);
 
@@ -1860,12 +1885,29 @@ test("FACE_X is the seal's own anchor, so the face cannot drift", () => {
   const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
   const declared = Number(/const FACE_X = ([\d.]+);/.exec(src)[1]);
   const fitPetSrc = src.slice(src.indexOf('function fitPet'), src.indexOf('function placeBobber'));
-  const anchor = Number(/translate\((\d+(?:\.\d+)?) 0\) scale/.exec(fitPetSrc)[1]);
+  // The squeeze is written with ${FACE_X}, not a literal. There is therefore no
+  // second number that can drift away from the first -- which is the entire point of
+  // the constant. Assert that property directly, rather than parsing two literals
+  // and comparing them: a hard-coded anchor sneaking back in IS the bug, and this
+  // catches it wherever it lands.
+  const squeezes = [...fitPetSrc.matchAll(/translate\((\$\{FACE_X\}|[-\d.]+) 0\) scale\(/g)]
+    .map((m) => m[1]);
+  assert.ok(squeezes.length >= 2,
+    `expected the outer squeeze and the face's inverse both to be anchored; found ${squeezes.length}`);
+  for (const anchor of squeezes) {
+    assert.equal(anchor, '${FACE_X}',
+      `a counter-squeeze is anchored on ${anchor} rather than FACE_X (${declared}). The `
+      + 'two corrections only cancel when they share an anchor; otherwise the face '
+      + 'slides by (1 - s) * (anchor - FACE_X), which grows on wider windows.');
+  }
 
-  assert.equal(declared, anchor,
-    `FACE_X is ${declared} but the pet's counter-squeeze turns about ${anchor}. `
-    + 'The two corrections only cancel when they share an anchor; otherwise the face '
-    + 'slides by (1 - s) * (anchor - FACE_X), which grows on wider windows.');
+  // Both dock slots go through the same correction, so a second animal cannot be
+  // fitted by different maths than the first -- which is how it would end up a smear
+  // on exactly the lakes the first one survives.
+  assert.match(fitPetSrc, /for \(const slot of dock\.querySelectorAll\('\.fa-pet-slot'\)\)/,
+    'fitPet must fit every dock slot, not just the first');
+  assert.match(fitPetSrc, /slot\.dataset\.slot === '0'/,
+    'and the slots must differ only by an offset branch');
 
   // And prove the cancellation holds, by composing the chain at three very different
   // window shapes. A pure translation has a == d == 1: nothing scaled, nothing moved.
@@ -1874,8 +1916,8 @@ test("FACE_X is the seal's own anchor, so the face cannot drift", () => {
   for (const aspect of [0.44, 0.75, 1.26]) {
     fittedTransforms(doc, aspect);
     const composed = compose(
-      matrix(doc.getElementById('fa-pet-fit').getAttribute('transform')),
-      matrix(doc.getElementById('pet-face').getAttribute('transform')));
+      matrix(doc.getElementById('fa-pet-fit-0').getAttribute('transform')),
+      matrix(doc.getElementById('pet-face-0').getAttribute('transform')));
     // Not exactly 1: fitPet writes the scale with toFixed(4), so the product is
     // 1 to within about 1e-5. Anything larger means the two anchors disagree again.
     assert.ok(Math.abs(composed[0] - 1) < 1e-4,
@@ -1901,10 +1943,10 @@ test('the face is still inside at the widest windows that are still playable', (
     fittedTransforms(doc, aspect);
     const composeAll = compose(
       compose(
-        matrix(doc.getElementById('fa-pet-fit').getAttribute('transform')),
-        matrix(doc.getElementById('pet-face').getAttribute('transform'))),
-      matrix(doc.getElementById('pet-tilt').getAttribute('transform')));
-    const body = bodyOutline(doc, matrix(doc.getElementById('fa-pet-fit').getAttribute('transform')));
+        matrix(doc.getElementById('fa-pet-fit-0').getAttribute('transform')),
+        matrix(doc.getElementById('pet-face-0').getAttribute('transform'))),
+      matrix(doc.getElementById('pet-tilt-0').getAttribute('transform')));
+    const body = bodyOutline(doc, matrix(doc.getElementById('fa-pet-fit-0').getAttribute('transform')));
     const outside = faceInk(doc, composeAll).filter(([p]) => !within(p[0], p[1], body));
     assert.equal(outside.length, 0,
       `${outside.length} ink points fall outside the seal at aspect ${aspect}. `
@@ -1916,10 +1958,10 @@ test('the face still looks at the angler, and stays clear of him', () => {
   // Making it fit must not turn it into a face in the middle of the animal looking
   // out to sea. The angler stands at x=25.7 on the dock.
   const doc = new JSDOM(petSvg()).window.document;
-  const bodyD = doc.getElementById('pet-body').getAttribute('d');
+  const bodyD = doc.getElementById('pet-body-0').getAttribute('d');
   const bodyMid = (Math.min(...xs(bodyD)) + Math.max(...xs(bodyD))) / 2;
 
-  const tiltM = matrix(doc.getElementById('pet-tilt').getAttribute('transform'));
+  const tiltM = matrix(doc.getElementById('pet-tilt-0').getAttribute('transform'));
   const pts = glyphPoints(doc).map((p) => on(tiltM, p));
   const fx = pts.map((p) => p[0]), fy = pts.map((p) => p[1]);
   const centre = (Math.min(...fx) + Math.max(...fx)) / 2;

@@ -129,10 +129,19 @@
      the bobber are all positioned against those fractions.
 
      The palette gradient stays UNDER the picture, so it is both the fallback and
-     what shows if the file ever fails to load. */
+     what shows if the file ever fails to load.
+
+     The near-water gradient above it is the one thing that still deepens the
+     bottom of the lake, and it is a GRADIENT rather than the scene's own water
+     rectangle on purpose. Translucent rect, measured against this picture: the
+     row-to-row step at its top edge hit 29 where the picture alone peaks at 8 --
+     a hard line across the water that read as a seam, not as shallows. A
+     gradient has no edge to give away, and it costs the water only a little
+     saturation while adding real depth. */
   .lake[data-art] {
     background-image:
       linear-gradient(105deg, rgba(255,255,255,0) 38%, rgba(255,255,255,.22) 50%, rgba(255,255,255,0) 62%),
+      linear-gradient(180deg, rgba(1,58,99,0) 70%, rgba(1,58,99,.3) 100%),
       var(--lake-art, none),
       linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 42%, var(--sky-floor) 100%);
     background-size: 100% 100%;
@@ -140,13 +149,16 @@
     background-repeat: no-repeat;
   }
 
-  /* The scene's own landscape gives way to the illustration: the shore becomes
-     haze over the painted hills, the water a tint over the painted shallows.
-     The glints, the pier, the angler, the rod and the seal stay SOLID, because
-     those are the things the game actually plays against -- the bobber and the
-     splash read as being in water only if the water is there to land in. */
-  .lake[data-art] .scene__shore { opacity: .3; }
-  .lake[data-art] .scene__water { opacity: .5; }
+  /* The scene's own landscape gives way to the illustration, but not by much.
+     The shore is left as a whisper of the game's own haze -- measured against
+     the painted hills it costs 0.04 of saturation, which is invisible, where at
+     the 0.3 it started on it cost 0.15 and turned the greens grey. The water
+     goes entirely, for the seam above. The glints, the pier, the angler, the rod
+     and the seal stay SOLID: those are the things the game plays against, and
+     the bobber and the splash only read as being in water if water is there to
+     land in. */
+  .lake[data-art] .scene__shore { opacity: .03; }
+  .lake[data-art] .scene__water { opacity: 0; }
 
   
   /* Sky and weather, written from JS per visit, so one visit of a lake can look
@@ -1066,7 +1078,10 @@
   @media (prefers-reduced-motion: reduce) {
     .bond__fill { transition: none; }
   }
-  #fa-pet-fit[hidden] { display: none; }
+  /* Both dock slots. `hidden` is an HTML attribute: it hides a <div> and does
+     nothing to an SVG <g>, so a pet can be on the dock with no seal equipped.
+     Keyed on the class so a slot added later is covered by this rule. */
+  .fa-pet-slot[hidden] { display: none; }
   /* Same reason as above, for the particles: `hidden` alone is HTML behaviour
      and does not hide an SVG element. Without this every motif shows at once,
      stacked on top of each other. */
@@ -1434,11 +1449,7 @@
             <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
           </radialGradient>
           <!-- the pet seal: a lit Aero blob, tinted per seal by paintPet() -->
-          <linearGradient id="fa-pet-fill" x1="0.2" y1="0" x2="0.8" y2="1">
-            <stop offset="0" stop-color="#ffffff"/>
-            <stop offset="0.4" stop-color="#8fd8f5"/>
-            <stop offset="1" stop-color="#2b7fa8"/>
-          </linearGradient>
+          
         </defs>
 
         <!-- far shore: a soft rise to the right -->
@@ -1664,8 +1675,22 @@
             </symbol>
           </defs>
 
-<g id="fa-pet-fit" hidden>
-                        <g id="fa-pet">
+<!-- The dock: TWO slots, because Bigger Dock lets a second seal out.
+     Slot 0 always exists; slot 1 stays hidden until the dock is bought.
+
+     Every id is SLOT-SUFFIXED (-0, -1) rather than shared. These are looked up by
+     id -- paintPet() reads the gradient, fitPet() reads the fitted group, and the
+     geometry tests pin these names exactly -- so two animals sharing one
+     #fa-pet-fill would each paint the other, and the second seal would silently
+     restyle the first. Suffixing makes a shared id impossible to reintroduce. -->
+<g id="fa-pet-dock">
+<linearGradient id="pet-fill-0" x1="0.2" y1="0" x2="0.8" y2="1">
+            <stop offset="0" stop-color="#ffffff"/>
+            <stop offset="0.4" stop-color="#8fd8f5"/>
+            <stop offset="1" stop-color="#2b7fa8"/>
+          </linearGradient>
+<g id="fa-pet-fit-0" class="fa-pet-slot" data-slot="0" hidden>
+                        <g id="fa-pet-0">
           <!-- The seal, head TUCKED IN: it loafs with its head drawn back into its
                shoulders, so the whole animal is one continuous round mass. No
                separate head, no snout projecting past the body.
@@ -1684,31 +1709,31 @@
           <ellipse cx="12.9" cy="48.4" rx="11.6" ry="1.4" fill="#0a4a70" opacity=".24"/>
 
           <!-- THE MASS: one long round body, flat where it rests on the boards. -->
-          <path id="pet-body"
+          <path id="pet-body-0" class="pet__body"
                 d="M12.9 31.4
                    C19.6 31.4 24.9 36.6 24.9 42.2
                    C24.9 47.2 19.4 49.8 12.9 49.8
                    C6.4 49.8 0.9 47.2 0.9 42.2
                    C0.9 36.6 6.2 31.4 12.9 31.4 Z"
-                fill="url(#fa-pet-fill)" stroke="#28405a" stroke-opacity=".32" stroke-width=".22"/>
+                fill="url(#pet-fill-0)" stroke="#28405a" stroke-opacity=".32" stroke-width=".22"/>
 
           <!-- The head drawn in: a soft cheek where it tucks into the shoulder.
                Shading, not an outline -- an outline here would be the second shape
                this design is trying not to have. -->
-          <path id="pet-cheek"
+          <path id="pet-cheek-0"
                 d="M16.6 32.7 C20.8 34.2 23.9 37.5 24.2 41.4 C24.4 43.7 23.7 45.8 22.2 47.2
                    C23.7 44.1 24.1 40 23.2 36.5 C22.5 34 20.1 32.4 16.6 32.7 Z"
                 fill="#2f4a5e" opacity=".14"/>
 
           <!-- THE FLIPPER: low on the flank and tucked in, clear of the face. -->
-          <path id="pet-flipper"
+          <path id="pet-flipper-0"
                 d="M8.6 44.6 C10.4 44.4 11.7 45.8 11.9 47.6 C12 48.8 11.2 49.8 10 49.9
                    C8.8 50 8 48.6 7.9 47 C7.8 45.7 8 44.8 8.6 44.6 Z"
                 fill="#3f5a6e" opacity=".4"/>
 
           <!-- THE COAT: pale rings over a dark ground, which is what a ringed seal
                is named for. Kept to the back half, away from the face. -->
-          <g id="pet-rings" fill="none" stroke="#e8f2f7">
+          <g id="pet-rings-0" fill="none" stroke="#e8f2f7">
             <ellipse class="pet__ring" cx="4.6" cy="38.2" rx="1.3" ry="1"
                      stroke-opacity=".5" stroke-width=".3"/>
             <ellipse class="pet__ring" cx="3.4" cy="45.4" rx="1.1" ry=".82"
@@ -1716,7 +1741,7 @@
             <ellipse class="pet__ring" cx="8.4" cy="34.2" rx="1" ry=".75"
                      stroke-opacity=".42" stroke-width=".28"/>
           </g>
-          <g id="pet-spots" fill="#2f4a5e">
+          <g id="pet-spots-0" fill="#2f4a5e">
             <circle class="pet__spot" cx="1.8" cy="42.4" r=".78" opacity=".34"/>
             <circle class="pet__spot" cx="6" cy="41.2" r=".66" opacity=".3"/>
             <circle class="pet__spot" cx="10.4" cy="47.2" r=".6" opacity=".3"/>
@@ -1736,7 +1761,7 @@
                So: the colon's dots share an x. The 3 is taller than it is wide, and
                its last point sits inside its own width -- which is exactly what a
                smile arc never does. -->
-          <g id="pet-face">
+          <g id="pet-face-0">
             <!-- The tilt. A NESTED group on purpose: fitPet() overwrites the
                  transform on #pet-face every time the lake resizes, so a rotation
                  written on #pet-face itself would be silently destroyed on the
@@ -1781,7 +1806,7 @@
           <!-- The stamped particles for the equipped seal. paintPet() swaps which
                <use> is shown; the rest are hidden. Behind the body, so they read as
                the seal's own atmosphere. -->
-          <g id="pet-fx" aria-hidden="true">
+          <g id="pet-fx-0" aria-hidden="true">
             <use href="#fx-bubbles"   class="pet__fx" data-fx="bubbles"/>
             <use href="#fx-tangerine" class="pet__fx" data-fx="tangerine"/>
             <use href="#fx-moss"      class="pet__fx" data-fx="moss"/>
@@ -1789,15 +1814,15 @@
             <use href="#fx-abyss"     class="pet__fx" data-fx="abyss"/>
           </g>
 
-            <g id="pet-tilt"
+            <g id="pet-tilt-0"
                transform="rotate(90 17.714 38.186) translate(20.5275 40.75) scale(0.3) translate(-20.5275 -40.75)">
             <!-- the colon -->
-            <g id="pet-colon">
+            <g id="pet-colon-0">
               <circle cx="18.2" cy="39.2" r=".72" fill="#12212e"/>
               <circle cx="18.2" cy="42.3" r=".72" fill="#12212e"/>
             </g>
             <!-- the numeral: two lobes bulging right, both ends returning left -->
-            <path id="pet-three"
+            <path id="pet-three-0"
                   d="M19 37
                      C21.8 37 23.3 37.9 23.3 39.2
                      C23.3 40.3 21.8 40.8 19.6 41.1
@@ -1809,6 +1834,157 @@
         </g>
 
         </g>
+<linearGradient id="pet-fill-1" x1="0.2" y1="0" x2="0.8" y2="1">
+            <stop offset="0" stop-color="#ffffff"/>
+            <stop offset="0.4" stop-color="#8fd8f5"/>
+            <stop offset="1" stop-color="#2b7fa8"/>
+          </linearGradient>
+<g id="fa-pet-fit-1" class="fa-pet-slot" data-slot="1" hidden>
+                        <g id="fa-pet-1">
+          <!-- The seal, head TUCKED IN: it loafs with its head drawn back into its
+               shoulders, so the whole animal is one continuous round mass. No
+               separate head, no snout projecting past the body.
+
+               The body fills the pier -- as long as the angler allows -- because a
+               shorter one leaves the face too small to read. Which way it faces is
+               carried by the face sitting on the RIGHT of the mass.
+
+               The face is drawn oversized on purpose. fitPet() counter-scales the
+               body in x to undo the stretched scene, and it gives this group the
+               inverse correction, so the face lands at exactly the size drawn here.
+               It still has to be BIG: on an animal this long, a modest smile is a
+               crease, not a mouth. -->
+
+          <!-- the shadow it sits in -->
+          <ellipse cx="12.9" cy="48.4" rx="11.6" ry="1.4" fill="#0a4a70" opacity=".24"/>
+
+          <!-- THE MASS: one long round body, flat where it rests on the boards. -->
+          <path id="pet-body-1" class="pet__body"
+                d="M12.9 31.4
+                   C19.6 31.4 24.9 36.6 24.9 42.2
+                   C24.9 47.2 19.4 49.8 12.9 49.8
+                   C6.4 49.8 0.9 47.2 0.9 42.2
+                   C0.9 36.6 6.2 31.4 12.9 31.4 Z"
+                fill="url(#pet-fill-1)" stroke="#28405a" stroke-opacity=".32" stroke-width=".22"/>
+
+          <!-- The head drawn in: a soft cheek where it tucks into the shoulder.
+               Shading, not an outline -- an outline here would be the second shape
+               this design is trying not to have. -->
+          <path id="pet-cheek-1"
+                d="M16.6 32.7 C20.8 34.2 23.9 37.5 24.2 41.4 C24.4 43.7 23.7 45.8 22.2 47.2
+                   C23.7 44.1 24.1 40 23.2 36.5 C22.5 34 20.1 32.4 16.6 32.7 Z"
+                fill="#2f4a5e" opacity=".14"/>
+
+          <!-- THE FLIPPER: low on the flank and tucked in, clear of the face. -->
+          <path id="pet-flipper-1"
+                d="M8.6 44.6 C10.4 44.4 11.7 45.8 11.9 47.6 C12 48.8 11.2 49.8 10 49.9
+                   C8.8 50 8 48.6 7.9 47 C7.8 45.7 8 44.8 8.6 44.6 Z"
+                fill="#3f5a6e" opacity=".4"/>
+
+          <!-- THE COAT: pale rings over a dark ground, which is what a ringed seal
+               is named for. Kept to the back half, away from the face. -->
+          <g id="pet-rings-1" fill="none" stroke="#e8f2f7">
+            <ellipse class="pet__ring" cx="4.6" cy="38.2" rx="1.3" ry="1"
+                     stroke-opacity=".5" stroke-width=".3"/>
+            <ellipse class="pet__ring" cx="3.4" cy="45.4" rx="1.1" ry=".82"
+                     stroke-opacity=".44" stroke-width=".28"/>
+            <ellipse class="pet__ring" cx="8.4" cy="34.2" rx="1" ry=".75"
+                     stroke-opacity=".42" stroke-width=".28"/>
+          </g>
+          <g id="pet-spots-1" fill="#2f4a5e">
+            <circle class="pet__spot" cx="1.8" cy="42.4" r=".78" opacity=".34"/>
+            <circle class="pet__spot" cx="6" cy="41.2" r=".66" opacity=".3"/>
+            <circle class="pet__spot" cx="10.4" cy="47.2" r=".6" opacity=".3"/>
+          </g>
+
+          <!-- THE FACE IS THE CHARACTER ":3".
+               Not a face that MEANS ":3" -- the glyph itself, drawn.
+
+               Five rounds drew the interpretation: two round eyes side by side and
+               a smiling arc. Compared against the actual characters that is not a
+               ":3" at all, and that comparison is what finally settled it:
+
+                 ":" is two dots STACKED VERTICALLY.
+                 "3" is a vertical two-lobed curve whose lobes bulge RIGHT and whose
+                     top and bottom ends both return LEFT.
+
+               So: the colon's dots share an x. The 3 is taller than it is wide, and
+               its last point sits inside its own width -- which is exactly what a
+               smile arc never does. -->
+          <g id="pet-face-1">
+            <!-- The tilt. A NESTED group on purpose: fitPet() overwrites the
+                 transform on #pet-face every time the lake resizes, so a rotation
+                 written on #pet-face itself would be silently destroyed on the
+                 first refit and the face would snap upright with nothing failing.
+                 The glyph only; the body stays upright.
+                 TILT: 90 degrees CLOCKWISE, about the glyph centre. Measured from
+                 the reference: its colon's two dots sit 0.15 degrees off horizontal,
+                 which can only be a quarter turn, and rotating it 90 degrees
+                 counter-clockwise restores an upright ":3". An earlier -12 was a
+                 guess, made without being able to see the picture, and was wrong.
+
+                 The pivot is (17.714, 38.186) and the glyph is scaled to 30% about
+                 its own centre (20.5275, 40.75) -- the scale goes FIRST in the list, so
+                 it is applied before the rotation, which is what "about its own centre"
+                 has to mean.
+
+                 THE FACE IS SMALL ON PURPOSE, and the reason is the squeeze. The body is
+                 drawn round, but the scene uses preserveAspectRatio="none", so fitPet()
+                 then SQUEEZES the seal's x by lake.height/lake.width -- about 0.47 on a
+                 1920x1080 desktop. The face carries the INVERSE correction so it keeps the
+                 size it was drawn at. The body therefore gets NARROWER as the window gets
+                 wider and the face does not, and a glyph sized for the unsqueezed drawing
+                 hangs out past the curved shoulder: at 85% the turned face reached x=24.6
+                 on screen, which is where it crossed the outline.
+
+                 At 30% the nearest approach is 1.62 units of clear INK -- half the stroke
+                 counted, not just the centreline -- at every aspect a real window produces,
+                 from a wide desktop to a tall portrait one, and the face still sits 2.25
+                 units right of the body's middle so it looks at the angler rather than out
+                 to sea. Below s=0.44, an unusually wide AND short window, the margin
+                 narrows to about 0.7 -- still inside the body, but not by much.
+
+                 FACE_X in fitPet() is 13 -- the SEAL's centre, not the glyph's -- which is
+                 what makes the two corrections cancel and the face stop drifting as the
+                 window reshapes. See the tests at the foot of angler-look.test.js. -->
+          <!-- THE PARTICLES. Drawn AFTER the body, not before.
+               They started out behind it and inside its outline, and an opaque
+               body painted over them covers every pixel -- so all five motifs
+               were invisible. They sit on top now and overlap the seal's edge,
+               which is what atmosphere around an animal actually looks like.
+               Still inside fa-pet-fit, so they scale and hide with the seal. -->
+          <!-- The stamped particles for the equipped seal. paintPet() swaps which
+               <use> is shown; the rest are hidden. Behind the body, so they read as
+               the seal's own atmosphere. -->
+          <g id="pet-fx-1" aria-hidden="true">
+            <use href="#fx-bubbles"   class="pet__fx" data-fx="bubbles"/>
+            <use href="#fx-tangerine" class="pet__fx" data-fx="tangerine"/>
+            <use href="#fx-moss"      class="pet__fx" data-fx="moss"/>
+            <use href="#fx-frost"     class="pet__fx" data-fx="frost"/>
+            <use href="#fx-abyss"     class="pet__fx" data-fx="abyss"/>
+          </g>
+
+            <g id="pet-tilt-1"
+               transform="rotate(90 17.714 38.186) translate(20.5275 40.75) scale(0.3) translate(-20.5275 -40.75)">
+            <!-- the colon -->
+            <g id="pet-colon-1">
+              <circle cx="18.2" cy="39.2" r=".72" fill="#12212e"/>
+              <circle cx="18.2" cy="42.3" r=".72" fill="#12212e"/>
+            </g>
+            <!-- the numeral: two lobes bulging right, both ends returning left -->
+            <path id="pet-three-1"
+                  d="M19 37
+                     C21.8 37 23.3 37.9 23.3 39.2
+                     C23.3 40.3 21.8 40.8 19.6 41.1
+                     C21.9 41.4 23.3 41.9 23.3 43.1
+                     C23.3 44.4 21.8 44.5 19 44.5"
+                  fill="none" stroke="#12212e" stroke-width=".55" stroke-linecap="round"/>
+            </g>
+          </g>
+        </g>
+
+        </g>
+</g>
 
         </g>
 

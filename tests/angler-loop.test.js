@@ -1066,7 +1066,7 @@ test('the HUD shows a rank, a title and the seal sitting with you', async () => 
   assert.equal(ctx.doc.getElementById('level').textContent, '1', 'a new angler is rank 1');
   assert.match(ctx.doc.getElementById('level-title').textContent, /\w/, 'and has a title');
   // No seal yet, so nothing on the dock.
-  assert.equal(ctx.doc.getElementById('fa-pet-fit').hasAttribute('hidden'), true,
+  assert.equal(ctx.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), true,
     'the dock is empty until a seal is bought');
 });
 
@@ -1095,7 +1095,7 @@ test('an old save with no rank, seals or gifts still loads', async () => {
   assert.equal(ctx.doc.getElementById('level').textContent, '1', 'an old save is rank 1');
   assert.ok(ctx.doc.getElementById('level-title').textContent.length > 0);
   assert.equal(ctx.doc.getElementById('coins').textContent, '5000', 'coins survive');
-  assert.equal(ctx.doc.getElementById('fa-pet-fit').hasAttribute('hidden'), true);
+  assert.equal(ctx.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), true);
 });
 
 test('a save naming a seal you do not own does not put one on the dock', async () => {
@@ -1103,7 +1103,7 @@ test('a save naming a seal you do not own does not put one on the dock', async (
     coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
     equippedSeal: 'abyss', ownedSeals: [], xp: 0, giftedRods: [],
   }, 63);
-  assert.equal(ctx.doc.getElementById('fa-pet-fit').hasAttribute('hidden'), true,
+  assert.equal(ctx.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), true,
     'a save cannot equip a seal it never granted');
 });
 
@@ -1131,7 +1131,7 @@ test('buying a seal with junk you can afford puts it on the dock', async () => {
   row.querySelector('.seal__equip').dispatchEvent(
     new ctx.win.MouseEvent('click', { bubbles: true }));
 
-  assert.equal(ctx.doc.getElementById('fa-pet-fit').hasAttribute('hidden'), false,
+  assert.equal(ctx.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), false,
     `${cheap.name} should now be sitting on the dock`);
   assert.equal(ctx.doc.getElementById('seal-coins').textContent, '0', 'and you paid Seal coins');
 });
@@ -1174,8 +1174,8 @@ test('the dock pet is styled in Aero glass, not a flat blob', async () => {
     coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
     xp: 0, ownedSeals: [SEALS[0].id], equippedSeal: SEALS[0].id, giftedRods: [],
   }, 68);
-  const pet = ctx.doc.getElementById('fa-pet');
-  assert.match(pet.innerHTML, /url\(#fa-pet/, 'the pet must be filled with its gradient');
+  const pet = ctx.doc.getElementById('fa-pet-0');
+  assert.match(pet.innerHTML, /url\(#pet-fill-/, 'the pet must be filled with its gradient');
 });
 
 test('travelling to a locked lake hands you its rod, once, for real', async () => {
@@ -1307,7 +1307,7 @@ test('seals cost Seal coins and rod coins cannot buy them', async () => {
     `being broke in Seal coins must say so, said "${broke.doc.getElementById('message').textContent}"`);
   assert.equal(broke.doc.getElementById('coins').textContent, '999999',
     'and rod coins must be untouched');
-  assert.equal(broke.doc.getElementById('fa-pet-fit').hasAttribute('hidden'), true, 'no seal');
+  assert.equal(broke.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), true, 'no seal');
 
   // Now rich in Seal coins: the same purchase works.
   const rich = await seedSave({
@@ -1320,7 +1320,7 @@ test('seals cost Seal coins and rod coins cannot buy them', async () => {
     .find((r) => r.textContent.includes(cheap.name))
     .querySelector('.seal__equip').dispatchEvent(new rich.win.MouseEvent('click', { bubbles: true }));
   assert.equal(rich.doc.getElementById('seal-coins').textContent, '0', 'paid in Seal coins');
-  assert.equal(rich.doc.getElementById('fa-pet-fit').hasAttribute('hidden'), false, 'seal equipped');
+  assert.equal(rich.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), false, 'seal equipped');
 });
 
 test('rods are still bought with rod coins only', async () => {
@@ -1374,14 +1374,14 @@ test('the pet is shown when a seal is equipped and hidden without one', async ()
     xp: 0, ownedSeals: [SEALS[0].id], equippedSeal: SEALS[0].id, lost: [], giftedRods: [],
     sealCoins: 0,
   }, 80);
-  assert.equal(petOn.doc.getElementById('fa-pet-fit').hasAttribute('hidden'), false,
+  assert.equal(petOn.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), false,
     'the pet must be on the dock when a seal is equipped');
 
   const petOff = await seedSave({
     coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
     xp: 0, ownedSeals: [], equippedSeal: null, lost: [], giftedRods: [], sealCoins: 0,
   }, 81);
-  assert.equal(petOff.doc.getElementById('fa-pet-fit').hasAttribute('hidden'), true,
+  assert.equal(petOff.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), true,
     'and gone when none is');
 });
 
@@ -1399,8 +1399,13 @@ test('the pet is counter-scaled to the lake, so it cannot smear', async () => {
   // redrawn from the photographs and shifted clear of the angler, so the old
   // anchor of 14 was stale -- and a wrong anchor counter-scales about the wrong
   // point, which skews the seal instead of just leaving it alone.
-  assert.match(body, /translate\(13 0\)/,
-    'anchored on the pet centre at x=13, not the angler shoulder at x=33.2');
+  // Written as ${FACE_X} rather than a literal 13, so both dock slots share one
+  // anchor and the constant is what says where that is. Asserting the literal would
+  // now fail against correct code.
+  assert.match(body, /const FACE_X = 13;/,
+    'the pet centre is still x=13, not the angler shoulder at x=33.2');
+  assert.match(body, /translate\(\$\{FACE_X\} 0\) scale/,
+    'and the counter-squeeze turns about it');
   // And it must still lift the seal onto the deck: the drawing sits at y~47 and
   // the boards are at y=58, so without the shift it floats above them.
   assert.match(body, /translate\(0 \$\{PET_Y\}\)/,
@@ -2956,16 +2961,16 @@ test('the face is pre-compensated for the counter-scale, or it cannot be seen', 
   // The fix: the face carries its own inverse correction, so after the outer
   // squeeze it lands at the size it was drawn at.
   const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
-  assert.match(html, /<g id="pet-face"/,
+  assert.match(html, /<g id="pet-face-0"/,
     'the face needs its own group so it can be corrected separately');
   // Sliced to the face group's OWN closing tag. An earlier version ended at the
   // first </g> after pet-eye, which is the eye group's, so the mouth fell
   // outside the slice and this test failed for the wrong reason.
-  const faceStart = html.indexOf('<g id="pet-face"');
-  const face = html.slice(faceStart, html.indexOf('</g>', html.indexOf('id="pet-three"')));
+  const faceStart = html.indexOf('<g id="pet-face-0"');
+  const face = html.slice(faceStart, html.indexOf('</g>', html.indexOf('id="pet-three-0"')));
 
-  assert.match(face, /id="pet-colon"/, 'the colon lives in the face group');
-  assert.match(face, /id="pet-three"/, 'and so does the numeral 3');
+  assert.match(face, /id="pet-colon-0"/, 'the colon lives in the face group');
+  assert.match(face, /id="pet-three-0"/, 'and so does the numeral 3');
 
   const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('function fitPet'), src.indexOf('function placeBobber'));
@@ -2979,7 +2984,10 @@ test('the face is pre-compensated for the counter-scale, or it cannot be seen', 
   // transform: an unscoped search matched the outer body transform, which is
   // anchored as well, so an unanchored or mis-anchored face correction both
   // sailed through.
-  const faceFix = body.split('pet-face')[1] ?? '';
+  // Split on the SUFFIXED id, not on 'pet-face' -- the face is now looked up as
+  // `pet-face-${slot.dataset.slot}`, and splitting on the bare word landed the slice
+  // inside that template string, before the transform that had to be checked.
+  const faceFix = body.split(/pet-face-\$\{/)[1] ?? '';
   assert.match(faceFix, /translate\((\$\{FACE_X\}|\d+(?:\.\d+)?) 0\)\s*scale/,
     'the face correction must be anchored on a point');
   assert.doesNotMatch(faceFix, /translate\(-?\d+(?:\.\d+)? 0\)\s*scale/,
@@ -3004,12 +3012,36 @@ test('the face is pre-compensated for the counter-scale, or it cannot be seen', 
   // the error existed before any window was considered. That drift is what put
   // the :3 off the seal's shoulder.
   const declared = Number(/const FACE_X = ([\d.]+);/.exec(body)[1]);
-  const petAnchor = Number(/translate\((\d+(?:\.\d+)?) 0\) scale/.exec(body)[1]);
-  assert.equal(declared, petAnchor,
-    `FACE_X is ${declared} but the pet's counter-squeeze turns about ${petAnchor}; `
-    + 'the two only cancel when they share an anchor, or the face slides by '
-    + '(1 - s) * (petAnchor - FACE_X) as the window changes shape.');
+  // The squeeze is written with ${FACE_X}, so there is no second literal left to
+  // compare against -- which is the point of having the constant. Assert the
+  // shared-anchor property directly: every squeeze in fitPet must turn about FACE_X.
+  const squeezes = [...body.matchAll(/translate\((\$\{FACE_X\}|[-\d.]+) 0\) scale\(/g)]
+    .map((m) => m[1]);
+  assert.ok(squeezes.length >= 2,
+    `expected both the outer squeeze and the face's inverse; found ${squeezes.length}`);
+  for (const petAnchor of squeezes) {
+    assert.equal(petAnchor, '${FACE_X}',
+      `FACE_X is ${declared} but one squeeze turns about ${petAnchor}; `
+      + 'the two only cancel when they share an anchor, or the face slides by '
+      + '(1 - s) * (anchor - FACE_X) as the window changes shape.');
+  }
 });
+
+/**
+ * Slot 0's markup, on its own.
+ *
+ * These slices used to run from the pet group to </svg>, which was the end of the
+ * scene. The dock is now a wrapper holding TWO animals inside that same scene, so
+ * </svg> spans both and every per-animal count silently doubled -- a rotation test
+ * that reported two rotations for one face. Stopping at slot 1's gradient ends the
+ * slice exactly where slot 0 does.
+ */
+const petSlot0 = (html) => {
+  const start = html.indexOf('<g id="fa-pet-0">');
+  assert.ok(start > 0, 'slot 0 must exist');
+  const end = html.indexOf('<linearGradient id="pet-fill-1"', start);
+  return html.slice(start, end > start ? end : html.indexOf('</svg>', start));
+};
 
 test('the :3 glyph is tilted, and the body is not', () => {
   // "rotate it like the picture" -- and clarified: only the GLYPH tilts, the body
@@ -3025,20 +3057,20 @@ test('the :3 glyph is tilted, and the body is not', () => {
   // The comment above #pet-tilt is long and keeps growing, so a fixed character
   // window between the two tags is a landmine: enlarge it and this passes, shrink
   // the comment and it fails for no reason at all. Match the SHAPE instead.
-  assert.match(html, /<g id="pet-face">[\s\S]*?<g id="pet-tilt"[\s\S]*?transform="rotate\(-?[\d.]+ [\d.]+ [\d.]+\)/,
+  assert.match(html, /<g id="pet-face-0">[\s\S]*?<g id="pet-tilt-0"[\s\S]*?transform="rotate\(-?[\d.]+ [\d.]+ [\d.]+\)/,
     'the tilt must be a nested group inside the face, not on the face itself');
 
   const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
   const fit = src.slice(src.indexOf('function fitPet'), src.indexOf('function placeBobber'));
   // fitPet sets a transform on pet-face; it must not set one on the tilt group,
   // or the markup rotation is destroyed.
-  assert.doesNotMatch(fit, /pet-tilt['"]\)?\)?\s*,\s*['"]transform/,
+  assert.doesNotMatch(fit, /pet-tilt[^\n]*setAttribute\(\s*['"]transform/,
     'fitPet must not overwrite the tilt');
-  assert.match(fit, /getElementById\('pet-face'\)/,
+  assert.match(fit, /getElementById\(`pet-face-\$\{slot\.dataset\.slot\}`\)/,
     'the counter-scale still lands on the face');
 
   // The angle is a stated choice, not an accident: it must be non-zero and named.
-  const tilt = /id="pet-tilt"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) /.exec(html);
+  const tilt = /id="pet-tilt-0"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) /.exec(html);
   assert.ok(tilt, 'the tilt must declare an angle');
   // EXACTLY 90 degrees clockwise. Measured from the reference image: the colon's
   // two dots sit 0.15 degrees off horizontal, which can only be a quarter turn,
@@ -3049,12 +3081,14 @@ test('the :3 glyph is tilted, and the body is not', () => {
     'the glyph is a quarter turn clockwise, got ' + tilt[1] + 'deg');
 
   // Rotated about the glyph's own centre, or it swings off the seal.
-  const pivot = /id="pet-tilt"[\s\S]{0,200}?transform="rotate\(-?[\d.]+ ([\d.]+) ([\d.]+)\)/.exec(html);
+  const pivot = /id="pet-tilt-0"[\s\S]{0,200}?transform="rotate\(-?[\d.]+ ([\d.]+) ([\d.]+)\)/.exec(html);
   assert.ok(Number(pivot[1]) > 14 && Number(pivot[1]) < 25,
     'pivot must sit on the glyph, got x=' + pivot[1]);
 
   // And the BODY must stay upright: no rotation anywhere else in the animal.
-  const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
+  // Scoped to slot 0 and closed at its own </g>. The slice used to run to </svg>,
+  // which now spans the WHOLE dock -- two animals -- so the count doubled.
+  const pet = petSlot0(html);
   const rotates = [...pet.matchAll(/transform="rotate\(/g)];
   assert.equal(rotates.length, 1, 'exactly one rotation in the whole seal, got ' + rotates.length);
 });
@@ -3067,8 +3101,8 @@ test('the rotated glyph still fits on the seal and clears the angler', () => {
   // So the bounds are computed THROUGH the rotation. A quarter turn maps
   // (x, y) -> (cx - (y - cy), cy + (x - cx)) about the pivot.
   const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
-  const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
-  const tilt = /id="pet-tilt"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
+  const pet = petSlot0(html);
+  const tilt = /id="pet-tilt-0"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
   assert.ok(tilt, 'the tilt must declare an angle and a pivot');
   const angle = Number(tilt[1]);
   const cx = Number(tilt[2]);
@@ -3081,7 +3115,7 @@ test('the rotated glyph still fits on the seal and clears the angler', () => {
     // the corners of its bounding box are not part of the shape.
     pts.push([x - r, y], [x + r, y]);
   }
-  const three = /<path id="pet-three"\s+d="([^"]+)"/.exec(pet)[1];
+  const three = /<path id="pet-three-0"[^>]*\sd="([^"]+)"/.exec(pet)[1];
   for (const m of three.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)) pts.push([Number(m[1]), Number(m[2])]);
 
   const rad = (angle * Math.PI) / 180;
@@ -3095,7 +3129,7 @@ test('the rotated glyph still fits on the seal and clears the angler', () => {
   const minY = Math.min(...moved.map((p) => p[1]));
   const maxY = Math.max(...moved.map((p) => p[1]));
 
-  const bodyD = /<path id="pet-body"\s+d="([^"]+)"/.exec(pet)[1];
+  const bodyD = /<path id="pet-body-0"[^>]*\sd="([^"]+)"/.exec(pet)[1];
   const bpts = [...bodyD.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
   const bx = bpts.map((p) => p[0]), by = bpts.map((p) => p[1]);
 
@@ -3115,8 +3149,8 @@ test('the turned glyph is compact, and sits on the RIGHT so it looks at the dock
   // which is most of a 24-unit animal and read as stretched. It is redrawn small
   // instead, so the turn lands on a compact glyph.
   const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
-  const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
-  const tilt = /id="pet-tilt"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
+  const pet = petSlot0(html);
+  const tilt = /id="pet-tilt-0"[\s\S]{0,200}?transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
   const angle = Number(tilt[1]);
   const cx = Number(tilt[2]), cy = Number(tilt[3]);
   assert.equal(angle, 90, 'still a quarter turn');
@@ -3126,14 +3160,14 @@ test('the turned glyph is compact, and sits on the RIGHT so it looks at the dock
     const x = Number(m[1]), y = Number(m[2]), r = Number(m[3]);
     pts.push([x - r, y], [x + r, y]);
   }
-  for (const m of /<path id="pet-three"\s+d="([^"]+)"/.exec(pet)[1]
+  for (const m of /<path id="pet-three-0"[^>]*\sd="([^"]+)"/.exec(pet)[1]
       .matchAll(/(-?[\d.]+) (-?[\d.]+)/g)) pts.push([Number(m[1]), Number(m[2])]);
   const moved = pts.map(([x, y]) => [cx - (y - cy), cy + (x - cx)]);
   const mx = moved.map((p) => p[0]);
 
   // Compact: a quarter turn of a glyph this size should not span the animal.
   const faceW = Math.max(...mx) - Math.min(...mx);
-  const bodyD = /<path id="pet-body"\s+d="([^"]+)"/.exec(pet)[1];
+  const bodyD = /<path id="pet-body-0"[^>]*\sd="([^"]+)"/.exec(pet)[1];
   const bx = [...bodyD.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[1]));
   const bodyW = Math.max(...bx) - Math.min(...bx);
   assert.ok(faceW <= bodyW * 0.42,
@@ -3284,9 +3318,11 @@ test('the seal on the dock is tinted by its own lightness too', () => {
   // paintPet() writes the gradient stops at runtime, so this reads the source: a
   // stop built only from hue paints every seal the same depth.
   const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
-  const fn = src.slice(src.indexOf('function paintPet'));
-  const body = fn.slice(0, fn.indexOf('\n}\n'));
-  assert.match(body, /seal\.light/,
+  const start = src.indexOf('function paintPet');
+  const body = src.slice(start, src.indexOf('\nfunction ', start + 1));
+  // `seal?.light` now, because a dock slot may hold no seal at all and must not
+  // throw while painting the other one.
+  assert.match(body, /seal\?\.light|seal\.light/,
     'the dock gradient must use the seal lightness, not a fixed 30%');
   // `seal.light` merely being MENTIONED is not enough: an earlier version computed
   // `deep` from it and then interpolated a literal, so the variable was read and
@@ -3301,7 +3337,10 @@ test('the seal on the dock is tinted by its own lightness too', () => {
     'and `deep` must be derived from the seal lightness, so the stop is not a fixed depth');
   // `light` must READ the seal. Asserting only that the two stops use it lets a
   // `const light = 62` pass: every stop is then derived, from a constant.
-  assert.ok(body.includes('const light = seal.light'),
+  assert.ok(/const light = seal\??\.light/.test(body),
+    // `seal?.light` rather than `seal.light`: a dock slot with nothing in it has no
+    // seal, and painting it must not throw before the other slot is drawn.
+
     '`light` must come from the seal, or both stops are derived from a constant');
   // BOTH stops, not just the deep one. The mid stop was left at a fixed 74% for
   // several passes, so the dock painted every seal the same lightness and only
@@ -3326,7 +3365,7 @@ test('the dock seal is ACTUALLY tinted -- paintPet can reach the gradient', () =
   // said, and why "the seals still dont have color" survived three rounds of fixing
   // the numbers.
   //
-  // The stops live in <linearGradient id="fa-pet-fill">, a SIBLING of the pet's
+  // The stops live in <linearGradient id="fa-pet-fill-0">, a SIBLING of the pet's
   // <path>. paintPet asked the PATH for its stops:
   //
   //     const stops = ui.pet.querySelectorAll('stop');
@@ -3346,8 +3385,8 @@ test('the dock seal is ACTUALLY tinted -- paintPet can reach the gradient', () =
   assert.doesNotMatch(body, /ui\.pet\.querySelectorAll\('stop'\)/,
     "paintPet must not look for <stop> inside the pet's <path> -- a <path> has no "
     + 'stops, so this returns nothing and the pet stays hardcoded cyan');
-  assert.match(body, /getElementById\('fa-pet-fill'\)/,
-    'paintPet must look the gradient up by id, since it is a sibling of the path');
+  assert.match(body, /getElementById\(`pet-fill-\$\{n\}`\)/,
+    "paintPet must look each slot's gradient up by id, since it is a sibling of the path");
 
   // The assignments must be unguarded. `if (stops[1])` turned a missing gradient
   // into silent success, which is what hid this for so long.
@@ -3358,7 +3397,7 @@ test('the dock seal is ACTUALLY tinted -- paintPet can reach the gradient', () =
   // The DOM shape that broke it, rebuilt, so the premise stays honest. This is the
   // exact structure in index.html: stops in a sibling gradient, path referencing it.
   const doc = new JSDOM(
-    '<svg><defs><linearGradient id="fa-pet-fill">'
+    '<svg><defs><linearGradient id="fa-pet-fill-0">'
     + '<stop offset="0" stop-color="#ffffff"/>'
     + '<stop offset="0.4" stop-color="#8fd8f5"/>'
     + '<stop offset="1" stop-color="#2b7fa8"/>'
@@ -3367,16 +3406,16 @@ test('the dock seal is ACTUALLY tinted -- paintPet can reach the gradient', () =
   const pet = doc.getElementById('pet');
   assert.equal(pet.querySelectorAll('stop').length, 0,
     'premise: the pet path contains no stops, which is why the old lookup was empty');
-  assert.equal(doc.getElementById('fa-pet-fill').querySelectorAll('stop').length, 3,
+  assert.equal(doc.getElementById('fa-pet-fill-0').querySelectorAll('stop').length, 3,
     'and the gradient is reachable only by id');
 
   // And prove the fix actually recolours the pet through the real code path.
-  const stops = doc.getElementById('fa-pet-fill').querySelectorAll('stop');
+  const stops = doc.getElementById('fa-pet-fill-0').querySelectorAll('stop');
   stops[1].setAttribute('stop-color', 'hsl(26 84% 74%)');
   stops[2].setAttribute('stop-color', 'hsl(26 62% 35%)');
-  assert.equal(doc.getElementById('fa-pet-fill').querySelectorAll('stop')[1].getAttribute('stop-color'),
+  assert.equal(doc.getElementById('fa-pet-fill-0').querySelectorAll('stop')[1].getAttribute('stop-color'),
     'hsl(26 84% 74%)');
-  assert.notEqual(doc.getElementById('fa-pet-fill').querySelectorAll('stop')[1].getAttribute('stop-color'),
+  assert.notEqual(doc.getElementById('fa-pet-fill-0').querySelectorAll('stop')[1].getAttribute('stop-color'),
     '#8fd8f5', 'writing through the id must replace the stock cyan, not fall back to it');
 });
 
@@ -3455,11 +3494,11 @@ test('every seal has its own static particle motif, and it stays off the face', 
 
   // The stamp row lives INSIDE the pet group, so the particles scale with the seal
   // and hide with it. Placed outside fa-pet-fit they would neither scale nor hide.
-  const fx = page.indexOf('<g id="pet-fx"');
-  const fit = page.indexOf('<g id="fa-pet-fit"');
-  const pet = page.indexOf('<g id="fa-pet">');
-  const body = page.indexOf('id="pet-body"');
-  const face = page.indexOf('<g id="pet-tilt"');
+  const fx = page.indexOf('<g id="pet-fx-0"');
+  const fit = page.indexOf('<g id="fa-pet-fit-0"');
+  const pet = page.indexOf('<g id="fa-pet-0">');
+  const body = page.indexOf('id="pet-body-0"');
+  const face = page.indexOf('<g id="pet-tilt-0"');
   assert.ok(fx > fit, 'the particles must be inside fa-pet-fit, or they will not scale '
     + 'with the seal and will not hide when the seal is removed');
   assert.ok(fx > pet, 'the particles must be inside the pet group');
@@ -3478,8 +3517,10 @@ test('every seal has its own static particle motif, and it stays off the face', 
   const fn = /function paintPet\(\)\s*\{[\s\S]*?\n\}/.exec(src);
   assert.ok(fn, 'paintPet must exist');
   const body2 = fn[0];
-  assert.match(body2, /#pet-fx \.pet__fx/,
-    'paintPet must toggle the motifs');
+  // Scoped to the slot being painted: a document-wide #pet-fx query would show slot
+  // 1's motif on slot 0's animal, because both live in one document.
+  assert.match(body2, /slot\.querySelectorAll\('\.pet__fx'\)/,
+    "paintPet must toggle this slot's motifs");
   assert.match(body2, /use\.dataset\.fx === seal\.id/,
     'the motif shown must be chosen by the equipped seal id');
 
@@ -3488,12 +3529,18 @@ test('every seal has its own static particle motif, and it stays off the face', 
   // satisfies on its own -- deleting the `else` from the swap loop is valid JS, left
   // all five motifs visible at once, and passed. Match the branch itself.
   assert.match(body2,
-    /if \(on\)[^;]*removeAttribute\('hidden'\)\s*;\s*else\s+use\.setAttribute\('hidden', ''\)/,
-    "the swap loop must hide every motif that is not the equipped seal's -- "
+    /if \(seal && use\.dataset\.fx === seal\.id\) use\.removeAttribute\('hidden'\)\s*;\s*else\s+use\.setAttribute\('hidden', ''\)/,
+    "the swap loop must hide every motif that is not this seal's -- "
     + "without the else, all five render stacked on the seal");
-  // And with no seal at all, every one goes.
-  assert.match(body2, /if \(!seal\)[\s\S]{0,400}?pet__fx[\s\S]{0,120}?setAttribute\('hidden', ''\)/,
-    'with no seal equipped every motif must be hidden, or the last one hangs in an '
+  // There is no separate `if (!seal)` block any more. A dock slot with nothing in it
+  // runs the same loop with seal null, so the else arm hides every motif -- which is
+  // the property this test actually cares about. Assert that, rather than a shape the
+  // function no longer has.
+  assert.match(body2, /const seal = party\[Number\(n\)\] \?\? null/,
+    'an empty slot must resolve to no seal rather than to the first one on the dock');
+  assert.match(body2,
+    /if \(seal && use\.dataset\.fx === seal\.id\) use\.removeAttribute\('hidden'\)\s*;\s*else use\.setAttribute\('hidden', ''\)/,
+    'with no seal in that slot every motif must be hidden, or the last one hangs in an '
     + 'empty scene');
 
   // Geometry: the motifs must stay clear of the face and the boards, and inside the
@@ -3571,7 +3618,7 @@ test('every seal has its own static particle motif, and it stays off the face', 
 
   // Prove the measurement is sound before trusting it: pet-body's bounds are known
   // from its own path data. Without this the geometric checks below are worthless.
-  const bodyBox = box(doc.getElementById('pet-body'));
+  const bodyBox = box(doc.getElementById('pet-body-0'));
   assert.ok(Math.abs(bodyBox[0] - 0.9) < 0.05 && Math.abs(bodyBox[2] - 24.9) < 0.05
             && Math.abs(bodyBox[1] - 31.4) < 0.05 && Math.abs(bodyBox[3] - 49.8) < 0.05,
     `the geometry walker disagrees with the known pet body bounds (${JSON.stringify(bodyBox)}); `
@@ -4346,4 +4393,64 @@ test('the panel states how many seals fit, because the dock is the whole point',
     new live.win.MouseEvent('click', { bubbles: true }));
   assert.match(live.doc.getElementById('upgrade-slots').textContent, /2 seals/i,
     'buying Bigger Dock must update the slot line on the spot');
+});
+
+test('Bigger Dock puts a second animal on the dock, and both are painted', async () => {
+  const base = (upgrades) => ({
+    coins: 300_000, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 27_000, ownedSeals: ['bubbles', 'tangerine'], equippedSeal: [],
+    lost: [], giftedRods: [], sealCoins: 0, upgrades,
+  });
+  // Two seals are on the dock only with Bigger Dock, so ask the game to dock them.
+  const visible = (ctx) => [...ctx.doc.querySelectorAll('#fa-pet-dock > g')]
+    .filter((g) => !g.hasAttribute('hidden'));
+
+  const solo = await seedSave(base([]), 9770);
+  solo.doc.getElementById('seal-shop-open').dispatchEvent(
+    new solo.win.MouseEvent('click', { bubbles: true }));
+  solo.doc.querySelector('[data-seal="bubbles"] .seal__equip').dispatchEvent(
+    new solo.win.MouseEvent('click', { bubbles: true }));
+  assert.equal(visible(solo).length, 1, 'one seal means one animal');
+  // Counted by CLASS, not by children: the dock also holds one gradient per slot,
+  // and `children.length` counts those too -- it reads 4, not 2.
+  assert.equal(solo.doc.querySelectorAll('#fa-pet-dock .fa-pet-slot').length, 2,
+    'both dock slots exist in the markup, so a second animal has somewhere to go');
+  assert.equal(visible(solo).length, 1, 'and only the filled one is shown');
+
+  const pair = await seedSave(base(['bigger_dock']), 9771);
+  pair.doc.getElementById('seal-shop-open').dispatchEvent(
+    new pair.win.MouseEvent('click', { bubbles: true }));
+  for (const id of ['bubbles', 'tangerine']) {
+    // Re-queried every time: equipping re-renders the whole shop, so a button
+    // grabbed once is detached by the second click and dispatching on it does
+    // nothing at all -- which reads as "the second seal will not come out".
+    // Opened only if closed: the opener is a TOGGLE, so clicking it a second time
+    // closes the shop and leaves nothing to equip.
+    const panel = pair.doc.getElementById('seal-shop-panel');
+    if (panel.hidden) {
+      pair.doc.getElementById('seal-shop-open').dispatchEvent(
+        new pair.win.MouseEvent('click', { bubbles: true }));
+    }
+    const btn = pair.doc.querySelector(`[data-seal="${id}"] .seal__equip`);
+    assert.ok(btn, `${id} has an equip button`);
+    btn.dispatchEvent(new pair.win.MouseEvent('click', { bubbles: true }));
+  }
+  assert.equal(visible(pair).length, 2, 'a bigger dock shows both animals');
+
+  // Each is painted in ITS OWN seal's colour. Sharing one gradient would make both
+  // animals the same colour, which is the whole bug slot-scoped ids exist to prevent.
+  const bodyFill = (n) => {
+    const slot = visible(pair)[n];
+    const path = slot.querySelector('.pet__body');
+    return path?.getAttribute('fill') ?? '';
+  };
+  const f0 = bodyFill(0), f1 = bodyFill(1);
+  assert.ok(f0 && f1, 'both animals have a body');
+  assert.notEqual(f0, f1,
+    `two different seals must be two different colours, but both drew ${f0}`);
+  assert.match(f0, /pet-fill-0/, 'slot 0 uses its own gradient');
+  assert.match(f1, /pet-fill-1/, 'slot 1 uses its own gradient');
+  // Slot ids must be suffixed, never shared, or the second animal steals the first.
+  const ids = [...pair.doc.querySelectorAll('#fa-pet-dock [id]')].map((n) => n.id);
+  assert.equal(new Set(ids).size, ids.length, `every id in the dock is unique: ${ids}`);
 });

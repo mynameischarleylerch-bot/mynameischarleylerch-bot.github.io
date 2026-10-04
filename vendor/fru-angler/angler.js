@@ -697,64 +697,62 @@ function clearNotices() {
 }
 
 /** The seal on the dock, tinted per seal and hidden when there is none. */
+/**
+ * Paint every seal that is on the dock.
+ *
+ * One animal per dock slot, each in ITS OWN colour. The markup carries one
+ * <g class="fa-pet-slot" data-slot="N"> per slot with every id suffixed to match,
+ * because the gradient, the fitted group and the face are all looked up by id --
+ * two animals sharing #pet-fill would each overwrite the other's colour, and the
+ * second seal would silently restyle the first.
+ *
+ * A slot with no seal in it is hidden rather than left showing the previous
+ * occupant: taking a seal off the dock must take the animal with it.
+ */
 function paintPet() {
-  if (!ui.pet) return;
-  const seal = primarySeal();
-  // Hide the WRAPPER, not the pet: parentNode is the fitted group, and the pet
-  // is its own nearest 'g' ancestor, so closest('g') here returns the pet itself
-  // and the wrapper -- the thing that is actually visible -- never changes.
-  const holder = ui.pet?.parentNode;
-  if (holder) {
-    if (seal) holder.removeAttribute('hidden');
-    else holder.setAttribute('hidden', '');
+  const dock = document.getElementById('fa-pet-dock');
+  if (!dock) return;
+  const party = sealParty().map((id) => SEALS.find((s) => s.id === id) ?? null);
+
+  for (const slot of [dock.querySelector('.fa-pet-slot')]) {
+    const n = slot.dataset.slot;
+    const seal = party[Number(n)] ?? null;
+    if (seal) slot.removeAttribute('hidden');
+    else slot.setAttribute('hidden', '');
+
+    // Particles: this slot shows this seal's motif and nothing else. `hidden` on an
+    // SVG element does nothing on its own -- the CSS rule for that is in index.html.
+    for (const use of slot.querySelectorAll('.pet__fx')) {
+      if (seal && use.dataset.fx === seal.id) use.removeAttribute('hidden');
+      else use.setAttribute('hidden', '');
+    }
+
+    const fill = document.getElementById(`pet-fill-${n}`);
+    const stops = fill ? fill.querySelectorAll('stop') : [];
+    if (stops.length < 3) {
+      // No silent fallback: a missing gradient means the seal reverts to hardcoded
+      // cyan, which is the exact bug the by-id lookup exists to fix. Say so loudly.
+      console.warn(`[fru-angler] #pet-fill-${n} missing or short; pet cannot be tinted`,
+        { stops: stops.length });
+      continue;
+    }
+
+    // BOTH body stops carry the seal's lightness, not just the deep one, or Abyss
+    // from the black deep paints exactly as light as Bubbles from Aero Lake.
+    const light = seal?.light ?? 62;
+    const mid = Math.min(92, light + 18);
+    const deep = Math.round(light * 0.62);
+    stops[1].setAttribute('stop-color', `hsl(${seal?.hue ?? 200} 84% ${mid}%)`);
+    stops[2].setAttribute('stop-color', `hsl(${seal?.hue ?? 200} 62% ${deep}%)`);
   }
-  if (!seal) {
-    sealSays('');
-    // Clear the particles too, or the last seal's motif hangs in an empty
-    // scene -- there is no seal to be in the middle of it.
-    for (const use of document.querySelectorAll('#pet-fx .pet__fx'))
-      use.setAttribute('hidden', '');
-    return;
-  }
-  fitPet();
-  // STATIC particles: show only this seal's motif. No animation is added or
-  // removed here on purpose -- they are meant to sit still.
-  for (const use of document.querySelectorAll('#pet-fx .pet__fx')) {
-    const on = use.dataset.fx === seal.id;
-    if (on) use.removeAttribute('hidden');
-    else use.setAttribute('hidden', '');
-  }  // The stops live in <linearGradient id="fa-pet-fill">, which is a SIBLING of the
-  // pet's <path> in the document -- not a child of it. querySelectorAll('stop') on
-  // the path returned an empty NodeList, so both `if (stops[n])` guards below were
-  // always false and the pet silently kept its hardcoded #8fd8f5 -> #2b7fa8 cyan.
-  // That is why the seal on the dock never took its lake colour no matter what the
-  // data said. Look the gradient up by id.
-  const fill = document.getElementById('fa-pet-fill');
-  const stops = fill ? fill.querySelectorAll('stop') : [];
-  if (stops.length < 3) {
-    // No silent fallback: if the gradient is renamed or removed, the seal reverts to
-    // hardcoded cyan -- the exact bug this lookup exists to fix. Say so loudly.
-    console.warn('[fru-angler] #fa-pet-fill missing or short; pet cannot be tinted',
-      { stops: stops.length });
-  }
-  // BOTH body stops carry the seal's lightness, not just the deep one.
-  // The mid stop used to be a fixed 74%, so on the dock every seal was painted
-  // the same lightness and only its hue varied -- which made Abyss, the seal
-  // from the black deep, look exactly as light as Bubbles from Aero Lake. The
-  // shop portrait already read --seal-light; the dock did not, so the two
-  // surfaces disagreed about what colour a seal is.
-  //
-  // Mid sits ABOVE deep by construction, so the gradient still reads as lit from
-  // above; the top stop stays white because that highlight is the shared Aero
-  // sheen rather than the seal's colour.
-  const light = seal.light ?? 62;
-  const mid = Math.min(92, light + 18);
-  const deep = Math.round(light * 0.62);
-  // Unguarded on purpose: the old `if (stops[n])` made a missing gradient look like
-  // success. If this throws, the bug is visible instead of silent.
-  stops[1].setAttribute('stop-color', `hsl(${seal.hue} 84% ${mid}%)`);
-  stops[2].setAttribute('stop-color', `hsl(${seal.hue} 62% ${deep}%)`);
+
+  // The bubble belongs to the seal that is on the dock, and to only the FIRST of
+  // them: one bubble is a seal speaking, two is a subtitle track. sealChatter() is
+  // left to do the choosing, exactly as before -- paintPet was never the place that
+  // decided what a seal says.
+  if (!party[0]) sealSays('');
 }
+
 
 function paintChrome() {
   const current = rod();
@@ -885,49 +883,38 @@ function fitFigure() {
  * that is not square. Same maths, anchored on the pet's own centre.
  */
 function fitPet() {
-  const group = document.getElementById('fa-pet-fit');
+  const dock = document.getElementById('fa-pet-dock');
   const box = ui.lake.getBoundingClientRect();
-  if (!group || !box.width || !box.height) return;
+  if (!dock || !box.width || !box.height) return;
   const scale = box.height / box.width;
-  // PET_Y lifts the seal onto the pier deck: its belly is drawn at y=49.6 and
-  // the deck's top edge is at y=58, so without this it floated above the boards.
-  // The shift rides here rather than in the drawing so the artwork keeps plain
-  // coordinates and stays assertable.
+  // PET_Y lifts the seal onto the pier deck: its belly is drawn at y=49.6 and the
+  // deck's top edge is at y=58, so without this it floated above the boards.
   const PET_Y = 8.2;
-  // The seal is longer now, so its centre moved to x=13.
-  //
-  // FACE_X must be 13 -- the SEAL's own anchor, not the glyph's centre. That is
-  // what makes the two corrections cancel exactly: the outer squeeze scales x by
-  // s about 13, and this scales it back by 1/s about the same point, so together
-  // they are a pure translation and the face never moves relative to the body,
-  // whatever shape the lake is.
-  //
-  // Anchored anywhere else the two do NOT cancel, and the face slides by
-  // (1 - s) * (13 - FACE_X) -- about 2 units on a wide desktop, and changing as
-  // the window changes shape. It was 20.4 for several passes, which is the
-  // UPRIGHT glyph's centre rather than even the turned one: a 1.45-unit error
-  // before any window was considered, and the reason a face that fitted the
-  // markup hung off the animal's shoulder.
+  // FACE_X must be 13 -- the SEAL's own anchor, not the glyph's centre, which is
+  // what makes the outer squeeze and the face's inverse cancel exactly. Anchored
+  // anywhere else the face slides by (1 - s) * (13 - FACE_X) as the lake changes
+  // shape, which is what put the :3 on the animal's shoulder for several passes.
   const FACE_X = 13;
-  group.setAttribute('transform',
-    `translate(13 0) scale(${scale.toFixed(4)} 1) translate(-13 0) translate(0 ${PET_Y})`);
 
-  // The face gets the INVERSE correction.
-  //
-  // The outer scale above exists to stop the seal being stretched by
-  // preserveAspectRatio="none", and at a typical lake aspect it is around 0.5 --
-  // which halves the eyes and thins a 0.8 mouth stroke to 0.4. On a seal about
-  // 60px wide on screen that is a sub-pixel hairline, so the :3 was correct in the
-  // markup and invisible in the game. That is what "the :3 face isnt there" meant.
-  //
-  // Correcting x here cancels the outer squeeze exactly: the face lands at the
-  // size it is drawn while the body stays round. FACE_X is the face's own centre,
-  // so it does not slide sideways as the lake changes shape.
-  const face = document.getElementById('pet-face');
-  if (face) {
-    const inv = 1 / scale;
-    face.setAttribute('transform',
-      `translate(${FACE_X} 0) scale(${inv.toFixed(4)} 1) translate(${-FACE_X} 0)`);
+  // Every slot, not just slot 0: a second animal fitted to a different rule than
+  // the first would be a smear on exactly the lakes the first one survives.
+  for (const slot of dock.querySelectorAll('.fa-pet-slot')) {
+    slot.setAttribute('transform', slot.dataset.slot === '0'
+      ? `translate(${FACE_X} 0) scale(${scale.toFixed(4)} 1) translate(${-FACE_X} 0) translate(0 ${PET_Y})`
+      // Slot 1 sits further along the pier, so it keeps its markup offset AND gets
+      // the same correction. Composed, not replaced -- the offset lives in the
+      // markup where the geometry tests can see it.
+      : `translate(30 0) translate(${FACE_X} 0) scale(${scale.toFixed(4)} 1) translate(${-FACE_X} 0) translate(0 ${PET_Y})`);
+
+    // The face gets the INVERSE correction. The outer scale is around 0.5 on a
+    // typical lake, which halved the eyes and thinned the mouth stroke to a
+    // sub-pixel hairline -- correct in the markup, invisible in the game.
+    const face = document.getElementById(`pet-face-${slot.dataset.slot}`);
+    if (face) {
+      const inv = 1 / scale;
+      face.setAttribute('transform',
+        `translate(${FACE_X} 0) scale(${inv.toFixed(4)} 1) translate(${-FACE_X} 0)`);
+    }
   }
 }
 /** Move the bobber, its splash and the fishing line together. */
@@ -1594,6 +1581,7 @@ function renderSealShop() {
     const locked = !owned && !quote.ok;
 
     const row = document.createElement('div');
+    row.dataset.seal = seal.id;   // so a test (and a reader) can find THIS seal
     row.className = 'seal'
       + (active ? ' seal--active' : '')
       + (owned ? '' : locked ? ' seal--locked' : ' seal--for-sale');
