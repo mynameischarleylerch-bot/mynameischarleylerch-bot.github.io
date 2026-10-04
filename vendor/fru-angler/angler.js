@@ -23,13 +23,13 @@ import {
  SEALS, LOST_ITEMS,
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
- addToBag, UPGRADES, sealSlots, fishEntrySpec, bagCap, bagWorth, bagEntryValue,
+ addToBag, bagCap, BASE_BAG_CAP, UPGRADES, sealSlots, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-S';
+} from './fishing.js?v=2026-10-04-T';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-S';
+} from './reel.js?v=2026-10-04-T';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -1190,7 +1190,7 @@ function landFish() {
 
   save();
   paintChrome();
-  paintBagBadge(Array.isArray(state.bag) ? state.bag.length : 0);
+  paintBagBadge(Array.isArray(state.bag) ? state.bag.length : 0, bagCap(state.upgrades));
   // The bag may be open behind the catch card, and its grouped rows carry counts --
   // so it must be repainted, not merely badged.
   if (ui.bagPanel && !ui.bagPanel.hidden) paintBag();
@@ -1898,9 +1898,24 @@ function closeBond() {
   ui.bondOpen?.focus();
 }
 
-function paintBagBadge(count) {
-  if (!ui.bagCount) return;
-  ui.bagCount.textContent = count ? `(${count})` : '';
+/**
+ * The bag badge: how full the bag is, against how full it CAN be.
+ *
+ * `cap` has no default on purpose. Every call site passes the live cap, because the
+ * one place this went wrong before is a caller that forgot and printed a stale
+ * denominator -- and a default argument is exactly what makes forgetting invisible.
+ *
+ * An empty bag shows nothing: "(0/10)" on a fresh save is noise. Everything else
+ * shows the exact ratio, so "(7/10)" rather than a bare count -- the player can see
+ * the ceiling without opening anything, and can tell a full bag from a nine.
+ */
+function paintBagBadge(count, cap = BASE_BAG_CAP) {
+  const badge = ui.bagCount;
+  if (!badge) return;
+  const held = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  const limit = Number.isFinite(cap) ? Math.max(1, Math.floor(cap)) : BASE_BAG_CAP;
+  badge.textContent = held ? `(${held}/${limit})` : '';
+  badge.classList.toggle('is-full', held >= limit);
 }
 
 /**
@@ -1997,7 +2012,7 @@ function sellOneFish(at, fish) {
   // The Bond panel states the count the feed just changed. Leaving it open
   // while it reads 11 because you fed the twelfth is worse than no panel:
   // it would be showing a fact that is no longer true.
-  paintBagBadge(state.bag.length);
+  paintBagBadge(state.bag.length, bagCap(state.upgrades));
   if (ui.bondPanel && !ui.bondPanel.hidden) paintBond();
   say(`${fish.name} sold for ${result.coins.toLocaleString('en-US')} coins.`);
 }
@@ -2020,7 +2035,7 @@ function sellEveryFish() {
   state.coins += result.coins;
   state.bag = result.bag;
   save(); paintChrome(); paintBag();
-  paintBagBadge(state.bag.length);
+  paintBagBadge(state.bag.length, bagCap(state.upgrades));
   // Same reason sellOneFish repaints it: the Bond panel states a count this sale
   // just changed, and a stale count is worse than no panel.
   if (ui.bondPanel && !ui.bondPanel.hidden) paintBond();
@@ -2038,7 +2053,7 @@ function feedOneFish(at, fish, seal) {
   // The Bond panel states the count the feed just changed. Leaving it open
   // while it reads 11 because you fed the twelfth is worse than no panel:
   // it would be showing a fact that is no longer true.
-  paintBagBadge(state.bag.length);
+  paintBagBadge(state.bag.length, bagCap(state.upgrades));
   if (ui.bondPanel && !ui.bondPanel.hidden) paintBond();
   // The seal reacts to THIS fish, by how rare it was. It used to call
   // sealChatter(), which picks an idle line -- so the one decision the bag exists
@@ -2052,7 +2067,7 @@ function paintBag() {
   const bag = Array.isArray(state.bag) ? state.bag : [];
   const seal = SEALS.find((s) => s.id === state.equippedSeal) ?? null;
 
-  paintBagBadge(bag.length);
+  paintBagBadge(bag.length, bagCap(state.upgrades));
 
   if (ui.bagSummary) {
     ui.bagSummary.textContent = bag.length

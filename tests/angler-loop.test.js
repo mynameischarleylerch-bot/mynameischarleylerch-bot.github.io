@@ -267,7 +267,8 @@ test('a tracking player lands the fish into the bag, and the bestiary updates', 
   // it WOULD sell for, because that is what the sell button will pay.
   assert.equal(Number(text(ctx, 'coins')), before,
     'landing a fish must not pay out -- it goes in the bag');
-  assert.equal(text(ctx, 'bag-count'), '(1)', 'and the bag badge must show it');
+  assert.equal(text(ctx, 'bag-count'), '(1/10)',
+    'and the bag badge must show it against the starting capacity of ten');
   assert.equal(text(ctx, 'bestiary'), `1/${FISH.length} species landed`);
 });
 
@@ -2476,8 +2477,8 @@ test('a save written before the rename still loads its fish', async () => {
     bond: {},
   }, 1010);
 
-  assert.equal(ctx.doc.getElementById('bag-count').textContent, '(1)',
-    'the legacy creel key must still be read on load');
+  assert.equal(ctx.doc.getElementById('bag-count').textContent, '(1/10)',
+    'the legacy creel key must still be read on load, and read against the cap');
 
   // Re-saving must write the NEW key only, so the next load is unambiguous.
   ctx.doc.getElementById('bag-open').dispatchEvent(
@@ -4017,4 +4018,96 @@ test('upgrades survive a reload, and a save naming one that no longer exists is 
     JSON.parse(repaired.win.localStorage.getItem('fru-angler-save')).upgrades,
     ['tin_lid'],
     'a duplicate and a retired id must both be dropped on load');
+});
+
+test('the bag badge always states the ratio, and turns red at capacity', async () => {
+  // Driven through real saves rather than by poking state: the badge is a
+  // consequence of a loaded bag, so loading one is what should be tested.
+  const save = (bag, upgrades = []) => ({
+    coins: 100, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    upgrades, bag,
+  });
+  const fish = (n) => Array.from({ length: n }, () => ({
+    fishId: 'glidefin', weight: 2, mutation: null, multiplier: 1,
+  }));
+
+  const badge = async (bag, upgrades, run) => {
+    const ctx = await seedSave(save(bag, upgrades), run);
+    return {
+      text: ctx.doc.getElementById('bag-count').textContent,
+      full: ctx.doc.getElementById('bag-count').classList.contains('is-full'),
+    };
+  };
+
+  // Empty says nothing at all: "(0/10)" on a fresh save is noise.
+  assert.deepEqual(await badge([], [], 9720), { text: '', full: false },
+    'an empty bag shows no badge at all');
+
+  // One fish, one exact ratio. '(1)' would also have passed here, so this alone is
+  // not the interesting case -- the cases below are.
+  assert.deepEqual(await badge(fish(1), [], 9721), { text: '(1/10)', full: false },
+    'one fish reads as one of ten');
+
+  assert.deepEqual(await badge(fish(7), [], 9722), { text: '(7/10)', full: false },
+    'seven fish reads as seven of ten, so the ceiling is visible without opening it');
+
+  assert.deepEqual(await badge(fish(9), [], 9723), { text: '(9/10)', full: false },
+    'nine of ten is not yet full');
+
+  // Full: the ratio says so, and so does the colour, because a number is easy to
+  // misread and a red badge is not.
+  assert.deepEqual(await badge(fish(10), [], 9724), { text: '(10/10)', full: true },
+    'a full bag says so exactly, and is marked full');
+
+  // The denominator is the cap in force, not a hard-coded ten. Every assertion above
+  // would still pass against a badge that ignored upgrades entirely.
+  assert.deepEqual(await badge(fish(10), ['fish_basket'], 9725),
+    { text: '(10/20)', full: false }, 'Fish Basket makes the denominator twenty');
+  assert.deepEqual(await badge(fish(10), ['fish_basket', 'deep_net'], 9726),
+    { text: '(10/45)', full: false }, 'the full ladder is forty-five');
+  assert.deepEqual(await badge(fish(45), ['fish_basket', 'deep_net'], 9727),
+    { text: '(45/45)', full: true }, 'and forty-five of forty-five really is full');
+
+  // Selling frees a slot, so the red state clears: a badge that stays red after a
+  // sale is worse than no badge at all.
+  const before = await badge(fish(9), [], 9728);
+  const after = await badge(fish(8), [], 9729);
+  assert.deepEqual([before.text, after.text], ['(9/10)', '(8/10)'],
+    'selling one lowers the count');
+});
+
+test('every bag badge call site passes the live cap', () => {
+  // The cap is the whole point of the badge, so a call site that hard-codes a
+  // denominator is a bug even when every other test still passes: the seeded saves
+  // used by the badge test all take the same paths. Assert it structurally
+  // instead -- count the call sites and check every one of them.
+  // Read the game itself, not this file: `source` is this test's own source, which
+  // is why the first version of this guard found no paintBagBadge at all.
+  const src = readFileSync(
+    new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+
+  const calls = [];
+  for (const m of src.matchAll(/paintBagBadge\(/g)) {
+    let d = 0, i = m.index + 'paintBagBadge'.length;
+    for (; i < src.length; i += 1) {
+      if (src[i] === '(') d += 1;
+      else if (src[i] === ')') { d -= 1; if (d === 0) break; }
+    }
+    calls.push(src.slice(m.index, i + 1));
+  }
+
+  // The definition itself is one of these matches; it is the one place a default is
+  // allowed, because it is where the default lives.
+  const defs = calls.filter((c) => c.includes('cap = BASE_BAG_CAP'));
+  const uses = calls.filter((c) => !c.includes('cap = BASE_BAG_CAP'));
+  assert.equal(defs.length, 1, 'there must be exactly one paintBagBadge definition');
+  assert.ok(uses.length >= 5,
+    `expected at least five real call sites, found ${uses.length}`);
+
+  for (const call of uses) {
+    assert.match(call, /bagCap\(state\.upgrades\)/,
+      `this call site does not pass the live cap, so the badge would show a stale `
+      + `denominator after an upgrade: ${call}`);
+  }
 });

@@ -2041,3 +2041,49 @@ test("the seal's bubble sits above the seal, with a tail that still reaches it",
   assert.match(PAGE, /class="bubble__tail" aria-hidden="true"/,
     'the tail must stay aria-hidden');
 });
+
+test('a full bag badge is red, and legible', () => {
+  // Self-contained on purpose: PAGE is the page source, and this guard must hold
+  // even if the other CSS helpers are refactored.
+  const body = PAGE.replace(/\/\*[\s\S]*?\*\//g, '');   // comments can lie about values
+  const m = body.match(/\.hud__badge\.is-full\s*\{([^}]*)\}/);
+  assert.ok(m, '.hud__badge.is-full must be styled -- otherwise paintBagBadge adds the '
+    + 'class and nothing at all happens');
+  const decl = m[1];
+
+  const bg = /background:\s*([^;]+)/.exec(decl)?.[1].trim();
+  assert.ok(bg, 'the full badge needs its own background');
+  assert.ok(!/rgba\(1\s*,\s*87\s*,\s*155/.test(bg),
+    `the full badge kept the normal blue fill (${bg}) -- a colour change that changes nothing`);
+
+  const ink = /color:\s*(#[0-9a-f]{3,8})/i.exec(decl)?.[1];
+  assert.equal(String(ink).toLowerCase(), '#fff',
+    `the full badge must put white on the red, not red on the blue: got ${ink}`);
+
+  // WCAG AA against the darker of the two backgrounds the HUD glass reaches. The
+  // badge sits on translucent glass over a sky gradient, so the fill resolves
+  // differently across the panel; the worst case still has to clear 4.5:1.
+  // Takes the '#' INCLUDED, and says so. An earlier version of this helper was
+  // handed a hex with the '#' already stripped and then sliced from index 1 --
+  // silently reading #c62828 as 62282 and reporting 4.45:1 for a colour that is
+  // really 5.62:1. A contrast guard that misreads its own input will either fail
+  // a good value or pass a bad one, and it is not obvious which.
+  const lum = (hex) => {
+    const hx = hex.startsWith('#') ? hex.slice(1) : hex;
+    assert.equal(hx.length, 6, `expected a 6-digit hex, got ${hex}`);
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hx.slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const solid = bg.match(/^#([0-9a-f]{6})$/i)?.[1];
+  assert.ok(solid, `the full badge fill must be a solid hex so its contrast is knowable, got ${bg}`);
+  const L1 = lum(`#${solid}`), L2 = lum('#ffffff');
+  const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+  assert.ok(ratio >= 4.5,
+    `white on ${solid} is ${ratio.toFixed(2)}:1, under the 4.5 AA needs`);
+
+  // A red FILL, not red text. Red text on the badge's normal blue fill measures
+  // 3.87:1 at best -- this is the mistake the rule is written to prevent.
+  assert.ok(!/^#(7f1d1d|8c1c18|991b1b|a01b12|b3261e|c62828)$/i.test(ink || ''),
+    'red text on a pale badge fails contrast; fill it red instead');
+});

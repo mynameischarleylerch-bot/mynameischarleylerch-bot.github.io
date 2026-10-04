@@ -587,6 +587,22 @@
     border-radius: var(--pill); background: rgba(1,87,155,.12); color: var(--deep);
     font-variant-numeric: tabular-nums;
   }
+  /* The bag is full. The badge says the ratio as text, but a ratio is easy to
+     misread -- (9/10) and (10/10) are the same shape on a small pill -- so the
+     state also gets a colour, not just a digit.
+
+     A RED FILL with white text, not red text. The badge's normal fill is
+     rgba(1,87,155,.12), which over the HUD glass resolves to about #6aa8ce, and
+     every readable red fails against that: #7f1d1d measures 3.87:1 and #b3261e
+     measures 2.52:1, both under the 4.5 AA needs. Filling red and putting white on
+     it measures 5.56:1, so this passes on the darker of the two background the
+     glass actually reaches and reads unmistakably as an alarm. */
+  .hud__badge.is-full {
+    background: #c62828;
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 1px rgba(198,40,40,.5);
+    font-weight: 700;
+  }
 
   
   .species {
@@ -1939,6 +1955,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-S"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-T"></script>
 </body>
 </html>

@@ -2995,9 +2995,15 @@ test('a full bag keeps nothing and says so rather than throwing the fish away qu
   const full = Array.from({ length: 10 }, () => fish());
 
   const refused = addToBag(full, fish(), 10);
+  // BOTH halves matter. Checking only `kept` would pass against an implementation
+  // that kept the fish and lied about it; checking only the length would pass
+  // against one that dropped something else instead. The bag must be untouched and
+  // the answer must be false.
   assert.equal(refused.kept, false, 'a fish landing on a full bag is not kept');
   assert.equal(refused.bag.length, 10, 'and the bag does not grow past the cap');
   assert.deepEqual(refused.bag, full, 'and nothing already in it is disturbed');
+  assert.equal(refused.bag.filter((e) => e === full.at(-1)).length, 1,
+    'the refused fish must not be smuggled in alongside the ten');
 
   // The last slot still works: ten is the cap, not nine.
   const taken = addToBag(full.slice(0, 9), fish(), 10);
