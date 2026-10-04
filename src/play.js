@@ -6,9 +6,9 @@
  * belongs to the game running inside the iframe. Swallowing them here would
  * break input for every game at once.
  */
-import { versioned } from './build.js?v=2026-10-04-B';
-import { findBySlug } from './config.js?v=2026-10-04-B';
-import { backUrl } from './router.js?v=2026-10-04-B';
+import { versioned } from './build.js?v=2026-10-04-C';
+import { findBySlug } from './config.js?v=2026-10-04-C';
+import { backUrl } from './router.js?v=2026-10-04-C';
 
 const ESCAPE_KEY = 'Escape';
 

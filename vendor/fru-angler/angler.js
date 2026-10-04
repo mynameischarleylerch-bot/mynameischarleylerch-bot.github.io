@@ -26,10 +26,10 @@ import {
  addToBag, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-B';
+} from './fishing.js?v=2026-10-04-C';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-B';
+} from './reel.js?v=2026-10-04-C';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -654,7 +654,20 @@ function paintPet() {
   }
   if (!seal) { sealSays(''); return; }
   fitPet();
-  const stops = ui.pet.querySelectorAll('stop');
+  // The stops live in <linearGradient id="fa-pet-fill">, which is a SIBLING of the
+  // pet's <path> in the document -- not a child of it. querySelectorAll('stop') on
+  // the path returned an empty NodeList, so both `if (stops[n])` guards below were
+  // always false and the pet silently kept its hardcoded #8fd8f5 -> #2b7fa8 cyan.
+  // That is why the seal on the dock never took its lake colour no matter what the
+  // data said. Look the gradient up by id.
+  const fill = document.getElementById('fa-pet-fill');
+  const stops = fill ? fill.querySelectorAll('stop') : [];
+  if (stops.length < 3) {
+    // No silent fallback: if the gradient is renamed or removed, the seal reverts to
+    // hardcoded cyan -- the exact bug this lookup exists to fix. Say so loudly.
+    console.warn('[fru-angler] #fa-pet-fill missing or short; pet cannot be tinted',
+      { stops: stops.length });
+  }
   // BOTH body stops carry the seal's lightness, not just the deep one.
   // The mid stop used to be a fixed 74%, so on the dock every seal was painted
   // the same lightness and only its hue varied -- which made Abyss, the seal
@@ -668,8 +681,10 @@ function paintPet() {
   const light = seal.light ?? 62;
   const mid = Math.min(92, light + 18);
   const deep = Math.round(light * 0.62);
-  if (stops[1]) stops[1].setAttribute('stop-color', `hsl(${seal.hue} 84% ${mid}%)`);
-  if (stops[2]) stops[2].setAttribute('stop-color', `hsl(${seal.hue} 62% ${deep}%)`);
+  // Unguarded on purpose: the old `if (stops[n])` made a missing gradient look like
+  // success. If this throws, the bug is visible instead of silent.
+  stops[1].setAttribute('stop-color', `hsl(${seal.hue} 84% ${mid}%)`);
+  stops[2].setAttribute('stop-color', `hsl(${seal.hue} 62% ${deep}%)`);
 }
 
 function paintChrome() {

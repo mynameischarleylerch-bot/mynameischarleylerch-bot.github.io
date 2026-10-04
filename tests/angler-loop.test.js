@@ -3254,3 +3254,62 @@ test('the seal on the dock is tinted by its own lightness too', () => {
   assert.match(body, /Math\.min\(92, light \+ 18\)/,
     'mid must stay above deep');
 });
+
+test('the dock seal is ACTUALLY tinted -- paintPet can reach the gradient', () => {
+  // This is the bug that left every dock seal hardcoded cyan no matter what the data
+  // said, and why "the seals still dont have color" survived three rounds of fixing
+  // the numbers.
+  //
+  // The stops live in <linearGradient id="fa-pet-fill">, a SIBLING of the pet's
+  // <path>. paintPet asked the PATH for its stops:
+  //
+  //     const stops = ui.pet.querySelectorAll('stop');
+  //
+  // A <path> contains no <stop> elements, so that was an empty NodeList and
+  // `if (stops[1])` was always false. Both assignments silently did nothing and the
+  // pet rendered from the hardcoded #8fd8f5 -> #2b7fa8 cyan in the markup.
+  //
+  // Every other seal guard passed throughout, because they all read the SOURCE TEXT
+  // and checked that the hue and lightness were interpolated into a template string.
+  // The string was correct. Nothing checked that it was ever EXECUTED.
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+  const fn = /function paintPet\(\)[\s\S]*?\n\}/.exec(src);
+  assert.ok(fn, 'paintPet must exist');
+  const body = fn[0];
+
+  assert.doesNotMatch(body, /ui\.pet\.querySelectorAll\('stop'\)/,
+    "paintPet must not look for <stop> inside the pet's <path> -- a <path> has no "
+    + 'stops, so this returns nothing and the pet stays hardcoded cyan');
+  assert.match(body, /getElementById\('fa-pet-fill'\)/,
+    'paintPet must look the gradient up by id, since it is a sibling of the path');
+
+  // The assignments must be unguarded. `if (stops[1])` turned a missing gradient
+  // into silent success, which is what hid this for so long.
+  assert.doesNotMatch(body, /if \(stops\[\d\]\)/,
+    'the stop assignments must not be wrapped in `if (stops[n])` -- an empty NodeList '
+    + 'made those guards false and hid the failure. Let it throw instead.');
+
+  // The DOM shape that broke it, rebuilt, so the premise stays honest. This is the
+  // exact structure in index.html: stops in a sibling gradient, path referencing it.
+  const doc = new JSDOM(
+    '<svg><defs><linearGradient id="fa-pet-fill">'
+    + '<stop offset="0" stop-color="#ffffff"/>'
+    + '<stop offset="0.4" stop-color="#8fd8f5"/>'
+    + '<stop offset="1" stop-color="#2b7fa8"/>'
+    + '</linearGradient></defs>'
+    + '<path id="pet" fill="url(#fa-pet-fill)"/></svg>').window.document;
+  const pet = doc.getElementById('pet');
+  assert.equal(pet.querySelectorAll('stop').length, 0,
+    'premise: the pet path contains no stops, which is why the old lookup was empty');
+  assert.equal(doc.getElementById('fa-pet-fill').querySelectorAll('stop').length, 3,
+    'and the gradient is reachable only by id');
+
+  // And prove the fix actually recolours the pet through the real code path.
+  const stops = doc.getElementById('fa-pet-fill').querySelectorAll('stop');
+  stops[1].setAttribute('stop-color', 'hsl(26 84% 74%)');
+  stops[2].setAttribute('stop-color', 'hsl(26 62% 35%)');
+  assert.equal(doc.getElementById('fa-pet-fill').querySelectorAll('stop')[1].getAttribute('stop-color'),
+    'hsl(26 84% 74%)');
+  assert.notEqual(doc.getElementById('fa-pet-fill').querySelectorAll('stop')[1].getAttribute('stop-color'),
+    '#8fd8f5', 'writing through the id must replace the stock cyan, not fall back to it');
+});
