@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
          RODS, RODS_BY_PRICE, SEALS, startingLoadout, TIMES, WEATHER, LOST_ITEMS,
-} from '../vendor/fru-angler/fishing.js?v=2026-10-04-s';
+} from '../vendor/fru-angler/fishing.js?v=2026-10-04-t';
 
 const PAGE = readFileSync(
   new URL('../vendor/fru-angler/index.html', import.meta.url),
@@ -2894,10 +2894,10 @@ test('the face is pre-compensated for the counter-scale, or it cannot be seen', 
   // first </g> after pet-eye, which is the eye group's, so the mouth fell
   // outside the slice and this test failed for the wrong reason.
   const faceStart = html.indexOf('<g id="pet-face"');
-  const face = html.slice(faceStart, html.indexOf('</g>', html.indexOf('id="pet-mouth"')));
+  const face = html.slice(faceStart, html.indexOf('</g>', html.indexOf('id="pet-three"')));
 
-  assert.match(face, /id="pet-eye"/, 'the eyes live in the face group');
-  assert.match(face, /id="pet-mouth"/, 'and so does the :3 mouth');
+  assert.match(face, /id="pet-colon"/, 'the colon lives in the face group');
+  assert.match(face, /id="pet-three"/, 'and so does the numeral 3');
 
   const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('function fitPet'), src.indexOf('function placeBobber'));
@@ -2929,10 +2929,15 @@ test('the face is pre-compensated for the counter-scale, or it cannot be seen', 
   // name: pointing it at the body's centre -- x=12.9 -- scales the face about
   // the wrong point, which slides it sideways by the error on every lake, and
   // no other assertion here would notice.
-  const mouthD = face.match(/id="pet-mouth"\s+d="([^"]+)"/)[1];
-  const mx = [...mouthD.matchAll(/(-?\d+\.?\d*)[ ,](-?\d+\.?\d*)/g)]
-    .map((m) => Number(m[1]));
-  const faceCentre = mx.reduce((t, v) => t + v, 0) / mx.length;
+  // The whole GLYPH's centre -- the colon plus the numeral, from the bounding
+  // box. Averaging the 3's path coordinates gave 22.5, because the two rightward
+  // bulges carry far more coordinate pairs than the two short returns to the
+  // left. The anchor has to centre what is actually on screen.
+  const threeD = face.match(/id="pet-three"\s+d="([^"]+)"/)[1];
+  const mx = [...face.matchAll(/<circle[^>]*cx="([\d.]+)"[^>]*r="([\d.]+)"/g)]
+    .flatMap((m) => [Number(m[1]) - Number(m[2]), Number(m[1]) + Number(m[2])])
+    .concat([...threeD.matchAll(/(-?\d+\.?\d*)[ ,](-?\d+\.?\d*)/g)].map((m) => Number(m[1])));
+  const faceCentre = (Math.min(...mx) + Math.max(...mx)) / 2;
   const declared = Number(/const FACE_X = ([\d.]+);/.exec(body)[1]);
   assert.ok(Math.abs(declared - faceCentre) < 0.2,
     `FACE_X is ${declared} but the face is centred at ${faceCentre.toFixed(2)}`);

@@ -1361,35 +1361,47 @@
           <!-- THE COAT: pale rings over a dark ground, which is what a ringed seal
                is named for. Kept to the back half, away from the face. -->
           <g id="pet-rings" fill="none" stroke="#e8f2f7">
-            <ellipse class="pet__ring" cx="5" cy="38.6" rx="1.3" ry="1"
+            <ellipse class="pet__ring" cx="4.6" cy="38.2" rx="1.3" ry="1"
                      stroke-opacity=".5" stroke-width=".3"/>
-            <ellipse class="pet__ring" cx="3.8" cy="45.8" rx="1.1" ry=".82"
+            <ellipse class="pet__ring" cx="3.4" cy="45.4" rx="1.1" ry=".82"
                      stroke-opacity=".44" stroke-width=".28"/>
-            <ellipse class="pet__ring" cx="9.4" cy="34.4" rx="1" ry=".75"
+            <ellipse class="pet__ring" cx="8.4" cy="34.2" rx="1" ry=".75"
                      stroke-opacity=".42" stroke-width=".28"/>
           </g>
           <g id="pet-spots" fill="#2f4a5e">
-            <circle class="pet__spot" cx="2.2" cy="42.6" r=".78" opacity=".34"/>
-            <circle class="pet__spot" cx="7" cy="41.4" r=".66" opacity=".3"/>
-            <circle class="pet__spot" cx="11.6" cy="47.4" r=".6" opacity=".3"/>
+            <circle class="pet__spot" cx="1.8" cy="42.4" r=".78" opacity=".34"/>
+            <circle class="pet__spot" cx="6" cy="41.2" r=".66" opacity=".3"/>
+            <circle class="pet__spot" cx="10.4" cy="47.2" r=".6" opacity=".3"/>
           </g>
 
-          <!-- THE :3.
-               Five rounds of "make the face bigger" and "make the smile deeper" all
-               failed the same way. Rendered, the face read as two flattened oval
-               marks over a broad thick U -- a bowl, not a smile. A :3 is compact:
-               two small round dots set CLOSE together, and a mouth that is several
-               times wider than it is deep. Every previous pass had that ratio
-               inverted, and it is the ratio, not the size, that makes it read. -->
+          <!-- THE FACE IS THE CHARACTER ":3".
+               Not a face that MEANS ":3" -- the glyph itself, drawn.
+
+               Five rounds drew the interpretation: two round eyes side by side and
+               a smiling arc. Compared against the actual characters that is not a
+               ":3" at all, and that comparison is what finally settled it:
+
+                 ":" is two dots STACKED VERTICALLY.
+                 "3" is a vertical two-lobed curve whose lobes bulge RIGHT and whose
+                     top and bottom ends both return LEFT.
+
+               So: the colon's dots share an x. The 3 is taller than it is wide, and
+               its last point sits inside its own width -- which is exactly what a
+               smile arc never does. -->
           <g id="pet-face">
-            <g id="pet-eye">
-              <circle cx="17.5" cy="37.9" r=".95" fill="#12212e"/>
-              <circle cx="20.5" cy="37.9" r=".95" fill="#12212e"/>
-              <circle cx="17.72" cy="38.12" r=".34" fill="#ffffff" opacity=".9"/>
-              <circle cx="20.72" cy="38.12" r=".34" fill="#ffffff" opacity=".9"/>
+            <!-- the colon -->
+            <g id="pet-colon">
+              <circle cx="16.4" cy="37.2" r=".95" fill="#12212e"/>
+              <circle cx="16.4" cy="43" r=".95" fill="#12212e"/>
             </g>
-            <path id="pet-mouth" d="M14.8 42.2 C16.4 45 21.2 45 22.8 42.2"
-                  fill="none" stroke="#12212e" stroke-width=".75" stroke-linecap="round"/>
+            <!-- the numeral: two lobes bulging right, both ends returning left -->
+            <path id="pet-three"
+                  d="M19.2 33.4
+                     C22.4 33.4 24.2 35.2 24.2 37.2
+                     C24.2 39 22.2 40 19.8 40.4
+                     C22.4 40.8 24.4 42 24.4 44
+                     C24.4 46.2 22 47.6 18.9 47.6"
+                  fill="none" stroke="#12212e" stroke-width=".62" stroke-linecap="round"/>
           </g>
         </g>
 
@@ -1604,6 +1616,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-s"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-t"></script>
 </body>
 </html>
