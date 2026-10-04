@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
          RODS, RODS_BY_PRICE, SEALS, startingLoadout, TIMES, WEATHER, LOST_ITEMS,
-} from '../vendor/fru-angler/fishing.js?v=2026-10-04-t';
+} from '../vendor/fru-angler/fishing.js?v=2026-10-04-u';
 
 const PAGE = readFileSync(
   new URL('../vendor/fru-angler/index.html', import.meta.url),
@@ -2941,4 +2941,44 @@ test('the face is pre-compensated for the counter-scale, or it cannot be seen', 
   const declared = Number(/const FACE_X = ([\d.]+);/.exec(body)[1]);
   assert.ok(Math.abs(declared - faceCentre) < 0.2,
     `FACE_X is ${declared} but the face is centred at ${faceCentre.toFixed(2)}`);
+});
+
+test('the :3 glyph is tilted, and the body is not', () => {
+  // "rotate it like the picture" -- and clarified: only the GLYPH tilts, the body
+  // stays upright. So the rotation belongs in the markup, on a nested group.
+  //
+  // NOT in fitPet(): that function overwrites the transform on #pet-face every
+  // time the lake resizes, so a rotation written into the markup on that same
+  // element would be silently discarded on the first refit -- the face would snap
+  // upright and nothing would fail.
+  const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
+
+  // A nested group carries the tilt.
+  assert.match(html, /<g id="pet-face">[\s\S]{0,900}?<g id="pet-tilt" transform="rotate\(-?[\d.]+ [\d.]+ [\d.]+\)"/,
+    'the tilt must be a nested group inside the face, not on the face itself');
+
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+  const fit = src.slice(src.indexOf('function fitPet'), src.indexOf('function placeBobber'));
+  // fitPet sets a transform on pet-face; it must not set one on the tilt group,
+  // or the markup rotation is destroyed.
+  assert.doesNotMatch(fit, /pet-tilt['"]\)?\)?\s*,\s*['"]transform/,
+    'fitPet must not overwrite the tilt');
+  assert.match(fit, /getElementById\('pet-face'\)/,
+    'the counter-scale still lands on the face');
+
+  // The angle is a stated choice, not an accident: it must be non-zero and named.
+  const tilt = /id="pet-tilt" transform="rotate\((-?[\d.]+) /.exec(html);
+  assert.ok(tilt, 'the tilt must declare an angle');
+  assert.ok(Math.abs(Number(tilt[1])) >= 5, 'and it must be a visible tilt, got ' + tilt[1] + 'deg');
+  assert.ok(Math.abs(Number(tilt[1])) <= 30, 'but not so far it reads as sideways, got ' + tilt[1] + 'deg');
+
+  // Rotated about the glyph's own centre, or it swings off the seal.
+  const pivot = /id="pet-tilt" transform="rotate\(-?[\d.]+ ([\d.]+) ([\d.]+)\)/.exec(html);
+  assert.ok(Number(pivot[1]) > 14 && Number(pivot[1]) < 25,
+    'pivot must sit on the glyph, got x=' + pivot[1]);
+
+  // And the BODY must stay upright: no rotation anywhere else in the animal.
+  const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
+  const rotates = [...pet.matchAll(/transform="rotate\(/g)];
+  assert.equal(rotates.length, 1, 'exactly one rotation in the whole seal, got ' + rotates.length);
 });

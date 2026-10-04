@@ -1389,6 +1389,13 @@
                its last point sits inside its own width -- which is exactly what a
                smile arc never does. -->
           <g id="pet-face">
+            <!-- The tilt. A NESTED group on purpose: fitPet() overwrites the
+                 transform on #pet-face every time the lake resizes, so a rotation
+                 written on #pet-face itself would be silently destroyed on the
+                 first refit and the face would snap upright with nothing failing.
+                 The glyph only; the body stays upright.
+                 TILT: -12 degrees counter-clockwise, about the glyph centre. -->
+            <g id="pet-tilt" transform="rotate(-12 19.9 40.5)">
             <!-- the colon -->
             <g id="pet-colon">
               <circle cx="16.4" cy="37.2" r=".95" fill="#12212e"/>
@@ -1402,6 +1409,7 @@
                      C22.4 40.8 24.4 42 24.4 44
                      C24.4 46.2 22 47.6 18.9 47.6"
                   fill="none" stroke="#12212e" stroke-width=".62" stroke-linecap="round"/>
+            </g>
           </g>
         </g>
 
@@ -1616,6 +1624,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-t"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-u"></script>
 </body>
 </html>
