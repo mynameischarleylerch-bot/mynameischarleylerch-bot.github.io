@@ -3637,8 +3637,18 @@ test('the boost readout is top-right and legible, and changes nothing else', () 
   assert.match(body, /position:\s*absolute/, 'the readout must be positioned absolutely');
   assert.match(body, /(?<![-\w])right:\s*[\d.]+rem/, 'anchored to the RIGHT edge');
   assert.match(body, /(?<![-\w])top:\s*[\d.]+rem/, 'and to the top');
+  // `left: auto` is required, not merely allowed: it is what stops any other rule
+  // or an inline style from dragging the panel back across. A `left` with a LENGTH
+  // would fight the right anchor -- that is the bug, and it is now banned outright.
+  assert.match(body, /(?<![-\w])left:\s*auto/,
+    'left must be stated as auto, so nothing else can pull the panel off the right edge');
   assert.doesNotMatch(body, /(?<![-\w])left:\s*[\d.]+(?:rem|px|%)/,
-    'a `left` offset would fight the `right` anchor and pull it back across');
+    'a `left` LENGTH would fight the `right` anchor and pull it back across');
+  assert.match(body, /(?<![-\w])margin-left:\s*auto/,
+    'margin-left:auto keeps the panel against the right edge of its containing '
+    + 'block even if the right offset is ever dropped');
+  assert.match(body, /(?<![-\w])bottom:\s*auto/,
+    'bottom must be auto too; a bottom offset can stretch the box upward');
   assert.match(body, /text-align:\s*right/, 'rows must align with the right anchor');
   assert.match(body, /justify-items:\s*end/, 'the grid must place items at the end');
 
