@@ -3620,3 +3620,81 @@ test('every seal has its own static particle motif, and it stays off the face', 
       + 'and middle -- they belong in the band over its back');
   }
 });
+
+test('the boost readout sits in the top-right corner and is actually readable', () => {
+  const page = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
+  const rule = /\.lake__boosts\s*\{([\s\S]*?)\n\s*\}/.exec(page);
+  assert.ok(rule, '.lake__boosts must be styled');
+  const body = rule[1];
+
+  // Top-RIGHT, anchored to the right edge so it cannot drift as the lake narrows.
+  assert.match(body, /position:\s*absolute/, 'the readout must be positioned absolutely');
+  assert.match(body, /right:\s*[\d.]+rem/, 'it must be anchored to the RIGHT edge');
+  assert.match(body, /top:\s*[\d.]+rem/, 'and to the top');
+  assert.doesNotMatch(body, /(^|[\s;])left:\s*[\d.]+rem/,
+    'a `left` offset would fight the `right` anchor and pull it back to the left');
+  // Rows follow the anchor, or they sit ragged against the wrong edge.
+  assert.match(body, /text-align:\s*right/, 'the rows must align with the right anchor');
+  assert.match(body, /justify-items:\s*end/, 'and the grid must place items at the end');
+
+  // --ink was never DEFINED anywhere in the project, so every var(--ink, #013a63)
+  // in this panel was silently using its fallback -- the colour written in the rule
+  // was not the colour on screen. Define it, and use it bare.
+  assert.match(page, /--ink:\s*#[0-9a-f]{3,8};/i,
+    '--ink must be defined; nothing defined it, so the rules below were all falling '
+    + 'back to a literal that was never the intended colour');
+  for (const sel of ['lake__boosts-title', 'lake__boosts-total']) {
+    const r = new RegExp(`\\.${sel}\\s*\\{([^}]*)\\}`).exec(page);
+    assert.ok(r, `.${sel} must exist`);
+    assert.match(r[1], /color:\s*var\(--ink\)/,
+      `.${sel} must take its colour from --ink, not a hardcoded hex. Both measured `
+      + 'below AA against the dimmest the panel glass reaches.');
+  }
+
+  // Measured, not asserted by eye. The panel is translucent white over the water, so
+  // its worst case is over the darkest gradient stop; the text has to clear WCAG AA
+  // (4.5:1) there, and 7:1 for AAA.
+  const lum = (hex) => {
+    const h = hex.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+    const f = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const ratio = (a, b) => {
+    const la = lum(a); const lb = lum(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+  const over = (fg, bg, alpha) => {
+    const f = [0, 2, 4].map((i) => parseInt(fg.replace('#', '').slice(i, i + 2), 16));
+    const b = [0, 2, 4].map((i) => parseInt(bg.replace('#', '').slice(i, i + 2), 16));
+    return `#${f.map((v, i) => Math.round(v * alpha + b[i] * (1 - alpha))
+      .toString(16).padStart(2, '0')).join('')}`;
+  };
+  const ink = /--ink:\s*(#[0-9a-f]{3,8})/i.exec(page)[1];
+  // The lake's own gradient stops, and the dimmest the glass alpha (.62) allows.
+  // Only the WATER gradient. A blanket scan of every <stop> also picks up UI colours
+  // from other gradients in the page -- it caught #013a63, which is a button ink, not
+  // anything the panel ever sits on.
+  const water = /<linearGradient id="fa-water"[^>]*>([\s\S]*?)<\/linearGradient>/.exec(page);
+  assert.ok(water, 'the lake water gradient must exist');
+  const waterStops = [...water[1].matchAll(/stop-color="(#\w{6})"/g)].map((m) => m[1]);
+  assert.ok(waterStops.length >= 3, `expected the water's gradient stops, found ${waterStops.length}`);
+  for (const w of waterStops) {
+    const panel = over('#ffffff', w, 0.62);
+    const r = ratio(ink, panel);
+    assert.ok(r >= 4.5,
+      `--ink ${ink} is only ${r.toFixed(2)}:1 against the panel over ${w} (${panel}); `
+      + 'WCAG AA wants 4.5');
+    assert.ok(r >= 7,
+      `--ink ${ink} is ${r.toFixed(2)}:1 over ${w} -- readable, but the panel was asked `
+      + 'to be MORE visible, and AAA is 7');
+  }
+
+  // An unowned boost used to sit at opacity .55 in the old pale ink, which made it
+  // all but invisible -- and a boost you have not earned is exactly the one a player
+  // wants to notice. Match the opacity out of the CSS and require it readable.
+  const none = /\.lake__boost--none\s*\{[^}]*opacity:\s*([\d.]+)/.exec(page);
+  assert.ok(none, '.lake__boost--none must set an opacity');
+  assert.ok(parseFloat(none[1]) >= 0.7,
+    `an unearned boost sits at opacity ${none[1]}; it was .55 and all but invisible`);
+});
