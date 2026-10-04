@@ -26,10 +26,10 @@ import {
  addToBag, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-y';
+} from './fishing.js?v=2026-10-04-z';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-y';
+} from './reel.js?v=2026-10-04-z';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -655,8 +655,13 @@ function paintPet() {
   if (!seal) { sealSays(''); return; }
   fitPet();
   const stops = ui.pet.querySelectorAll('stop');
+  // The body's deep stop takes the seal's own lightness, so a pale glacier
+  // seal and the black deep seal differ ON the dock as well as in the shop
+  // list. The light stop stays high-key: the lit-from-above gloss is the Aero
+  // finish and is shared by every seal, so tinting it would wash them out.
+  const deep = Math.round((seal.light ?? 62) * 0.62);
   if (stops[1]) stops[1].setAttribute('stop-color', `hsl(${seal.hue} 82% 74%)`);
-  if (stops[2]) stops[2].setAttribute('stop-color', `hsl(${seal.hue} 62% 30%)`);
+  if (stops[2]) stops[2].setAttribute('stop-color', `hsl(${seal.hue} 62% ${deep}%)`);
 }
 
 function paintChrome() {
@@ -1458,7 +1463,7 @@ function renderSealShop() {
       + (owned ? '' : locked ? ' seal--locked' : ' seal--for-sale');
     row.innerHTML = `
       <div class="seal__head">
-        <span class="seal__portrait" style="--seal-hue:${seal.hue}" aria-hidden="true"></span>
+        <span class="seal__portrait" style="--seal-hue:${seal.hue};--seal-light:${seal.light}%" aria-hidden="true"></span>
         <span class="seal__titles">
           <b class="seal__name">${seal.name}</b>
           <span class="seal__home">${home?.name ?? ''}</span>

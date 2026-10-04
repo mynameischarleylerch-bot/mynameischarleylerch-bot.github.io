@@ -9,7 +9,7 @@ import {
   rodWorksIn, rodCheckIn,
  areaProgress, levelFrom, xpForCatch, luckFromLevel, luckFor, LOST_ITEMS, rollLostItem, lostItemsFor, SEALS, buySeal, equipSeal, sealComment, sealDuplicates, visitArea, xpForLevel, sellLostItems, lostItemById, MUTATIONS, mutationMultiplierFor, mutationById, sealLines, WEATHER, TIMES, skyFor, luckFromSky,
   addToBag, fishEntrySpec, bagWorth, bagEntryValue,
-  sellFromBag, feedToBond, bondLuck, bondCount,
+  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount,
   groupBag,
   sealFedLine,
   fishSilhouette,
@@ -2445,3 +2445,321 @@ test('the ladder ends where the returns stop being worth feeding towards', () =>
   }
 });
 
+
+
+/* ------------------------------------------------- selling the whole bag */
+
+/**
+ * A bag of real, priced fish.
+ *
+ * These tests were written against `fishEntrySpec('glidefin', 1.2)` -- passing the
+ * id where the function wants the FISH OBJECT, so every entry came out with
+ * `fishId: undefined`, every fish was worth 0, and the expected total was 0 too.
+ * The tests then passed with the rule paying nothing at all: a guard comparing
+ * zero to zero. Building the entries through the real FISH table, and asserting
+ * the total is a real number, is what stops that.
+ */
+function pricedBag() {
+  // Priced by pricePerKg, which is the field catchValue() reads -- not a `value`
+  // field, which no fish in the table has. Filtering on the wrong one returns an
+  // empty list and every entry below becomes undefined.
+  const [a, b] = FISH.filter((f) => f.pricePerKg > 0);
+  assert.ok(a && b, 'the fish table must hold at least two priced fish');
+  return [
+    fishEntrySpec(a, 1.2),
+    fishEntrySpec(b, 3.4),
+    fishEntrySpec(a, 0.6),
+    { ...fishEntrySpec(b, 2.2), multiplier: 3 },          // a landed mutation
+  ];
+}
+
+test('the test bag is worth something, so the sell tests can fail', () => {
+  // The sanity check the first version of these lacked. A bag of zero-value
+  // entries makes every assertion below a tautology.
+  const bag = pricedBag();
+  assert.ok(bag.every((e) => typeof e.fishId === 'string' && e.fishId.length),
+    'every entry must name a real fish, got ' + JSON.stringify(bag.map((e) => e.fishId)));
+  const worth = bagWorth(bag);
+  assert.ok(worth > 0, `the bag must be worth something, got ${worth}`);
+});
+
+test('selling the whole bag pays exactly what selling each fish pays', () => {
+  // The rule that matters: "Sell all" must not disagree with the per-row button.
+  // Selling four fish one at a time and selling the lot in one go are the same
+  // decision, so they must be the same number -- otherwise one of the two lies to
+  // the player and there is no way to tell which.
+  const bag = pricedBag();
+
+  // Ground truth: sell them one at a time through the single-sale rule.
+  let expected = 0;
+  let left = bag;
+  for (let i = bag.length - 1; i >= 0; i -= 1) {
+    const one = sellFromBag(left, i);
+    expected += one.coins;
+    left = one.bag;
+  }
+  assert.ok(expected > 0, 'the per-fish total must be a real number');
+
+  const all = sellWholeBag(bag);
+  assert.equal(all.ok, true);
+  assert.equal(all.coins, expected,
+    `sell-all paid ${all.coins} but selling the same fish one at a time pays ${expected}`);
+  assert.equal(all.sold, bag.length);
+  assert.deepEqual(all.bag, [], 'the bag must be empty afterwards');
+});
+
+test('sell-all leaves the caller\'s own bag untouched', () => {
+  // The rules are pure: a panel that renders rows must not empty the array it was
+  // handed, or the row buttons would stop working the moment the lot is sold.
+  const bag = pricedBag();
+  const snapshot = JSON.stringify(bag);
+  sellWholeBag(bag);
+  assert.equal(JSON.stringify(bag), snapshot, 'sellWholeBag must not mutate its argument');
+});
+
+test('selling an empty bag is refused, never a silent zero', () => {
+  // A button that pays nothing and says nothing reads as broken. The finds bag
+  // refuses the same way, so the two agree.
+  for (const empty of [[], null, undefined, 'nonsense']) {
+    const r = sellWholeBag(empty);
+    assert.equal(r.ok, false, `selling ${JSON.stringify(empty)} must be refused`);
+    assert.equal(r.coins, 0);
+    assert.ok(r.reason, 'and it must say why');
+  }
+});
+
+test('a bag holding nothing but dead fish still clears, for nothing', () => {
+  // An id no longer in the table must not strand the bag: the player cannot sell
+  // it row by row either, so a lot button has to get them out of that state. It
+  // pays zero because there is nothing to pay, but it must not be a refusal --
+  // otherwise the bag is stuck forever with no way out.
+  const bag = [{ fishId: 'a-fish-that-was-removed', weight: 2, mutation: null, multiplier: 1 }];
+  const r = sellWholeBag(bag);
+  assert.equal(r.ok, true, 'a dead entry must not lock the bag');
+  assert.equal(r.coins, 0, 'and it is worth nothing');
+  assert.deepEqual(r.bag, [], 'but it leaves the bag, so the player is unstuck');
+});
+
+test('sell-all empties the bag, and says how many it sold', () => {
+  // A "Sell all" that quietly kept one fish behind would leave the player with a
+  // bag they cannot tell is still full, and the button would appear to have done
+  // nothing on the second press. Assert the bag comes back empty on its own, so a
+  // short sale cannot pass as a complete one -- and that `sold` counts the lot.
+  const bag = pricedBag();
+  const all = sellWholeBag(bag);
+  assert.equal(all.bag.length, 0,
+    `sell-all must empty the bag, it left ${all.bag.length}: ${JSON.stringify(all.bag)}`);
+  assert.equal(all.sold, bag.length,
+    `it must report selling all ${bag.length}, reported ${all.sold}`);
+  // And a bag of one behaves the same as a bag of many: no special case.
+  const single = sellWholeBag([fishEntrySpec(FISH[0], 1.5)]);
+  assert.equal(single.bag.length, 0);
+  assert.equal(single.sold, 1);
+});
+
+test('sell-all agrees with the total the bag panel already shows', () => {
+  // The panel's summary line is what the player reads before deciding. If the
+  // number on screen and the number the button pays ever disagree, the button
+  // feels like a scam -- so they are asserted to be the same expression of the
+  // same bag.
+  const bag = pricedBag();
+  assert.equal(sellWholeBag(bag).coins, bagWorth(bag));
+});
+
+test('one big fish and many small ones pay the same either way round', () => {
+  // Order must not matter. Selling backwards (as sellWholeBag does) and forwards
+  // must give the same total, or the button pays differently depending on an
+  // invisible detail of the array.
+  const bag = pricedBag();
+  const forwards = [...bag].reverse();
+  assert.equal(sellWholeBag(bag).coins, sellWholeBag(forwards).coins,
+    'sell-all must not depend on the order the bag happens to be in');
+});
+
+
+/* ------------------------------------------------- seals take their area's colour */
+
+/**
+ * Each seal wears the colour of the lake it lives in.
+ *
+ * HUE ALONE IS NOT ENOUGH, which is the thing this cost several passes to find.
+ * Three of the five lakes are the same cyan -- Aero Lake, Glacier Fjord and Dark
+ * Aero Deep have accent hues of 199, 201 and 199. So "the seal matches its lake"
+ * and "the seals are distinguishable" are in direct conflict on hue, and the shop
+ * list showed the result: Frost and Bubbles three degrees apart, one of them
+ * unpickable.
+ *
+ * What actually tells those three apart is LIGHTNESS, and it is also what is
+ * true about them: bright shallows (62%), glacier ice (82%), the black deep (34%).
+ * So a seal carries its lake's hue AND its lake's lightness. Frutiger Aero is a
+ * high-key, glossy palette, so the lightnesses sit bright rather than copying the
+ * muddy water hex verbatim.
+ */
+function hueOf(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(hex).trim());
+  assert.ok(m, `expected a 6-digit hex colour, got ${JSON.stringify(hex)}`);
+  const n = parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d === 0) return 0;                        // grey has no hue
+  let h;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return Math.round(((h * 60) + 360) % 360);
+}
+
+/** Shortest distance between two hues, 0-180 degrees. */
+function hueGap(a, b) {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+const sealById = new Map(SEALS.map((s) => [s.id, s]));
+
+test('every seal wears the hue of the lake it lives in', () => {
+  // Measured against the lake's WATER, which is what a seal actually lives in --
+  // not the sky, and not the accent: Aero Lake's accent is #4fc3f7, which is the
+  // same cyan as two other lakes and so cannot tell the seals apart.
+  const byId = new Map(AREAS.map((a) => [a.id, a]));
+  assert.ok(byId.size >= 5, `expected the lakes the seals live in, got ${byId.size}`);
+
+  for (const seal of SEALS) {
+    const area = byId.get(seal.home);
+    assert.ok(area, `${seal.name} lives at "${seal.home}", which is not a lake`);
+    const want = hueOf(area.palette.water);
+    assert.ok(hueGap(seal.hue, want) <= 20,
+      `${seal.name} lives at ${area.name}, whose water ${area.palette.water} is hue `
+      + `${want}, but the seal is drawn at hue ${seal.hue} (${hueGap(seal.hue, want)} off). `
+      + 'A seal must wear the colour of its own water.');
+  }
+});
+
+test('every seal carries a lightness, and it comes from its own lake', () => {
+  // The axis that separates the three blue lakes. Without it they are one colour.
+  const byId = new Map(AREAS.map((a) => [a.id, a]));
+  for (const seal of SEALS) {
+    const area = byId.get(seal.home);
+    assert.ok(Number.isInteger(seal.light),
+      `${seal.name} has light=${JSON.stringify(seal.light)}, which is not a whole percent`);
+    assert.ok(seal.light >= 25 && seal.light <= 88,
+      `${seal.name} light ${seal.light}% is outside 25-88 -- too dark to read on a light panel, `
+      + 'or too pale to see against one');
+  }
+});
+
+test('no two seals are the same colour to look at', () => {
+  // The defect this exposed: Frost (198) and Bubbles (195) were three degrees
+  // apart and read as one seal in the shop list. Two seals must differ on hue OR
+  // on lightness by enough to be told apart at a glance.
+  //
+  // Hue 30 degrees or lightness 12 points is where two swatches stop reading as
+  // shades of one another.
+  for (let i = 0; i < SEALS.length; i += 1) {
+    for (let j = i + 1; j < SEALS.length; j += 1) {
+      const a = SEALS[i], b = SEALS[j];
+      const hue = hueGap(a.hue, b.hue);
+      const light = Math.abs(a.light - b.light);
+      assert.ok(hue >= 30 || light >= 12,
+        `${a.name} (hue ${a.hue}, light ${a.light}%) and ${b.name} `
+        + `(hue ${b.hue}, light ${b.light}%) look like the same seal: `
+        + `hue ${hue} apart, lightness ${light} apart.`);
+    }
+  }
+});
+
+test('a seal colour is a whole number of degrees and percent', () => {
+  // Both are interpolated straight into an hsl() string, so a float or a string
+  // paints an invalid colour and falls back to the browser default silently.
+  for (const seal of SEALS) {
+    assert.ok(Number.isInteger(seal.hue),
+      `${seal.name} has hue ${JSON.stringify(seal.hue)}, which is not a whole degree`);
+    assert.ok(seal.hue >= 0 && seal.hue < 360,
+      `${seal.name} has hue ${seal.hue}, outside 0-359`);
+  }
+});
+
+test('every seal has a lake to be coloured by, and every lake a seal', () => {
+  // Guards the join from both sides: a seal whose home is not a lake falls through
+  // the colour lookup, and a lake nobody lives in means the two tables have drifted.
+  const homes = new Set(SEALS.map((s) => s.home));
+  const lakeIds = new Set(AREAS.map((a) => a.id));
+  for (const seal of SEALS) {
+    assert.ok(lakeIds.has(seal.home), `${seal.name} is at unknown lake ${seal.home}`);
+  }
+  for (const id of lakeIds) {
+    assert.ok(homes.has(id), `lake ${id} has no seal living there`);
+  }
+});
+
+test('the palette is Frutiger Aero: bright, and inside the site hue range', () => {
+  // Not every hue is on-brand: a pure red or magenta seal would read as a different
+  // game's token. The site's own accents sit in the aqua/green/amber band, so a
+  // seal outside it is a data error rather than a choice.
+  for (const seal of SEALS) {
+    const inBand = (seal.hue >= 0 && seal.hue <= 60)        // warm: amber through coral
+      || (seal.hue >= 70 && seal.hue <= 230);              // the Aero aqua/green/blue band
+    assert.ok(inBand,
+      `${seal.name} at hue ${seal.hue} sits outside the palette's band -- `
+      + 'it would read as a token from somewhere else.');
+  }
+});
+
+test('the seals are measurably different once painted, not just on paper', () => {
+  // Hue and lightness are proxies; what matters is the colour that comes out. This
+  // renders each seal the way the shop portrait does -- hsl(h 66% light) -- and
+  // measures the contrast between every pair.
+  //
+  // It is the check that caught the real problem: Frost and Bubbles were 3 degrees
+  // apart in hue and rendered at a luminance ratio of 1.00, which is to say the same
+  // colour. Separating them in lightness took it to 1.79.
+  const rgbOf = (hue, sat, light) => {
+    const h = ((hue % 360) + 360) % 360, s = sat / 100, l = light / 100;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(h / 60) % 6];
+    return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+  };
+  const luminance = ([r, g, b]) => {
+    const ch = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+  };
+  const ratio = (a, b) => {
+    const la = luminance(a), lb = luminance(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+
+  const painted = new Map(SEALS.map((seal) => [
+    seal.name, rgbOf(seal.hue, 66, seal.light)]));
+
+  // Luminance contrast only decides pairs that are CLOSE IN HUE. A cyan beside an
+  // orange is obviously two colours at any contrast, so holding them to a lightness
+  // bar would push the palette somewhere the game does not want to go. The pairs
+  // that need proving are the ones hue cannot separate -- which is exactly the set
+  // of same-family seals, and the three blue lakes are the case that was broken.
+  const family = (a, b) => hueGap(a.hue, b.hue) <= 30;
+  for (let i = 0; i < SEALS.length; i += 1) {
+    for (let j = i + 1; j < SEALS.length; j += 1) {
+      const a = SEALS[i], b = SEALS[j];
+      if (!family(a, b)) continue;
+      const r = ratio(painted.get(a.name), painted.get(b.name));
+      assert.ok(r >= 1.5,
+        `${a.name} and ${b.name} are the same hue family (${a.hue} vs ${b.hue}) but `
+        + `render at ${r.toFixed(2)} contrast -- they will read as one seal`);
+    }
+  }
+
+  // Named explicitly, so the regression cannot hide behind a wider tolerance later.
+  const blues = SEALS.filter((s) => hueGap(s.hue, 205) <= 25);
+  assert.ok(blues.length >= 3,
+    `expected the three blue-lake seals, found ${blues.length}`);
+  for (let i = 0; i < blues.length; i += 1) {
+    for (let j = i + 1; j < blues.length; j += 1) {
+      const r = ratio(painted.get(blues[i].name), painted.get(blues[j].name));
+      assert.ok(r >= 1.5,
+        `${blues[i].name} and ${blues[j].name} are both blue lakes but render at `
+        + `${r.toFixed(2)} contrast -- hue alone cannot separate them`);
+    }
+  }
+});

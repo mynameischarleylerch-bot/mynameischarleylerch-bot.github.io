@@ -1225,6 +1225,44 @@ export function sellFromBag(bag, index) {
   };
 }
 
+/**
+ * Sell every fish in the bag. Pure: nothing is mutated here.
+ *
+ * The bag had one button per species, so emptying it meant as many clicks as
+ * there were rows -- and a bag of twelve different fish was twelve trips through
+ * the panel. This is the whole lot in one deliberate act.
+ *
+ * PAYS THE SUM OF THE INDIVIDUAL SALES, not bagWorth() of a copy: both are the
+ * same number today, but the per-fish route is the one sellFromBag uses, so a
+ * value that ever differs (a rounding change, a mutation premium) cannot make
+ * "sell all" quietly disagree with selling the same fish one at a time.
+ *
+ * An empty bag is a refusal, never a silent zero: a button that pays nothing and
+ * says nothing reads as broken rather than as "you have nothing to sell".
+ */
+export function sellWholeBag(bag) {
+  const owned = Array.isArray(bag) ? bag : [];
+  if (owned.length === 0) {
+    return { ok: false, reason: 'The bag is empty.', coins: 0, bag: [...owned], sold: 0 };
+  }
+
+  let coins = 0;
+  // Sold one at a time through the same rule the single-sale button uses, so the
+  // two paths cannot drift apart.
+  let remaining = owned;
+  let sold = 0;
+  for (let i = owned.length - 1; i >= 0; i -= 1) {
+    const result = sellFromBag(remaining, i);
+    if (!result.ok) continue;
+    coins += result.coins;
+    remaining = result.bag;
+    sold += 1;
+  }
+
+  return { ok: true, coins, bag: remaining, sold };
+}
+
+
 /* --------------------------------------------------------------- bond ladder */
 
 /**
@@ -1500,7 +1538,7 @@ const SEAL_FED = {
 export const SEALS = [
   {
     id: 'bubbles', name: 'Bubbles', home: 'aero-lake',
-    luck: 0.8, dupeChance: 0.06, level: 1, price: 900, hue: 195,
+    luck: 0.8, dupeChance: 0.06, level: 1, price: 900, hue: 205, light: 62,
     // The new one. Cheerful, nosy, permanently mid-thought. Talks in short bursts
     // and asks questions it does not wait for the answer to.
     voice: 'Cheerful and nosy. Short bursts, asks questions, never waits.',
@@ -1524,7 +1562,7 @@ export const SEALS = [
     fed: SEAL_FED.bubbles,},
   {
     id: 'tangerine', name: 'Tangerine', home: 'doric-delta',
-    luck: 1.0, dupeChance: 0.07, level: 4, price: 2600, hue: 24,
+    luck: 1.0, dupeChance: 0.07, level: 4, price: 2600, hue: 26, light: 56,
     // The critic. Dry, exact, quietly competitive. Never shouts, always lands it.
     voice: 'Dry and exact. Devastating in one line, then goes quiet.',
     idle: [
@@ -1547,7 +1585,7 @@ export const SEALS = [
     fed: SEAL_FED.tangerine,},
   {
     id: 'moss', name: 'Moss', home: 'eco-marsh',
-    luck: 1.1, dupeChance: 0.08, level: 8, price: 5400, hue: 110,
+    luck: 1.1, dupeChance: 0.08, level: 8, price: 5400, hue: 92, light: 50,
     // The deadpan zen. Says almost nothing, and what's there is very dry.
     voice: 'Deadpan zen. Very few words. Extremely dry.',
     idle: [
@@ -1570,7 +1608,7 @@ export const SEALS = [
     fed: SEAL_FED.moss,},
   {
     id: 'frost', name: 'Frost', home: 'glacier-fjord',
-    luck: 1.2, dupeChance: 0.09, level: 13, price: 9800, hue: 198,
+    luck: 1.2, dupeChance: 0.09, level: 13, price: 9800, hue: 196, light: 82,
     // The drill sergeant. Encouraging, but entirely through pressure.
     voice: 'Drill sergeant. Encourages by piling on. Way too intense.',
     idle: [
@@ -1593,7 +1631,7 @@ export const SEALS = [
     fed: SEAL_FED.frost,},
   {
     id: 'abyss', name: 'Abyss', home: 'dark-aero-deep',
-    luck: 1.4, dupeChance: 0.11, level: 19, price: 19000, hue: 232,
+    luck: 1.4, dupeChance: 0.11, level: 19, price: 19000, hue: 212, light: 34,
     // The eldritch one. Speaks like it knows things it shouldn't. Beats are mild.
     voice: 'Knows things it should not. Half the time it is not talking to you.',
     idle: [

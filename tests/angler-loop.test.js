@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
          RODS, RODS_BY_PRICE, SEALS, startingLoadout, TIMES, WEATHER, LOST_ITEMS,
-} from '../vendor/fru-angler/fishing.js?v=2026-10-04-y';
+} from '../vendor/fru-angler/fishing.js?v=2026-10-04-z';
 
 const PAGE = readFileSync(
   new URL('../vendor/fru-angler/index.html', import.meta.url),
@@ -3079,4 +3079,86 @@ test('the turned glyph is compact, and sits on the RIGHT so it looks at the dock
   // And close enough to the right edge to read as looking at him.
   assert.ok(Math.max(...bx) - Math.max(...mx) < bodyW * 0.3,
     'and near the right edge, ' + (Math.max(...bx) - Math.max(...mx)).toFixed(1) + ' units short');
+});
+
+/* ------------------------------------ a seal is painted in its lake's colour */
+
+test('the shop portrait is painted from the seal hue AND lightness', () => {
+  // The data is only half the feature. .seal__portrait hardcoded its lightness, so
+  // a correct seal.light never reached the screen and every portrait came out the
+  // same shade -- three blue lakes, one blue dot.
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+  const row = /<span class="seal__portrait" style="([^"]+)"/.exec(src);
+  assert.ok(row, 'the shop row must render a portrait');
+  assert.match(row[1], /--seal-hue:\$\{seal\.hue\}/, 'the portrait must carry the seal hue');
+  assert.match(row[1], /--seal-light:\$\{seal\.light\}%/,
+    'the portrait must carry the seal lightness, or the three blue lakes look identical');
+
+  const page = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
+  // Bound the rule to its own closing brace. `[^}]*` runs past the gradient's own
+  // `)` and `}` and swallows the stylesheet below it, so the guard counted
+  // unrelated percentages and failed against correct CSS.
+  const css = /\.seal__portrait\s*\{([^}]*?)\n\s*\}/.exec(page);
+  assert.ok(css, '.seal__portrait must be styled');
+  // Every lightness in the rule must be the VARIABLE, not a literal. Asserting only
+  // that `var(--seal-light` appears somewhere was the weak version: hardcoding the
+  // gradient's second stop still left the string in the border, so the guard passed
+  // against a portrait whose body colour no longer came from the seal at all.
+  // Look only INSIDE the hsl() calls: percentages elsewhere in the rule are geometry
+  // (`circle at 34% 30%`, `border-radius: 50%`), not colour. A first pass counted
+  // those and failed against correct CSS.
+  // Match the hsl() argument up to its OWN closing paren: a naive `[^)]*` stops at
+  // the `)` inside var(--seal-hue, 200) and reads the stop as "var(--seal-hue, 200",
+  // which then looks hardcoded against the correct rule.
+  const hslStops = [...css[1].matchAll(/hsl\(((?:[^()]|(?:\([^()]*\)))*)\)/g)]
+    .map((m) => m[1]);
+  assert.ok(hslStops.length >= 2,
+    `expected the portrait gradient's stops, found ${hslStops.length}`);
+  // Of each stop, hue and saturation are fixed (200, 90/66/45); the LIGHTNESS -- the
+  // third value -- must be the variable, or the seal's colour is not being used.
+  // Index 0 is the gloss highlight, which is deliberately a fixed near-white: that
+  // sheen is the Aero finish, shared by every seal, and tinting it would wash them
+  // all out. The BODY stop and the RIM stop are the ones that must take the seal.
+  // Positional, not a substring test -- "does this stop mention 90%" was true of the
+  // body too, because the gradient spans two lines.
+  // For each stop, the question is simply whether the LIGHTNESS -- the last colour
+  // component before any alpha -- comes from the variable. Checking for
+  // `var(--seal-light` in the stop is enough, and survives hsl()'s own punctuation:
+  // an earlier version split on commas to find "the last field" and was defeated by
+  // the comma inside var(--seal-hue, 200).
+  for (const stop of hslStops.slice(1)) {
+    const withoutAlpha = stop.split('/')[0];            // hsl(...) / .7 -> hsl(...)
+    assert.match(withoutAlpha, /var\(--seal-light/,
+      `hsl(${stop}) has a hardcoded lightness; its lightness must be var(--seal-light) `
+      + "so the portrait takes the seal's own colour");
+  }
+  // And the gloss really is the fixed one -- so a later change that tints it, or
+  // reorders the stops, is caught rather than silently altering every seal.
+  assert.match(hslStops[0], /\b92%$/,
+    'the first stop is the Aero gloss and stays a fixed near-white');
+  // And it must be used for the gradient body AND the rim, not just one of them.
+  const uses = (css[1].match(/var\(--seal-light/g) || []).length;
+  assert.ok(uses >= 2,
+    `--seal-light is used ${uses} time(s); the gradient body and the rim both need it`);
+});
+
+test('the seal on the dock is tinted by its own lightness too', () => {
+  // paintPet() writes the gradient stops at runtime, so this reads the source: a
+  // stop built only from hue paints every seal the same depth.
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+  const fn = src.slice(src.indexOf('function paintPet'));
+  const body = fn.slice(0, fn.indexOf('\n}\n'));
+  assert.match(body, /seal\.light/,
+    'the dock gradient must use the seal lightness, not a fixed 30%');
+  // `seal.light` merely being MENTIONED is not enough: an earlier version computed
+  // `deep` from it and then interpolated a literal, so the variable was read and
+  // thrown away. Require the stop itself to be built from it.
+  // Matched ACROSS the opening backtick, not before it: `${deep}` follows the tick
+  // that opens the template literal, so a `[^`]*` before it can never reach it.
+  assert.match(body, /stop-color`[^`]*\$\{deep\}|stop-color[\s\S]{0,40}\$\{deep\}/,
+    'the deep gradient stop must be interpolated from the computed lightness');
+  // Plain substring: a regex here has to survive the template literal's own
+  // punctuation, and `\$\{deep\}` sits after a backtick that `[^\`]*` cannot cross.
+  assert.ok(body.includes('Math.round((seal.light'),
+    'and `deep` must be derived from seal.light, so the stop is not a fixed depth');
 });

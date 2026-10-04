@@ -1074,11 +1074,18 @@
     display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .55rem;
   }
   
+  /* Each seal is painted in the colour of the lake it lives in: --seal-hue is the
+     lake's water hue, --seal-light its character in lightness. Aero Lake, Glacier
+     Fjord and Dark Aero Deep are all the same cyan by hue, so hue alone leaves
+     three seals looking identical -- the lightness is what tells pale ice from the
+     black deep. The top stop stays a near-white gloss: that highlight is the Aero
+     finish, not the seal's colour. */
   .seal__portrait {
     flex: 0 0 auto; width: 1.5rem; height: 1.5rem; border-radius: 50%;
     background: radial-gradient(circle at 34% 30%,
-      hsl(var(--seal-hue, 200) 90% 88%), hsl(var(--seal-hue, 200) 62% 42%));
-    border: 1px solid hsl(var(--seal-hue, 200) 45% 60% / .7);
+      hsl(var(--seal-hue, 200) 90% 92%),
+      hsl(var(--seal-hue, 200) 66% var(--seal-light, 62%)));
+    border: 1px solid hsl(var(--seal-hue, 200) 45% var(--seal-light, 62%) / .7);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
   }
   .seal__titles{
@@ -1657,6 +1664,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-y"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-z"></script>
 </body>
 </html>
