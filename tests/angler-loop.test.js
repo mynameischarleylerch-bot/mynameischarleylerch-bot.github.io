@@ -4314,3 +4314,36 @@ test('the bag cap and the dock change the moment Bigger Dock is bought', async (
   assert.equal(ctx.doc.getElementById('bag-count').textContent, '(10/20)',
     'buying Fish Basket must widen the bag badge on the spot, not after a reload');
 });
+
+test('the panel states how many seals fit, because the dock is the whole point', async () => {
+  const base = (upgrades) => ({
+    coins: 200_000, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 27_000, ownedSeals: ['bubbles', 'tangerine'], equippedSeal: ['bubbles'],
+    lost: [], giftedRods: [], sealCoins: 0, upgrades,
+  });
+
+  const one = await seedSave(base([]), 9760);
+  one.doc.getElementById('upgrade-open').dispatchEvent(
+    new one.win.MouseEvent('click', { bubbles: true }));
+  const line = one.doc.getElementById('upgrade-slots');
+  assert.match(line.textContent, /one seal can sit with you/i,
+    'with no Bigger Dock the panel must say one seal fits');
+  // And Bigger Dock must be visible as the thing that changes it.
+  assert.match(line.textContent, /Bigger Dock/, 'and name the upgrade that changes it');
+
+  const two = await seedSave(base(['bigger_dock']), 9761);
+  two.doc.getElementById('upgrade-open').dispatchEvent(
+    new two.win.MouseEvent('click', { bubbles: true }));
+  assert.match(two.doc.getElementById('upgrade-slots').textContent, /2 seals can sit with you/i,
+    'with Bigger Dock bought the same line must say two -- not keep claiming one');
+
+  // And buying it changes the line live, without a reload.
+  const live = await seedSave(base([]), 9762);
+  live.doc.getElementById('upgrade-open').dispatchEvent(
+    new live.win.MouseEvent('click', { bubbles: true }));
+  assert.match(live.doc.getElementById('upgrade-slots').textContent, /one seal/i);
+  live.doc.querySelector('[data-upgrade="bigger_dock"] .upgrade__buy').dispatchEvent(
+    new live.win.MouseEvent('click', { bubbles: true }));
+  assert.match(live.doc.getElementById('upgrade-slots').textContent, /2 seals/i,
+    'buying Bigger Dock must update the slot line on the spot');
+});

@@ -2102,8 +2102,21 @@ test('upgrade rows are legible in all three states, and locked rows still read',
   }
   // Fitted must be visually distinct from buyable -- the panel shows many rows at
   // once and a bought perk has to be findable without reading every line.
+  // Dimming alone is not enough: `opacity: .78` with no colour change makes a bought
+  // perk look merely disabled, which is the opposite of what "Fitted" should read as.
+  // It has to be the GREEN of a kept thing, and that is asserted as a colour rather
+  // than as "something changed", which is what the first version checked and why it
+  // accepted a row with its colour stripped out.
   const owned = rule('.upgrade--owned');
-  assert.match(owned, /border-color|background/, 'a fitted row changes its colour, not only its opacity');
+  const triples = [...owned.matchAll(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)]
+    .map((m) => m.slice(1).map(Number));
+  const green = triples.some(([r, g, b]) => g >= r + 25 && g >= b + 15);
+  // The green must be dominant, not merely present. An earlier version matched a
+  // wide RGB box that also accepted this page's own blue rgba(1,87,155,.1), so
+  // replacing the green border with the blue one still passed.
+  assert.ok(green,
+    `a fitted upgrade must be bordered in a "kept" green, not just dimmed: ${owned.trim()}`);
+  assert.match(owned, /background/, 'and its fill must change with it');
 
   // A locked row is dimmed far less than the old .55 used elsewhere in this page:
   // it is the row the player most wants to read, and at .55 it was all but invisible.
