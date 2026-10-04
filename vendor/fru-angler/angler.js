@@ -26,10 +26,10 @@ import {
  addToBag, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-v';
+} from './fishing.js?v=2026-10-04-w';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-v';
+} from './reel.js?v=2026-10-04-w';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -798,8 +798,10 @@ function fitPet() {
   // coordinates and stays assertable.
   const PET_Y = 8.2;
   // The seal is longer now, so its centre moved to x=13.
-  // The :3 glyph -- colon plus numeral -- spans x 15.4 to 24.4, so its centre is 19.9.
-  const FACE_X = 19.9;
+  // The :3 glyph -- colon plus numeral -- is centred at x=20.4 in its own
+  // coordinates. The counter-scale turns about this point, so it must track any
+  // redraw of the glyph.
+  const FACE_X = 20.4;
   group.setAttribute('transform',
     `translate(13 0) scale(${scale.toFixed(4)} 1) translate(-13 0) translate(0 ${PET_Y})`);
 

@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
          RODS, RODS_BY_PRICE, SEALS, startingLoadout, TIMES, WEATHER, LOST_ITEMS,
-} from '../vendor/fru-angler/fishing.js?v=2026-10-04-v';
+} from '../vendor/fru-angler/fishing.js?v=2026-10-04-w';
 
 const PAGE = readFileSync(
   new URL('../vendor/fru-angler/index.html', import.meta.url),
@@ -3033,4 +3033,47 @@ test('the rotated glyph still fits on the seal and clears the angler', () => {
   assert.ok(minY > Math.min(...by), 'and above it: ' + minY.toFixed(1));
   assert.ok(maxY < Math.max(...by), 'and into the belly: ' + maxY.toFixed(1) + ' vs ' + Math.max(...by));
   assert.ok(maxX < 25.7, 'it must clear the angler at x=25.7, reaches ' + maxX.toFixed(1));
+});
+
+test('the turned glyph is compact, and sits on the RIGHT so it looks at the dock', () => {
+  // "make it less stretched out and make the face face the right" -- keeping the
+  // quarter turn, shrinking the glyph, and moving it to the right-hand end of the
+  // seal so it looks at the angler rather than out over the water.
+  //
+  // The quarter turn swaps the footprint: 8.9 wide by 11.4 tall becomes 14.2 ACROSS,
+  // which is most of a 24-unit animal and read as stretched. It is redrawn small
+  // instead, so the turn lands on a compact glyph.
+  const html = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
+  const pet = html.slice(html.indexOf('<g id="fa-pet">'), html.indexOf('</svg>'));
+  const tilt = /id="pet-tilt" transform="rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)/.exec(pet);
+  const angle = Number(tilt[1]);
+  const cx = Number(tilt[2]), cy = Number(tilt[3]);
+  assert.equal(angle, 90, 'still a quarter turn');
+
+  const pts = [];
+  for (const m of pet.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)) {
+    const x = Number(m[1]), y = Number(m[2]), r = Number(m[3]);
+    pts.push([x - r, y], [x + r, y]);
+  }
+  for (const m of /<path id="pet-three"\s+d="([^"]+)"/.exec(pet)[1]
+      .matchAll(/(-?[\d.]+) (-?[\d.]+)/g)) pts.push([Number(m[1]), Number(m[2])]);
+  const moved = pts.map(([x, y]) => [cx - (y - cy), cy + (x - cx)]);
+  const mx = moved.map((p) => p[0]);
+
+  // Compact: a quarter turn of a glyph this size should not span the animal.
+  const faceW = Math.max(...mx) - Math.min(...mx);
+  const bodyD = /<path id="pet-body"\s+d="([^"]+)"/.exec(pet)[1];
+  const bx = [...bodyD.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[1]));
+  const bodyW = Math.max(...bx) - Math.min(...bx);
+  assert.ok(faceW <= bodyW * 0.42,
+    'the turned glyph must stay compact, it spans ' + faceW.toFixed(1) + ' of ' + bodyW.toFixed(1));
+
+  // On the RIGHT: the face looks at the angler on the dock, not out to the left.
+  const bodyMid = (Math.min(...bx) + Math.max(...bx)) / 2;
+  const faceMid = (Math.min(...mx) + Math.max(...mx)) / 2;
+  assert.ok(faceMid > bodyMid + 2,
+    'the face must sit well right of centre, got ' + faceMid.toFixed(1) + ' vs ' + bodyMid.toFixed(1));
+  // And close enough to the right edge to read as looking at him.
+  assert.ok(Math.max(...bx) - Math.max(...mx) < bodyW * 0.3,
+    'and near the right edge, ' + (Math.max(...bx) - Math.max(...mx)).toFixed(1) + ' units short');
 });
