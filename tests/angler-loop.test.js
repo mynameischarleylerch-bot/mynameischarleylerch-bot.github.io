@@ -3313,3 +3313,222 @@ test('the dock seal is ACTUALLY tinted -- paintPet can reach the gradient', () =
   assert.notEqual(doc.getElementById('fa-pet-fill').querySelectorAll('stop')[1].getAttribute('stop-color'),
     '#8fd8f5', 'writing through the id must replace the stock cyan, not fall back to it');
 });
+
+test('every seal has its own static particle motif, and it stays off the face', () => {
+  // One motif per seal, drawn as a <symbol> and stamped with <use>. Static by
+  // request: no animation, no keyframes, nothing that moves.
+  const page = readFileSync(new URL('../vendor/fru-angler/index.html', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+
+  // Every seal must have a motif, and the motif ids must match the seal ids.
+  for (const seal of SEALS) {
+    assert.match(page, new RegExp(`id="fx-${seal.id}"`),
+      `${seal.name} (id "${seal.id}") has no particle motif`);
+  }
+  const motifs = [...page.matchAll(/<symbol id="fx-([\w-]+)"/g)].map((m) => m[1]);
+  assert.equal(motifs.length, SEALS.length,
+    `expected ${SEALS.length} motifs, found ${motifs.length}: ${motifs.join(', ')}`);
+  assert.deepEqual([...motifs].sort(), SEALS.map((s) => s.id).sort(),
+    'the motifs and the seals must be the same set, one for one');
+
+  // The two the user named, by their actual shapes rather than by name -- so a
+  // motif cannot be quietly emptied and still satisfy a substring check.
+  const bubbles = page.slice(page.indexOf('<symbol id="fx-bubbles"'),
+                             page.indexOf('</symbol>', page.indexOf('<symbol id="fx-bubbles"')));
+  assert.ok((bubbles.match(/<circle/g) || []).length >= 4,
+    "Bubbles' motif must be a ring of bubbles -- several circles");
+
+  const tangerine = page.slice(page.indexOf('<symbol id="fx-tangerine"'),
+                               page.indexOf('</symbol>', page.indexOf('<symbol id="fx-tangerine"')));
+  assert.ok(tangerine.includes('ff9c3a') && tangerine.includes('ff8c22')
+            && tangerine.includes('fff3d6'),
+    "Tangerine's motif must be cut citrus: a wedge and a slice, in orange over pale pith");
+  assert.ok((tangerine.match(/<path/g) || []).length >= 3,
+    'the cut orange must have segments, not be a plain disc');
+  // Both halves must have real area. The symbol-level extent floor was satisfied by
+  // the round slice alone, so flattening the wedge to a slither -- which is the part
+  // that actually says "cut" rather than "whole" -- passed every check. Measure the
+  // wedge's own geometry: its fill is ff9c3a, so target the path painted with it.
+  const wedge = /<path d="([^"]+)"[^>]*fill="#ff9c3a"/.exec(tangerine);
+  assert.ok(wedge, 'the citrus wedge must be present, painted in ff9c3a');
+  const wedgePts = [...wedge[1].matchAll(/(-?[\d.]+)[ ,]+(-?[\d.]+)/g)]
+    .map((m) => [parseFloat(m[1]), parseFloat(m[2])]);
+  const wx = wedgePts.map((q) => q[0]); const wy = wedgePts.map((q) => q[1]);
+  const wedgeArea = (Math.max(...wx) - Math.min(...wx)) * (Math.max(...wy) - Math.min(...wy));
+  assert.ok(wedgeArea >= 2,
+    `the citrus wedge covers only ${wedgeArea.toFixed(2)} square units -- it has been `
+    + 'flattened to a sliver, which leaves a whole orange rather than a cut one');
+  // And the slice must keep its rind ring: an orange filled with pith and segments.
+  const slice = /<circle r="([\d.]+)" fill="#ff8c22"/.exec(tangerine);
+  assert.ok(slice && parseFloat(slice[1]) >= 1,
+    'the full slice must have a real radius, not be a dot');
+
+  // And the other three are distinct from each other, not copies.
+  const bodyOf = (id) => {
+    const i = page.indexOf(`<symbol id="fx-${id}"`);
+    return page.slice(i, page.indexOf('</symbol>', i));
+  };
+  const frost = bodyOf('frost'), moss = bodyOf('moss'), abyss = bodyOf('abyss');
+  assert.notEqual(frost, moss);
+  assert.notEqual(moss, abyss);
+  assert.ok(frost.includes('eafaff'), 'Frost must be drawn in ice white');
+
+  // Static: no animation anywhere in the motifs.
+  assert.doesNotMatch(page.slice(page.indexOf('<symbol id="fx-bubbles"'),
+                                 page.indexOf('</symbol>', page.indexOf('fx-frost')) + 200),
+    /animate|@keyframes/,
+    'the particles were asked for as static; no animation belongs here');
+
+  // The stamp row lives INSIDE the pet group, so the particles scale with the seal
+  // and hide with it. Placed outside fa-pet-fit they would neither scale nor hide.
+  const fx = page.indexOf('<g id="pet-fx"');
+  const fit = page.indexOf('<g id="fa-pet-fit"');
+  const pet = page.indexOf('<g id="fa-pet">');
+  const body = page.indexOf('id="pet-body"');
+  assert.ok(fx > fit, 'the particles must be inside fa-pet-fit, or they will not scale '
+    + 'with the seal and will not hide when the seal is removed');
+  assert.ok(fx > pet, 'the particles must be inside the pet group');
+  assert.ok(fx < body, 'the particles must be stamped BEFORE the body, so the seal '
+    + 'draws over them and they read as atmosphere rather than clutter');
+
+  // paintPet must choose between them on the seal's id, and clear them with no seal.
+  const fn = /function paintPet\(\)\s*\{[\s\S]*?\n\}/.exec(src);
+  assert.ok(fn, 'paintPet must exist');
+  const body2 = fn[0];
+  assert.match(body2, /#pet-fx \.pet__fx/,
+    'paintPet must toggle the motifs');
+  assert.match(body2, /use\.dataset\.fx === seal\.id/,
+    'the motif shown must be chosen by the equipped seal id');
+
+  // Every motif EXCEPT the equipped one must be hidden. An earlier version asserted
+  // only that `setAttribute('hidden'` appeared somewhere, which the no-seal branch
+  // satisfies on its own -- deleting the `else` from the swap loop is valid JS, left
+  // all five motifs visible at once, and passed. Match the branch itself.
+  assert.match(body2,
+    /if \(on\)[^;]*removeAttribute\('hidden'\)\s*;\s*else\s+use\.setAttribute\('hidden', ''\)/,
+    "the swap loop must hide every motif that is not the equipped seal's -- "
+    + "without the else, all five render stacked on the seal");
+  // And with no seal at all, every one goes.
+  assert.match(body2, /if \(!seal\)[\s\S]{0,400}?pet__fx[\s\S]{0,120}?setAttribute\('hidden', ''\)/,
+    'with no seal equipped every motif must be hidden, or the last one hangs in an '
+    + 'empty scene');
+
+  // Geometry: the motifs must stay clear of the face and the boards, and inside the
+  // seal. Measured by walking the real DOM with transforms applied -- the numbers
+  // below were produced that way and the walker is checked against pet-body, whose
+  // bounds are known, so a bad measurement fails here too.
+  const doc = new JSDOM(page).window.document;
+  const mul = (m, n) => [
+    m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1],
+    m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+    m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+  const ID = [1, 0, 0, 1, 0, 0];
+  const tf = (t) => {
+    let m = ID;
+    for (const x of (t || '').matchAll(/(translate|scale)\(([^)]*)\)/g)) {
+      const a = [...x[2].matchAll(/-?\d*\.?\d+/g)].map((v) => parseFloat(v[0]));
+      m = x[1] === 'translate'
+        ? mul(m, [1, 0, 0, 1, a[0], a[1] ?? 0])
+        : mul(m, [a[0], 0, 0, a[1] ?? a[0], 0, 0]);
+    }
+    return m;
+  };
+  const ap = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+  const ARITY = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7, Z: 0 };
+  const pathPts = (dd) => {
+    const toks = [...dd.matchAll(/([MLHVCSQTAZmlhvcsqtaz])|(-?\d*\.?\d+(?:e-?\d+)?)/g)]
+      .map((m) => (m[1] ? ['c', m[1]] : ['n', parseFloat(m[2])]));
+    const out = [];
+    let i = 0; let cmd = null; let cx = 0; let cy = 0; let sx = 0; let sy = 0;
+    while (i < toks.length) {
+      if (toks[i][0] === 'c') { cmd = toks[i][1]; i += 1; continue; }
+      const a = ARITY[(cmd || 'M').toUpperCase()];
+      const args = [];
+      while (args.length < a && i < toks.length && toks[i][0] === 'n') { args.push(toks[i][1]); i += 1; }
+      if (args.length < a) break;
+      const u = cmd.toUpperCase();
+      if (u === 'M') { cx = args[0]; cy = args[1]; sx = cx; sy = cy; out.push([cx, cy]); cmd = cmd === 'M' ? 'L' : 'l'; }
+      else if (u === 'L') { cx = args[0]; cy = args[1]; out.push([cx, cy]); }
+      else if (u === 'H') { cx = args[0]; out.push([cx, cy]); }
+      else if (u === 'V') { cy = args[0]; out.push([cx, cy]); }
+      else if (u === 'C') { cx = args[4]; cy = args[5]; out.push([cx, cy]); }
+      else if (u === 'S') { cx = args[2]; cy = args[3]; out.push([cx, cy]); }
+      else if (u === 'Q') { cx = args[2]; cy = args[3]; out.push([cx, cy]); }
+      else if (u === 'T') { cx = args[0]; cy = args[1]; out.push([cx, cy]); }
+      else if (u === 'A') { cx = args[5]; cy = args[6]; out.push([cx, cy]); }
+      else if (u === 'Z') { cx = sx; cy = sy; }
+    }
+    return out;
+  };
+  const ownBox = (el, m) => {
+    const t = el.tagName.toLowerCase();
+    const g = (n) => parseFloat(el.getAttribute(n) || '0');
+    const xs = []; const ys = [];
+    if (t === 'circle' || t === 'ellipse') {
+      const cx = g('cx'); const cy = g('cy');
+      const rx = t === 'circle' ? g('r') : g('rx');
+      const ry = t === 'circle' ? g('r') : g('ry');
+      for (const [X, Y] of [[cx - rx, cy - ry], [cx + rx, cy - ry], [cx - rx, cy + ry], [cx + rx, cy + ry]]) {
+        const p = ap(m, X, Y); xs.push(p[0]); ys.push(p[1]);
+      }
+    } else if (t === 'path') {
+      for (const [X, Y] of pathPts(el.getAttribute('d') || '')) { const p = ap(m, X, Y); xs.push(p[0]); ys.push(p[1]); }
+    }
+    return xs.length ? [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] : null;
+  };
+  const box = (el, m = ID) => {
+    let b = ownBox(el, m);
+    for (const c of el.children) {
+      const cb = box(c, mul(m, tf(c.getAttribute('transform'))));
+      if (cb) b = b ? [Math.min(b[0], cb[0]), Math.min(b[1], cb[1]),
+        Math.max(b[2], cb[2]), Math.max(b[3], cb[3])] : cb;
+    }
+    return b;
+  };
+
+  // Prove the measurement is sound before trusting it: pet-body's bounds are known
+  // from its own path data. Without this the geometric checks below are worthless.
+  const bodyBox = box(doc.getElementById('pet-body'));
+  assert.ok(Math.abs(bodyBox[0] - 0.9) < 0.05 && Math.abs(bodyBox[2] - 24.9) < 0.05
+            && Math.abs(bodyBox[1] - 31.4) < 0.05 && Math.abs(bodyBox[3] - 49.8) < 0.05,
+    `the geometry walker disagrees with the known pet body bounds (${JSON.stringify(bodyBox)}); `
+    + 'it cannot be used to check the motifs');
+
+  const FACE_X = 17.5;   // the face glyph starts at x 19
+  const BOARD_Y = 48.6;  // the boards the seal sits on
+  for (const seal of SEALS) {
+    const sym = doc.getElementById(`fx-${seal.id}`);
+    const bb = box(sym);
+    assert.ok(bb, `${seal.name}'s motif has no drawable geometry`);
+
+    // A motif must be an ACTUAL ring of things, not a stub. Two mutations slipped
+    // past every other check: flattening the orange wedge to a 0.01-unit sliver, and
+    // setting a bubble's radius to 0. Both still had the right ids, the right
+    // colours and a bbox inside the seal -- a motif with nothing in it is not a
+    // motif. Require real area.
+    const extent = (bb[2] - bb[0]) * (bb[3] - bb[1]);
+    assert.ok(extent >= 3,
+      `${seal.name}'s motif only covers ${extent.toFixed(1)} square units -- it is a stub, `
+      + 'not a ring of particles');
+    const drawable = sym.querySelectorAll('circle, ellipse, path, rect')
+      .length;
+    assert.ok(drawable >= 4,
+      `${seal.name}'s motif has ${drawable} drawable shape(s); a ring of particles needs `
+      + 'at least four');
+    // No zero-size shapes: a r="0" circle renders as nothing.
+    for (const c of sym.querySelectorAll('circle')) {
+      assert.ok(parseFloat(c.getAttribute('r') || '0') > 0.1,
+        `${seal.name}'s motif has a bubble with radius ${c.getAttribute('r')}, which `
+        + 'renders as nothing');
+    }
+    assert.ok(bb[2] <= FACE_X,
+      `${seal.name}'s particles reach x=${bb[2].toFixed(1)}, into the face (which starts at `
+      + `${FACE_X}) -- they would sit over the :3`);
+    assert.ok(bb[3] <= BOARD_Y,
+      `${seal.name}'s particles reach y=${bb[3].toFixed(1)}, onto the boards`);
+    assert.ok(bb[0] >= 0.4,
+      `${seal.name}'s particles spill to x=${bb[0].toFixed(1)}, off the left of the seal`);
+    assert.ok(bb[1] >= 30,
+      `${seal.name}'s particles float up to y=${bb[1].toFixed(1)}, above the seal`);
+  }
+});

@@ -1631,7 +1631,7 @@ export const SEALS = [
     fed: SEAL_FED.frost,},
   {
     id: 'abyss', name: 'Abyss', home: 'dark-aero-deep',
-    luck: 1.4, dupeChance: 0.11, level: 19, price: 19000, hue: 212, light: 34,
+    luck: 1.4, dupeChance: 0.11, level: 19, price: 19000, hue: 158, light: 58,
     // The eldritch one. Speaks like it knows things it shouldn't. Beats are mild.
     voice: 'Knows things it should not. Half the time it is not talking to you.',
     idle: [
@@ -2070,8 +2070,8 @@ export const AREAS = [
     fish: ['deepglow', 'pressurefin', 'voidpike', 'blackmirror', 'lastlantern', 'glacier-char',
       'glowmote', 'eventhorizon'],
     palette: {
-      skyTop: '#0f2027', skyMid: '#122a34', skyFloor: '#0a141a',
-      water: '#06222e', accent: '#29b6f6',
+      skyTop: '#0f2a26', skyMid: '#123a32', skyFloor: '#0a1c18',
+      water: '#06221c', accent: '#2ee6a8',
       haze: 'rgba(150, 200, 240, 0.08)', sun: 'rgba(180, 225, 255, 0.22)',
     },
   },

@@ -942,6 +942,10 @@
     .bond__fill { transition: none; }
   }
   #fa-pet-fit[hidden] { display: none; }
+  /* Same reason as above, for the particles: `hidden` alone is HTML behaviour
+     and does not hide an SVG element. Without this every motif shows at once,
+     stacked on top of each other. */
+  #pet-fx .pet__fx[hidden] { display: none; }
   .bubble[hidden]{
     display: none;
   }
@@ -1332,7 +1336,161 @@
              preserveAspectRatio="none", which stretches anything outside a fitted
              group to the lake's shape, and a seal stretched by that comes out as a
              smear. fitPet() applies the same correction fitFigure() does. -->
-        <g id="fa-pet-fit" hidden>
+        
+          <!-- ================================================================
+               SEAL PARTICLES: one motif per seal, drawn as a <symbol> and stamped
+               into <use> below. STATIC by request -- no animation, no keyframes --
+               so they cost nothing to render and never distract from the line.
+
+               Each motif is built in the pet's own 0-25 unit space and sits BEHIND
+               the body, so it reads as atmosphere around the seal rather than
+               clutter on top of it. Kept out of the face's corner (x > 17.5) and
+               out of the boards (y > 48.5), so neither is ever covered.
+               ================================================================ -->
+          <defs>
+            <!-- Bubbles: rings of varying size, the classic rising bubble. -->
+            <symbol id="fx-bubbles" overflow="visible">
+              <g fill="none" stroke="#dff3ff">
+                <circle cx="2.6" cy="36.4" r="1.15" stroke-opacity=".85" stroke-width=".22"/>
+                <circle cx="4.4" cy="32.6" r=".7" stroke-opacity=".7" stroke-width=".2"/>
+                <circle cx="1.4" cy="33.8" r=".52" stroke-opacity=".6" stroke-width=".18"/>
+                <circle cx="6.2" cy="37.4" r=".44" stroke-opacity=".55" stroke-width=".16"/>
+                <circle cx="3.2" cy="39.6" r=".34" stroke-opacity=".5" stroke-width=".14"/>
+                <circle cx="7.4" cy="33.2" r=".3" stroke-opacity=".45" stroke-width=".13"/>
+              </g>
+              <g fill="#ffffff">
+                <circle cx="2.05" cy="35.9" r=".22" opacity=".8"/>
+                <circle cx="4.05" cy="32.2" r=".16" opacity=".7"/>
+              </g>
+            </symbol>
+
+            <!-- Tangerine: cut citrus -- a wedge with its pith and segments. -->
+            <symbol id="fx-tangerine" overflow="visible">
+              <g>
+                <!-- a wedge on its side: pith rim, three segments -->
+                <g transform="translate(3.4 35.2) rotate(-18)">
+                  <path d="M0 0 L2.6 1.05 L0 2.1 Z"
+                        fill="#ff9c3a" fill-opacity=".95"
+                        stroke="#fff3d6" stroke-width=".24" stroke-linejoin="round"/>
+                  <path d="M.38 .42 L2.1 1.02 M.38 .42 L.9 1.76"
+                        fill="none" stroke="#fff3d6" stroke-width=".14"
+                        stroke-opacity=".85" stroke-linecap="round"/>
+                </g>
+                <!-- a full slice behind it: rind, pith, four segments -->
+                <g transform="translate(6.9 38.4)">
+                  <circle r="1.28" fill="#ff8c22" fill-opacity=".92"/>
+                  <circle r="1.02" fill="#fff3d6" fill-opacity=".94"/>
+                  <circle r=".78" fill="#ffb457"/>
+                  <g stroke="#fff3d6" stroke-width=".12" stroke-opacity=".9"
+                     stroke-linecap="round">
+                    <path d="M0 0 L0 -.74"/>
+                    <path d="M0 0 L.68 .26"/>
+                    <path d="M0 0 L-.68 .26"/>
+                    <path d="M0 0 L0 .74"/>
+                  </g>
+                </g>
+              </g>
+            </symbol>
+
+            <!-- Moss: seed pods and spores, a marsh thing. -->
+            <symbol id="fx-moss" overflow="visible">
+              <g stroke="#4e8f2a" stroke-width=".2" fill="none" stroke-opacity=".9">
+                <!-- a seed head: a stalk with three seed dots -->
+                <path d="M2.2 39.4 C2.5 37.6 2.5 36.2 2.4 34.9" stroke-linecap="round"/>
+                <!-- a curled frond -->
+                <path d="M5.4 40 C6.4 38.6 6.6 37 5.8 36.1
+                         C5.1 35.3 4.1 36 4.4 37" stroke-linecap="round"/>
+              </g>
+              <g fill="#7cc24a">
+                <ellipse cx="2.4" cy="34.5" rx=".44" ry=".34" opacity=".95"/>
+                <ellipse cx="5.7" cy="35.7" rx=".36" ry=".3" opacity=".9"/>
+              </g>
+              <g fill="#a8d86a" opacity=".8">
+                <circle cx="1.5" cy="37.4" r=".26"/>
+                <circle cx="6.9" cy="38.6" r=".22"/>
+                <circle cx="3.6" cy="41" r=".19"/>
+                <circle cx="7.7" cy="34.8" r=".17"/>
+              </g>
+            </symbol>
+
+            <!-- Frost: ice crystals, six-fold, the snowflake. -->
+            <symbol id="fx-frost" overflow="visible">
+              <!-- ice crystals: six-fold, drawn as explicit coordinates rather
+                   than rotate/scale so the geometry is directly assertable -->
+              <g fill="none" stroke="#eafaff" stroke-linecap="round">
+                <path d="M1.70 35.60 L4.70 35.60" stroke-width="0.19" stroke-opacity="0.95"/>
+                <path d="M4.13 35.60 L4.48 35.32" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M4.13 35.60 L4.48 35.88" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M2.27 35.60 L2.62 35.32" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M2.27 35.60 L2.62 35.88" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M2.45 34.30 L3.95 36.90" stroke-width="0.19" stroke-opacity="0.95"/>
+                <path d="M3.67 36.41 L4.08 36.57" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M3.67 36.41 L3.60 36.85" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M2.73 34.79 L3.15 34.96" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M2.73 34.79 L2.67 35.24" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M3.95 34.30 L2.45 36.90" stroke-width="0.19" stroke-opacity="0.95"/>
+                <path d="M2.74 36.41 L2.80 36.85" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M2.74 36.41 L2.32 36.57" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M3.67 34.79 L3.73 35.24" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M3.67 34.79 L3.25 34.96" stroke-width="0.133" stroke-opacity="0.85"/>
+                <path d="M5.65 39.40 L7.55 39.40" stroke-width="0.16" stroke-opacity="0.8"/>
+                <path d="M7.19 39.40 L7.41 39.22" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M7.19 39.40 L7.41 39.58" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.01 39.40 L6.24 39.22" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.01 39.40 L6.24 39.58" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.12 38.58 L7.07 40.22" stroke-width="0.16" stroke-opacity="0.8"/>
+                <path d="M6.89 39.91 L7.16 40.02" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.89 39.91 L6.85 40.19" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.31 38.89 L6.57 39.00" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.31 38.89 L6.27 39.17" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M7.07 38.58 L6.12 40.22" stroke-width="0.16" stroke-opacity="0.8"/>
+                <path d="M6.31 39.91 L6.35 40.19" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.31 39.91 L6.04 40.02" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.89 38.89 L6.93 39.17" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.89 38.89 L6.63 39.00" stroke-width="0.112" stroke-opacity="0.72"/>
+                <path d="M6.38 33.80 L7.62 33.80" stroke-width="0.14" stroke-opacity="0.65"/>
+                <path d="M7.38 33.80 L7.53 33.69" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M7.38 33.80 L7.53 33.91" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M6.62 33.80 L6.76 33.69" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M6.62 33.80 L6.76 33.91" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M6.69 33.26 L7.31 34.34" stroke-width="0.14" stroke-opacity="0.65"/>
+                <path d="M7.19 34.13 L7.36 34.20" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M7.19 34.13 L7.17 34.32" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M6.81 33.47 L6.98 33.54" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M6.81 33.47 L6.78 33.65" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M7.31 33.26 L6.69 34.34" stroke-width="0.14" stroke-opacity="0.65"/>
+                <path d="M6.81 34.13 L6.83 34.32" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M6.81 34.13 L6.64 34.20" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M7.19 33.47 L7.22 33.65" stroke-width="0.098" stroke-opacity="0.59"/>
+                <path d="M7.19 33.47 L7.02 33.54" stroke-width="0.098" stroke-opacity="0.59"/>
+              </g>
+            </symbol>
+
+            <!-- Abyss: bioluminescent motes and a drifting jellyfish bell. -->
+            <symbol id="fx-abyss" overflow="visible">
+              <!-- a jellyfish bell and its trailing tentacles -->
+              <g transform="translate(3.6 35.4)">
+                <path d="M-1.5 0 C-1.5 -1.5 1.5 -1.5 1.5 0 Z"
+                      fill="#7dffc4" fill-opacity=".3"/>
+                <path d="M0 0 C-.5 .8 -.72 1.6 -.56 2.3
+                         M0 0 C.5 .8 .72 1.6 .56 2.3
+                         M0 0 C-.24 1.1 -.26 1.9 -.18 2.5"
+                      fill="none" stroke="#7dffc4" stroke-width=".16"
+                      stroke-opacity=".65" stroke-linecap="round"/>
+              </g>
+              <g fill="#5effc0">
+                <circle cx="1.5" cy="38.8" r=".28" opacity=".85"/>
+                <circle cx="6.2" cy="37.4" r=".23" opacity=".75"/>
+                <circle cx="2.8" cy="41.4" r=".19" opacity=".65"/>
+              </g>
+              <g fill="#c9fff0" opacity=".7">
+                <circle cx="7.4" cy="34.6" r=".16"/>
+                <circle cx="4.8" cy="33.4" r=".13"/>
+              </g>
+            </symbol>
+          </defs>
+
+<g id="fa-pet-fit" hidden>
                         <g id="fa-pet">
           <!-- The seal, head TUCKED IN: it loafs with its head drawn back into its
                shoulders, so the whole animal is one continuous round mass. No
@@ -1347,6 +1505,18 @@
                inverse correction, so the face lands at exactly the size drawn here.
                It still has to be BIG: on an animal this long, a modest smile is a
                crease, not a mouth. -->
+
+          <!-- THE PARTICLES: stamped inside the pet group, behind the body, so they
+               scale with it and hide with it. The stamped particles for the equipped seal. paintPet() swaps which
+               <use> is shown; the rest are hidden. Behind the body, so they read as
+               the seal's own atmosphere. -->
+          <g id="pet-fx" aria-hidden="true">
+            <use href="#fx-bubbles"   class="pet__fx" data-fx="bubbles"/>
+            <use href="#fx-tangerine" class="pet__fx" data-fx="tangerine"/>
+            <use href="#fx-moss"      class="pet__fx" data-fx="moss"/>
+            <use href="#fx-frost"     class="pet__fx" data-fx="frost"/>
+            <use href="#fx-abyss"     class="pet__fx" data-fx="abyss"/>
+          </g>
 
           <!-- the shadow it sits in -->
           <ellipse cx="12.9" cy="48.4" rx="11.6" ry="1.4" fill="#0a4a70" opacity=".24"/>
@@ -1670,6 +1840,6 @@
     </div>
   </div>
 
-  <script type="module" src="./angler.js?v=2026-10-04-C"></script>
+  <script type="module" src="./angler.js?v=2026-10-04-D"></script>
 </body>
 </html>

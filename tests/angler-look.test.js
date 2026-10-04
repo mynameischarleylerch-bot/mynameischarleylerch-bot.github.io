@@ -367,11 +367,26 @@ test('the scene has no orphaned text or unclosed fragments', () => {
   // A bare path string with no opening tag renders nothing, so it can survive
   // unnoticed. It is invalid markup and must not come back.
   const scene = PAGE.slice(PAGE.indexOf('<svg class="scene"'), PAGE.indexOf('</svg>'));
-  assert.equal(/^\s*M[\d.]/m.test(scene), false,
-    'found a bare path fragment with no opening tag');
 
-  // Strip comments, then every d= must belong to a real tag.
+  // Strip comments first: a path string quoted inside a comment is documentation,
+  // not markup, and reading it as a stray fragment is a false positive.
   const stripped = scene.replace(/<!--[\s\S]*?-->/g, '');
+
+  // Check each `d=` VALUE, not the whole scene. The old version ran /^\s*M[\d.]/m
+  // over the raw markup, which cannot tell a real fragment from a legitimate second
+  // SUBPATH: a multi-subpath d="" wraps onto a continuation line that begins with
+  // M, so a real path looked like an orphan. Any d= that does not start with a
+  // command letter is the actual defect.
+  for (const d of [...stripped.matchAll(/\bd="([^"]*)"/g)].map((m) => m[1])) {
+    assert.match(d.trim(), /^[MLHVCSQTAZ]/,
+      `found a bare path fragment with no opening command: d="${d.slice(0, 40)}"`);
+  }
+  // And nothing between tags may look like path data either.
+  const between = stripped.replace(/<[^>]*>/g, '\n');
+  for (const line of between.split('\n')) {
+    assert.doesNotMatch(line, /\bM\s*-?[\d.]/,
+      `found a bare path fragment outside any tag: "${line.trim().slice(0, 40)}"`);
+  }
   const openTags = (stripped.match(/<path\b[^>]*>/g) || []).length;
   assert.ok(openTags >= 3, `expected several paths, found ${openTags}`);
 
@@ -972,11 +987,30 @@ test('every SVG group that JS toggles has a matching hidden rule', () => {
   assert.ok(toggled.length > 0, 'sanity: paintPet toggles hidden at all');
 
   // The svg groups in the markup that carry a hidden attribute in source.
-  const svgGroups = [...PAGE.matchAll(/<g[^>]*\bid="([^"]+)"[^>]*hidden/g)].map((m) => m[1]);
+  //
+  // `hidden` must be matched as its OWN attribute. The old pattern was a bare
+  // `[^>]*hidden`, which also matches inside `aria-hidden` -- so any group marked
+  // aria-hidden was reported as having an unstyled `hidden`, and demanded a CSS
+  // rule it did not need. #pet-fx is the first element to carry both.
+  const svgGroups = [...PAGE.matchAll(
+    /<g(?=[^>]*\bid="([^"]+)")(?=[^>]*\shidden(?:\s|=|>))[^>]*>/g,
+  )].map((m) => m[1]);
   for (const id of svgGroups) {
     const covered = new RegExp(`#?\\.?${id}\\[hidden\\]`).test(PAGE);
     assert.ok(covered, `<g id="${id}" hidden> has no CSS rule to hide it`);
   }
+
+  // The particle stamps are <use>, not <g>, so the loop above cannot see them --
+  // and they are exactly what paintPet toggles. `hidden` on an SVG element does
+  // nothing without an explicit CSS rule, so without this every motif renders at
+  // once, stacked over the seal. Matched on the class, not the id, because the
+  // stamps share one id and differ by class.
+  const stamps = [...PAGE.matchAll(/<use\b[^>]*class="([^"]*pet__fx[^"]*)"/g)];
+  assert.ok(stamps.length >= 5,
+    `expected a stamp per seal, found ${stamps.length} <use class="pet__fx">`);
+  assert.ok(/#pet-fx \.pet__fx\[hidden\]\s*\{\s*display:\s*none/.test(PAGE),
+    'the particle stamps are toggled with `hidden`, which does nothing on an SVG '
+    + '<use> without a CSS rule -- they need #pet-fx .pet__fx[hidden]{display:none}');
 });
 
 test('a mutated fish gets a badge, not a footnote', () => {

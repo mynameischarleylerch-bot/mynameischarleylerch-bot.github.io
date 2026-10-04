@@ -2751,15 +2751,55 @@ test('the seals are measurably different once painted, not just on paper', () =>
   }
 
   // Named explicitly, so the regression cannot hide behind a wider tolerance later.
-  const blues = SEALS.filter((s) => hueGap(s.hue, 205) <= 25);
-  assert.ok(blues.length >= 3,
-    `expected the three blue-lake seals, found ${blues.length}`);
-  for (let i = 0; i < blues.length; i += 1) {
-    for (let j = i + 1; j < blues.length; j += 1) {
-      const r = ratio(painted.get(blues[i].name), painted.get(blues[j].name));
-      assert.ok(r >= 1.5,
-        `${blues[i].name} and ${blues[j].name} are both blue lakes but render at `
-        + `${r.toFixed(2)} contrast -- hue alone cannot separate them`);
+  //
+  // This used to count the blue-lake seals and demand three. Abyss is now a light
+  // green -- the user asked for it, and Dark Aero's bioluminescence is green -- so
+  // there are two blue lakes and two green ones. The point of the check survives the
+  // recolour: within a hue family, lightness must still separate the seals, because
+  // hue cannot. It also guards the new arrangement, since Moss and Abyss are now the
+  // pair that could collapse into each other.
+  const byFamily = (target, spread) => SEALS.filter((s) => hueGap(s.hue, target) <= spread);
+  const blues = byFamily(205, 25);
+  assert.ok(blues.length >= 2,
+    `expected the two blue-lake seals, found ${blues.length}`);
+  for (const [label, group] of [['blue lakes', blues]]) {
+    for (let i = 0; i < group.length; i += 1) {
+      for (let j = i + 1; j < group.length; j += 1) {
+        const r = ratio(painted.get(group[i].name), painted.get(group[j].name));
+        assert.ok(r >= 1.5,
+          `${group[i].name} and ${group[j].name} are both ${label} but render at `
+          + `${r.toFixed(2)} contrast -- hue alone cannot separate them`);
+      }
     }
   }
+
+  // Moss and Abyss are now BOTH green to the eye -- Moss a yellow-green, Abyss the
+  // mint of the recoloured dark deep -- and they are 66 degrees apart in hue, so no
+  // hue-family window contains both. Luminance ratio is the wrong instrument here
+  // either: a yellow-green and a mint differ enormously in hue at similar lightness.
+  // They are checked perceptually instead, in OKLab, which is what the eye uses.
+  const toOklab = ([r, g, b]) => {
+    const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const [lr, lg, lb] = [lin(r), lin(g), lin(b)];
+    const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+    const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+    const s3 = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+    return [
+      0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s3,
+      1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s3,
+      0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s3,
+    ];
+  };
+  const painted2 = new Map(SEALS.map((seal) => [
+    seal.name, rgbOf(seal.hue, 66, seal.light)]));
+  const moss = SEALS.find((x) => x.name === 'Moss');
+  const abyss = SEALS.find((x) => x.name === 'Abyss');
+  assert.ok(moss && abyss, 'Moss and Abyss must both exist');
+  const gap = Math.hypot(
+    ...toOklab(painted2.get(moss.name)).map((v, k) => v - toOklab(painted2.get(abyss.name))[k]));
+  // 0.02 is "just noticeable"; these measure 0.12 apart, a yellow-green against a
+  // mint. 0.08 leaves room to nudge the palette without letting them converge.
+  assert.ok(gap >= 0.08,
+    `Moss and Abyss both read green but are only ${gap.toFixed(3)} apart perceptually `
+    + '-- they will look like the same seal');
 });

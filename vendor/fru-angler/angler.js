@@ -26,10 +26,10 @@ import {
  addToBag, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-C';
+} from './fishing.js?v=2026-10-04-D';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-C';
+} from './reel.js?v=2026-10-04-D';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -652,9 +652,22 @@ function paintPet() {
     if (seal) holder.removeAttribute('hidden');
     else holder.setAttribute('hidden', '');
   }
-  if (!seal) { sealSays(''); return; }
+  if (!seal) {
+    sealSays('');
+    // Clear the particles too, or the last seal's motif hangs in an empty
+    // scene -- there is no seal to be in the middle of it.
+    for (const use of document.querySelectorAll('#pet-fx .pet__fx'))
+      use.setAttribute('hidden', '');
+    return;
+  }
   fitPet();
-  // The stops live in <linearGradient id="fa-pet-fill">, which is a SIBLING of the
+  // STATIC particles: show only this seal's motif. No animation is added or
+  // removed here on purpose -- they are meant to sit still.
+  for (const use of document.querySelectorAll('#pet-fx .pet__fx')) {
+    const on = use.dataset.fx === seal.id;
+    if (on) use.removeAttribute('hidden');
+    else use.setAttribute('hidden', '');
+  }  // The stops live in <linearGradient id="fa-pet-fill">, which is a SIBLING of the
   // pet's <path> in the document -- not a child of it. querySelectorAll('stop') on
   // the path returned an empty NodeList, so both `if (stops[n])` guards below were
   // always false and the pet silently kept its hardcoded #8fd8f5 -> #2b7fa8 cyan.
