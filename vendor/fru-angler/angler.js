@@ -26,10 +26,10 @@ import {
  addToBag, bagCap, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-X';
+} from './fishing.js?v=2026-10-04-Y';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-X';
+} from './reel.js?v=2026-10-04-Y';
 
 /* ------------------------------------------------------------------ tuning */
 

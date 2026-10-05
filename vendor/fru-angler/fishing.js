@@ -2912,7 +2912,7 @@ export const AREAS = [
       water: '#2f81c4', accent: '#4fc3f7',
       haze: 'rgba(255, 255, 255, 0.75)', sun: 'rgba(255, 255, 255, 0.95)',
       deep: 'rgba(1, 58, 99, 0.3)',
-      art: './media/aero-lake.jpg?v=2026-10-04-X',
+      art: './media/aero-lake.jpg?v=2026-10-04-Y',
     },
   },
   {
@@ -2947,7 +2947,7 @@ export const AREAS = [
       // hue shift that makes the blue wrong here; the measured hue barely moves
       // either way. The blue just bleaches the orange toward grey.
       deep: 'rgba(122, 46, 0, 0.3)',
-      art: './media/doric-delta.jpg?v=2026-10-04-X',
+      art: './media/doric-delta.jpg?v=2026-10-04-Y',
     },
   },
   {

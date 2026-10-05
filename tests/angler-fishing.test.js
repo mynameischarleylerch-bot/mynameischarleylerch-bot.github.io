@@ -3095,21 +3095,33 @@ test('the dock accepts every save shape and refuses what it should', () => {
     'one slot is the floor, never none');
 });
 
-test('equipping a seal adds it to the dock and never evicts the one already there', () => {
+test('equipping is a toggle, a one-slot dock swaps, and a dock with room adds', () => {
   const owned = ['bubbles', 'tangerine'];
 
   const first = equipSeal(owned, 'bubbles', [], []);
   assert.equal(first.ok, true);
   assert.deepEqual(first.party, ['bubbles']);
 
-  // The dock is full. This must be an honest refusal -- the bug was
-  // `state.equippedSeal = [seal.id]`, which quietly threw away Bubbles.
-  const second = equipSeal(owned, 'tangerine', [], first.party);
-  assert.equal(second.ok, false, 'a full dock must refuse, not swap');
-  assert.match(second.reason, /no room/i);
-  assert.deepEqual(second.party, ['bubbles'],
-    'and the seal already on the dock must survive the refusal');
-  assert.equal(second.sealId, undefined, 'a refusal names no seal as equipped');
+  // ONE slot, and a DIFFERENT seal. This is a SWAP, and it must be: a player who
+  // owns five seals and has one out pressing Equip on another is asking for that
+  // one to come with them, not for a second animal. Refusing here is exactly the
+  // "I can't equip seals" bug -- the only seal out is the only one that works.
+  //
+  // An earlier version of this test demanded a refusal, and that assertion is what
+  // shipped the bug. The "must not evict" rule applies to a dock with ROOM, below.
+  const swap = equipSeal(owned, 'tangerine', [], first.party);
+  assert.equal(swap.ok, true, 'one slot means swap, not refusal');
+  assert.deepEqual(swap.party, ['tangerine'], 'the seal you pressed is the one out');
+  assert.equal(swap.swapped, 'bubbles',
+    'and the seal it replaced is named, so it can be announced rather than vanish');
+
+  // TWO slots, both full, and a third seal: that really is out of room, and a real
+  // refusal with a reason beats silently evicting an animal the player chose.
+  const full = ['bubbles', 'tangerine'];
+  const third = equipSeal([...owned, 'moss'], 'moss', ['bigger_dock'], full);
+  assert.equal(third.ok, false, 'a full two-slot dock must refuse');
+  assert.match(third.reason, /no room/i);
+  assert.deepEqual(third.party, full, 'and must not disturb what is already out');
 
   // With the dock bought there IS room, and the second seal joins the first.
   const roomy = equipSeal(owned, 'tangerine', ['bigger_dock'], first.party);
