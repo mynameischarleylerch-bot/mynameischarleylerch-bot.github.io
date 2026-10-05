@@ -3018,6 +3018,20 @@ export const AREAS = [
       skyTop: '#cfe6f5', skyMid: '#e3f1f9', skyFloor: '#fbfdff',
       water: '#3f7fa8', accent: '#7fc4e8',
       haze: 'rgba(255, 255, 255, 0.8)', sun: 'rgba(255, 255, 255, 1)',
+      // Fourth lake, and the first where the Aero literal is merely INDISTINGUISHABLE
+      // rather than actively wrong: measured over this picture's foreground
+      // (84-99%, sat 0.500 / lum 0.788 / hue 200deg) the blue moves hue 1.7deg and
+      // costs 0.134 saturation, against 1.4 and 0.133 for this. The picture is
+      // already the lake's own cyan, so there is nothing to fight -- but it keeps
+      // its own colour so the deepen is never a coincidence, and so Dark Aero Deep
+      // can be black without inheriting this.
+      //
+      // Unlike the three before it, this picture HAS water: a lower quarter of
+      // blue-white meltwater and ice, with its waterline at ~75% against the
+      // scene's 78%, so the bobber lands in water and the marsh's grass problem
+      // does not repeat here.
+      deep: 'rgba(23, 74, 110, 0.3)',
+      art: './media/glacier-fjord.jpg?v=2026-10-04-Y',
     },
   },
   {
@@ -3045,6 +3059,12 @@ export const AREAS = [
       skyTop: '#0f2a26', skyMid: '#123a32', skyFloor: '#0a1c18',
       water: '#06221c', accent: '#2ee6a8',
       haze: 'rgba(150, 200, 240, 0.08)', sun: 'rgba(180, 225, 255, 0.22)',
+      // The one lake a DARK bobber ring would disappear into: measured against its
+      // own near-black water (#06221c) the default ring scores 1.01:1, where this
+      // accent scores 8.75:1. No art yet -- this is here so the lake is not a
+      // legibility trap the moment it is played, and so painting it later is one
+      // more palette line rather than a second fix.
+      bobberRing: 'rgba(127, 196, 232, 0.9)',
     },
   },
 ];

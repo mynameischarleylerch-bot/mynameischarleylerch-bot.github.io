@@ -1375,7 +1375,7 @@ function paintSky(sky) {
 }
 
 function paintArea(area) {
-  const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art, deep } = area.palette;
+  const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art, deep, bobberRing } = area.palette;
   ui.lake.style.setProperty('--sky-top', skyTop);
   ui.lake.style.setProperty('--sky-mid', skyMid);
   ui.lake.style.setProperty('--sky-floor', skyFloor);
@@ -1387,6 +1387,11 @@ function paintArea(area) {
   // not with the art below: only a painted lake consumes it, and a lake whose art
   // is added later must not inherit the colour of whichever lake you left.
   if (deep) ui.lake.style.setProperty('--lake-deep', deep);
+  // The ring that keeps the bobber findable against this lake's own water. Dark
+  // by default, because most lakes are bright water; Dark Aero Deep overrides it,
+  // being the one lake a dark ring would vanish into. Set unconditionally for the
+  // same reason as --lake-deep: a lake must never inherit the previous one's.
+  ui.lake.style.setProperty('--bobber-ring', bobberRing ?? 'rgba(1, 32, 54, 0.82)');
 
   // The scene's own defs: the deep water gradient and the far shore.
   const stop = (id, colour, offset) => {
