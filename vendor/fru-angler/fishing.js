@@ -2175,6 +2175,314 @@ export function bagWorthByFish(bag) {
   return out;
 }
 
+/* ------------------------------------------------------------------ palettes */
+
+/**
+ * Colour schemes the Angler can wear.
+ *
+ * DATA, not stylesheets. The page sets these as custom properties on :root, so a
+ * new scheme is a few hex values here rather than a new block in index.html -- and
+ * the picker can show every scheme's real swatches from the same source.
+ *
+ * `aero` is Frutiger Aero, the game's own look, so it is NOT an unlock: it is what
+ * you already have, and it is the baseline the others are measured against.
+ *
+ * The rest get cooler and deeper as the achievements get harder. That is measured,
+ * not asserted by eye: warmth() in the test reads `warmth = r - b`, so a cooler
+ * scheme is genuinely less red over blue. Merely picking "darker blue" for the last
+ * unlock would fail the tier-order check if an easy one were warmer than a hard one.
+ */
+export const PALETTES = {
+  aero: {
+    id: 'aero', name: 'Frutiger Aero', unlock: null,
+    deep: '#01579b', deepest: '#013a63', inkSoft: '#3d6b85',
+    skyTop: '#b3e5fc', skyMid: '#7fc4e8', skyFloor: '#4aa8d8',
+    sun: '#fff9c4', haze: 'rgba(255, 255, 255, 0.75)',
+    wood: '#a9714a', woodDeep: '#7d4f2e',
+  },
+  lagoon: {
+    id: 'lagoon', name: 'Lagoon', unlock: 'lagoon',
+    deep: '#074e8d', deepest: '#043662', inkSoft: '#3f75a4',
+    skyTop: '#c3d9e4', skyMid: '#60a9d7', skyFloor: '#147ac8',
+    sun: '#cde8ef', haze: 'rgba(255, 255, 255, 0.69)',
+    wood: '#c39974', woodDeep: '#9e673d',
+  },
+  fjord: {
+    id: 'fjord', name: 'Bright Water', unlock: 'fjord',
+    deep: '#064584', deepest: '#032e59', inkSoft: '#3f74aa',
+    skyTop: '#bbd4e2', skyMid: '#56a1d7', skyFloor: '#116ec0',
+    sun: '#c4e4ed', haze: 'rgba(255, 255, 255, 0.7)',
+    wood: '#c0946d', woodDeep: '#97623b',
+  },
+  poolside: {
+    id: 'poolside', name: 'Poolside', unlock: 'poolside',
+    deep: '#043c7b', deepest: '#022650', inkSoft: '#3f73ae',
+    skyTop: '#b3cedf', skyMid: '#4c98d6', skyFloor: '#0f63b8',
+    sun: '#bcdfeb', haze: 'rgba(255, 255, 255, 0.71)',
+    wood: '#bd8e65', woodDeep: '#8f5e38',
+  },
+  deep: {
+    id: 'deep', name: 'Deep Water', unlock: 'deep',
+    deep: '#043372', deepest: '#011f46', inkSoft: '#4072b5',
+    skyTop: '#acc8dd', skyMid: '#438fd6', skyFloor: '#0d59af',
+    sun: '#b3d9ea', haze: 'rgba(255, 255, 255, 0.72)',
+    wood: '#ba895e', woodDeep: '#885935',
+  },
+  midnight: {
+    id: 'midnight', name: 'Midnight', unlock: 'midnight',
+    deep: '#032b68', deepest: '#01193c', inkSoft: '#4071ba',
+    skyTop: '#a4c1db', skyMid: '#3985d5', skyFloor: '#0c4fa7',
+    sun: '#abd4e8', haze: 'rgba(255, 255, 255, 0.73)',
+    wood: '#b78457', woodDeep: '#815432',
+  },
+  biolum: {
+    id: 'biolum', name: 'Bioluminescent', unlock: 'biolum',
+    deep: '#03245e', deepest: '#011332', inkSoft: '#4069b0',
+    skyTop: '#9ebad6', skyMid: '#337ad1', skyFloor: '#0d469c',
+    sun: '#a4cde5', haze: 'rgba(255, 255, 255, 0.75)',
+    wood: '#b47f50', woodDeep: '#794f2f',
+  },
+  aurora: {
+    id: 'aurora', name: 'Aurora', unlock: 'aurora',
+    deep: '#042052', deepest: '#020f27', inkSoft: '#4064a5',
+    skyTop: '#99b4d1', skyMid: '#3273c8', skyFloor: '#0e4090',
+    sun: '#9ec7e0', haze: 'rgba(255, 255, 255, 0.76)',
+    wood: '#af7a4b', woodDeep: '#724a2c',
+  },
+  abyss: {
+    id: 'abyss', name: 'Abyssal', unlock: 'abyss',
+    deep: '#021640', deepest: '#010714', inkSoft: '#37579a',
+    skyTop: '#88a7cd', skyMid: '#2a64bb', skyFloor: '#0a337f',
+    sun: '#8cbcde', haze: 'rgba(255, 255, 255, 0.78)',
+    wood: '#a17045', woodDeep: '#634127',
+  },
+  void: {
+    id: 'void', name: 'The Void', unlock: 'void',
+    deep: '#030e2b', deepest: '#010613', inkSoft: '#374d86',
+    skyTop: '#7f9bc3', skyMid: '#2c58a5', skyFloor: '#0c296a',
+    sun: '#81afd5', haze: 'rgba(255, 255, 255, 0.81)',
+    wood: '#92663f', woodDeep: '#543721',
+  },
+};
+
+
+/* --------------------------------------------------------------- achievements */
+
+/**
+ * What you can earn, and what it looks like when you have earned it.
+ *
+ * `goal` is a NUMBER and every achievement is judged by ONE rule against the save:
+ * progress(). Achievable beats clever here. A rule per achievement would be nine
+ * near-identical functions that each have to be tested separately, and one of them
+ * would eventually disagree with the panel that reports it.
+ *
+ * Ordered easy to hard, and each unlocks a scheme cooler than the last -- see
+ * PALETTES for why that is measured rather than eyeballed. The tiers are:
+ *   1 the first hour     5 a full collection      9 the whole game
+ *   2 getting going      6 mastery                10 everything, at once
+ *   3 travelling         7 the deep water
+ *   4 a companion        8 rare things
+ */
+export const ACHIEVEMENTS = {
+  first_catch: {
+    id: 'first_catch', name: 'First Fish', tier: 1, palette: 'lagoon', stat: 'species', goal: 1,
+    blurb: "Land anything at all.",
+  },
+  bag_of_ten: {
+    id: 'bag_of_ten', name: 'Full Bag', tier: 1, palette: 'lagoon', stat: 'peakBag', goal: 10,
+    blurb: "Fill the bag all the way to the brim.",
+  },
+  ten_species: {
+    id: 'ten_species', name: 'Menagerie', tier: 2, palette: 'fjord', stat: 'species', goal: 10,
+    blurb: "Land ten different species.",
+  },
+  hundred_catches: {
+    id: 'hundred_catches', name: 'Century', tier: 2, palette: 'fjord', stat: 'catches', goal: 100,
+    blurb: "Land a hundred fish.",
+  },
+  two_lakes: {
+    id: 'two_lakes', name: 'Travelling', tier: 3, palette: 'poolside', stat: 'lakesVisited', goal: 2,
+    blurb: "Fish in two different lakes.",
+  },
+  every_lake: {
+    id: 'every_lake', name: 'Every Water', tier: 3, palette: 'deep', stat: 'lakesVisited', goal: 5,
+    blurb: "Fish in all five lakes.",
+  },
+  first_seal: {
+    id: 'first_seal', name: 'Company', tier: 4, palette: 'poolside', stat: 'sealsOwned', goal: 1,
+    blurb: "Buy a seal. It will sit with you and judge you.",
+  },
+  bonded: {
+    id: 'bonded', name: 'Good Friends', tier: 4, palette: 'deep', stat: 'bondTotal', goal: 10,
+    blurb: "Feed one seal ten fish.",
+  },
+  biggest_fish: {
+    id: 'biggest_fish', name: 'Heavy Water', tier: 5, palette: 'midnight', stat: 'heaviest', goal: 20,
+    blurb: "Land a fish of twenty kilos.",
+  },
+  all_species: {
+    id: 'all_species', name: 'Complete Book', tier: 5, palette: 'midnight', stat: 'speciesTotal', goal: 0,
+    blurb: "Land every species in the game.",
+  },
+  rare_catch: {
+    id: 'rare_catch', name: 'That Once', tier: 6, palette: 'biolum', stat: 'rareLanded', goal: 1,
+    blurb: "Land something Rare or better.",
+  },
+  crowned_catch: {
+    id: 'crowned_catch', name: 'Crowned', tier: 6, palette: 'biolum', stat: 'crowned', goal: 1,
+    blurb: "Land a Crowned fish. Worth five times what it was.",
+  },
+  midnight_angler: {
+    id: 'midnight_angler', name: 'Night Shift', tier: 7, palette: 'aurora', stat: 'nightCatches', goal: 1,
+    blurb: "Land a fish after dusk, when the lake goes quiet.",
+  },
+  all_seals_fed: {
+    id: 'all_seals_fed', name: 'The Pod', tier: 7, palette: 'aurora', stat: 'sealsBonded', goal: 5,
+    blurb: "Feed every seal you own at least once.",
+  },
+  deep_water: {
+    id: 'deep_water', name: 'Where The Light Gives Up', tier: 8, palette: 'abyss', stat: 'darkLakeCatches', goal: 1,
+    blurb: "Fish in Dark Aero Deep.",
+  },
+  full_dock: {
+    id: 'full_dock', name: 'Full Dock', tier: 8, palette: 'abyss', stat: 'sealsOwned', goal: 2,
+    blurb: "Buy Bigger Dock and keep two seals with you.",
+  },
+  rare_seals: {
+    id: 'rare_seals', name: 'Collector', tier: 9, palette: 'void', stat: 'sealsOwned', goal: 5,
+    blurb: "Own every seal in the game.",
+  },
+  everything: {
+    id: 'everything', name: 'Everything', tier: 9, palette: 'void', stat: 'achievementsTotal', goal: 0,
+    blurb: "Earn every other achievement. Then wear the dark.",
+  },
+};
+
+
+
+/** Every achievement's goal, as a count, for the "earn them all" rule. */
+const ACHIEVEMENT_COUNT = Object.keys(ACHIEVEMENTS).length;
+
+/**
+ * How many achievements there are to earn, excluding the one that asks for all of
+ * them -- so it can never count itself as progress toward itself.
+ */
+const LADDER_SIZE = ACHIEVEMENT_COUNT;
+
+/**
+ * Turn a save into the numbers the achievements are judged on.
+ *
+ * This is the ONLY place that reads the save for an achievement, so the panel that
+ * reports progress and the rule that awards it can never disagree -- which is how a
+ * progress bar that reads 9/10 while the badge says done happens.
+ *
+ * Pure: takes the save, returns plain numbers. Nothing here knows what a fish is.
+ */
+export function achievementProgress(save = {}) {
+  const bestiary = save.bestiary && typeof save.bestiary === 'object' ? save.bestiary : {};
+  const bond = save.bond && typeof save.bond === 'object' ? save.bond : {};
+  const ownedSeals = Array.isArray(save.ownedSeals) ? save.ownedSeals : [];
+
+  const weights = Object.values(bestiary).map(Number).filter(Number.isFinite);
+  const stats = save.stats && typeof save.stats === 'object' ? save.stats : {};
+
+  return {
+    species: Object.keys(bestiary).length,
+    speciesTotal: save.speciesTotal ?? 0,
+    catches: Math.max(0, Math.trunc(Number(stats.catches) || 0)),
+    peakBag: Math.max(0, Math.trunc(Number(stats.peakBag) || 0)),
+    lakesVisited: Math.max(0, Math.trunc(Number(stats.lakesVisited) || 0)),
+    darkestLake: Math.max(0, Math.trunc(Number(stats.darkLakeCatches) || 0)),
+    darkLakeCatches: Math.max(0, Math.trunc(Number(stats.darkLakeCatches) || 0)),
+    nightCatches: Math.max(0, Math.trunc(Number(stats.nightCatches) || 0)),
+    sealsOwned: ownedSeals.length,
+    sealsBonded: ownedSeals.filter((id) => (Number(bond[id]) || 0) > 0).length,
+    bondTotal: Object.values(bond).reduce((sum, n) => sum + (Number(n) || 0), 0),
+    heaviest: weights.length ? Math.max(...weights) : 0,
+    rareLanded: Math.max(0, Math.trunc(Number(stats.rareLanded) || 0)),
+    crowned: Math.max(0, Math.trunc(Number(stats.crowned) || 0)),
+    achievementsTotal: ACHIEVEMENT_COUNT - 1,
+  };
+}
+
+/**
+ * Whether one achievement is earned, and how close.
+ *
+ * `goal: 0` means "all of them" and resolves against the real total, so the
+ * all-species and everything achievements do not need a hard-coded number that
+ * goes stale the moment a fish is added.
+ */
+export function achievementState(achievement, save = {}) {
+  const p = achievementProgress(save);
+
+  // goal 0 means "all of them": resolve it against the real total for that stat.
+  // The old `Math.max(1, have)` made a completion achievement EARN ITSELF -- with
+  // have 0 and goal 1, done was true on a fresh save, so a brand new player was
+  // wearing the darkest scheme in the game for free.
+  // `achievementsTotal` is the LADDER SIZE, not progress up it -- so comparing it
+  // to itself makes the achievement true on a fresh save, which is how a new
+  // player came out wearing The Void. Its progress has to be the number of OTHER
+  // achievements actually earned, counted by asking each one.
+  const earnedElsewhere = () => Object.values(ACHIEVEMENTS)
+    .filter((a) => a.id !== achievement.id)
+    .filter((a) => achievementState(a, save).done).length;
+  // NO Math.max(1, ...) here. Clamping a zero total up to one made "land every
+  // species" satisfy itself on an empty save: have 0, goal 1, done. A completion
+  // achievement with nothing completed must be 0 of 0, which is NOT done -- the
+  // `goal > 0` guard below is what makes that safe.
+  const totalFor = {
+    speciesTotal: () => Number(p.speciesTotal) || 0,
+    achievementsTotal: earnedElsewhere,
+  };
+  // `have` for a completion achievement is the number of OTHERS earned, not the
+  // raw stat. Reading the raw stat is what made "earn them all" satisfy itself --
+  // achievementsTotal is 17 on an empty save, so it was compared against itself,
+  // said done, and handed a new player the darkest colour scheme in the game.
+  const have = achievement.goal > 0
+    ? (Number(p[achievement.stat]) || 0)
+    : (totalFor[achievement.stat]?.() ?? 0);
+  // A completion achievement's goal is the FULL LADDER, not what has been earned.
+  // Setting goal = have made "earn them all" satisfy itself the moment the very
+  // first achievement landed: one earned, goal one, done -- and The Void, the
+  // darkest scheme in the game, handed to a player who had caught one fish.
+  const goal = achievement.goal > 0
+    ? achievement.goal
+    : Math.max(1, LADDER_SIZE - 1);
+  const done = have >= goal;
+  return {
+    have,
+    goal,
+    done,
+    // Clamped: a bar that reads 130% is a bug in the panel, not enthusiasm.
+    progress: Math.max(0, Math.min(1, goal > 0 ? have / goal : 0)),
+  };
+}
+
+/**
+ * Which palettes the player may wear: always their own, plus one per achievement
+ * earned. Computed rather than stored, so a save from before the feature -- or one
+ * edited by hand -- cannot claim a scheme it has not earned.
+ */
+export function unlockedPalettes(save = {}) {
+  const out = ['aero'];
+  for (const a of Object.values(ACHIEVEMENTS)) {
+    if (achievementState(a, save).done && !out.includes(a.palette)) out.push(a.palette);
+  }
+  return out;
+}
+
+/**
+ * The palette to actually wear.
+ *
+ * A stored choice the player no longer has -- because it is a fresh save, or a
+ * hand-edited one -- falls back to `aero` rather than leaving the page unthemed.
+ */
+export function paletteFor(save = {}) {
+  const unlocked = unlockedPalettes(save);
+  const wanted = save.palette;
+  return unlocked.includes(wanted) ? wanted : 'aero';
+}
+
 /* ------------------------------------------------------------- dock upgrades */
 
 /**

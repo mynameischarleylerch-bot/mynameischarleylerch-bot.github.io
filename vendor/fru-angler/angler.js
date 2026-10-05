@@ -23,7 +23,7 @@ import {
  SEALS, LOST_ITEMS,
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
- addToBag, bagCap, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
+ addToBag, bagCap, ACHIEVEMENTS, PALETTES, achievementState, unlockedPalettes, paletteFor, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
 } from './fishing.js?v=2026-10-04-Y';
@@ -61,6 +61,9 @@ const ui = {
   catchArt: el('catch-art'), catchWeight: el('catch-weight'), catchWorth: el('catch-worth'),
   catchMutation: el('catch-mutation'),
   // The dock upgrades: 22 permanent one-off perks, paid for in rod coins.
+  trophyPanel: el('trophy-panel'), trophyList: el('trophy-list'),
+  trophyPalettes: el('trophy-palettes'), trophyCount: el('trophy-count'),
+  trophyOpen: el('trophy-open'), trophyClose: el('trophy-close'), trophyBadge: el('trophy-badge'),
   upgradePanel: el('upgrade-panel'), upgradeList: el('upgrade-list'),
   upgradeCoins: el('upgrade-coins'), upgradeSlots: el('upgrade-slots'),
   upgradeOpen: el('upgrade-open'), upgradeClose: el('upgrade-close'),
@@ -141,6 +144,7 @@ const state = {
   giftedRods: [],      // rods handed over on arrival, so they cannot be farmed
   bag: [],           // landed fish, unsold. They are worth nothing until you act.
   upgrades: [],      // permanent one-off purchases, in the order they were bought
+  palette: 'aero',    // the colour scheme being worn; only ever one you have earned
 
   duplicates: 0,        // seal copies handed over, all time
   bond: {},            // sealId -> how many fish it has been fed
@@ -198,6 +202,12 @@ function load() {
     // can put three animals on a one-slot dock.
     state.equippedSeal = sealPartyOf(saved.equippedSeal, state.ownedSeals, state.upgrades);
 
+
+    // The worn colour scheme. NOT repaired against what is unlocked here -- paletteFor()
+    // does that at apply time, so a scheme a hand-edited save claims is simply not
+    // applied. Storing the wish and checking it is better than dropping it here:
+    // one place decides what you may wear, not two that can disagree.
+    state.palette = typeof saved.palette === 'string' ? saved.palette : 'aero';
 
     state.lost = Array.isArray(saved.lost)
       ? saved.lost.filter((id) => LOST_ITEMS.some((item) => item.id === id))
@@ -293,6 +303,7 @@ function save() {
       giftedRods: state.giftedRods,
       bag: state.bag,
       upgrades: state.upgrades,
+      palette: state.palette,
       bond: state.bond,
       // Duplicates ever handed over. It was bumped in memory and never written
       // anywhere, so it only ever existed for the session that counted it.
@@ -1986,6 +1997,7 @@ const PANELS = [
   { panel: () => ui.shopPanel, open: () => openShop, close: () => closeShop },
   { panel: () => ui.inventory, open: () => openBag, close: () => closeBag },
   { panel: () => ui.bagPanel, open: () => openBagPanel, close: () => closeBagPanel },
+  { panel: () => ui.trophyPanel, open: () => openTrophies, close: () => closeTrophies },
   { panel: () => ui.upgradePanel, open: () => openUpgrades, close: () => closeUpgrades },
   { panel: () => ui.sealPanel, open: () => openSealShop, close: () => closeSealShop },
   { panel: () => ui.bondPanel, open: () => openBond, close: () => closeBond },
@@ -2077,6 +2089,136 @@ function openUpgrades() {
 
 function closeUpgrades() {
   if (ui.upgradePanel) ui.upgradePanel.hidden = true;
+}
+
+/**
+ * Wear a colour scheme.
+ *
+ * Sets `data-palette` on <html>, which is where the [data-palette] CSS rule reads
+ * the tokens from. Deliberately NOT inline styles on the page: the tokens belong in
+ * one stylesheet rule, so a scheme is data (PALETTES) rather than a block of CSS per
+ * colour.
+ *
+ * The scheme is re-resolved through paletteFor() rather than trusted, so a save
+ * naming a scheme the player has not earned cannot be applied -- which would be both
+ * a cheat and a way to make the page unthemed.
+ */
+function applyPalette() {
+  const id = paletteFor(state);
+  const p = PALETTES[id];
+  const root = document.documentElement;
+  root.dataset.palette = id;
+  // The scheme's own values, exposed as the --p-* tokens the CSS consumes.
+  for (const [key, value] of Object.entries(p)) {
+    if (key === 'id' || key === 'name' || key === 'unlock') continue;
+    root.style.setProperty(`--p-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`, value);
+  }
+}
+
+/**
+ * The achievements panel: the colour picker, then the ladder.
+ *
+ * Every row's state comes from achievementState(), which is the same rule that
+ * decides a scheme is unlocked -- so a row cannot read 9/10 next to a scheme you
+ * already have, which is the disagreement that makes a progress list untrustworthy.
+ */
+function renderTrophies() {
+  if (!ui.trophyList) return;
+
+  const list = Object.values(ACHIEVEMENTS);
+  const done = list.filter((a) => achievementState(a, state).done).length;
+  if (ui.trophyCount) {
+    ui.trophyCount.textContent = `${done} of ${list.length} earned. `
+      + 'Harder ones are darker.';
+  }
+  if (ui.trophyBadge) {
+    ui.trophyBadge.textContent = String(done);
+    ui.trophyBadge.classList.toggle('is-full', done === list.length);
+  }
+
+  // ---- the picker: your own look plus what you have earned, and nothing else.
+  const unlocked = unlockedPalettes(state);
+  const worn = paletteFor(state);
+  if (ui.trophyPalettes) {
+    ui.trophyPalettes.textContent = '';
+    for (const id of unlocked) {
+      const p = PALETTES[id];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'swatch';
+      btn.dataset.palette = id;
+      btn.setAttribute('aria-pressed', String(id === worn));
+      btn.title = `${p.name}${id === 'aero' ? ' (yours to start)' : ' — earned'}`;
+      // The chip IS the scheme: its own three sky stops, so what you click is
+      // exactly what you get.
+      btn.style.setProperty('--s-top', p.skyTop);
+      btn.style.setProperty('--s-mid', p.skyMid);
+      btn.style.setProperty('--s-floor', p.skyFloor);
+      const chip = document.createElement('span');
+      chip.className = 'swatch__chip';
+      const label = document.createElement('span');
+      label.className = 'swatch__name';
+      label.textContent = p.name;
+      btn.append(chip, label);
+      btn.addEventListener('click', () => {
+        state.palette = id;
+        save();
+        applyPalette();
+        renderTrophies();
+      });
+      ui.trophyPalettes.appendChild(btn);
+    }
+  }
+
+  // ---- the ladder, in table order.
+  ui.trophyList.textContent = '';
+  for (const a of list) {
+    const st = achievementState(a, state);
+    const row = document.createElement('div');
+    row.className = 'trophy' + (st.done ? ' trophy--done' : '');
+    row.dataset.trophy = a.id;
+    row.style.setProperty('--trophy-colour', PALETTES[a.palette].deep);
+
+    const head = document.createElement('div');
+    head.className = 'trophy__head';
+    const name = document.createElement('span');
+    name.className = 'trophy__name';
+    name.textContent = a.name;
+    const count = document.createElement('span');
+    count.className = 'trophy__count';
+    count.textContent = st.done ? 'Earned' : `${st.have} / ${st.goal}`;
+    head.append(name, count);
+
+    const blurb = document.createElement('div');
+    blurb.className = 'trophy__blurb';
+    blurb.textContent = a.blurb;
+
+    const bar = document.createElement('progress');
+    bar.className = 'trophy__bar';
+    bar.max = 1;
+    bar.value = st.progress;
+    // The number is in the text too, so the bar is decoration and the count is the
+    // fact. A bar alone is unreadable to a screen reader and useless at 7/10.
+    bar.setAttribute('aria-label', `${a.name}: ${st.done ? 'earned' : `${st.have} of ${st.goal}`}`);
+
+    const swatch = document.createElement('div');
+    swatch.className = 'trophy__swatch';
+    swatch.title = `Unlocks ${PALETTES[a.palette].name}`;
+
+    row.append(head, blurb, bar, swatch);
+    ui.trophyList.appendChild(row);
+  }
+}
+
+function openTrophies() {
+  if (!ui.trophyPanel) return;
+  closeOtherPanels(ui.trophyPanel);
+  renderTrophies();
+  ui.trophyPanel.hidden = false;
+}
+
+function closeTrophies() {
+  if (ui.trophyPanel) ui.trophyPanel.hidden = true;
 }
 
 function renderUpgrades() {
@@ -2492,6 +2634,11 @@ ui.indexPanel?.addEventListener('click', (event) => {
   if (event.target === ui.indexPanel) closeIndex();
 });
 ui.inventoryClose?.addEventListener('click', closeBag);
+ui.trophyOpen?.addEventListener('click', () => togglePanel(ui.trophyPanel, openTrophies, closeTrophies));
+ui.trophyClose?.addEventListener('click', closeTrophies);
+ui.trophyPanel?.addEventListener('click', (event) => {
+  if (event.target === ui.trophyPanel) closeTrophies();
+});
 ui.upgradeOpen?.addEventListener('click', () => togglePanel(ui.upgradePanel, openUpgrades, closeUpgrades));
 ui.upgradeClose?.addEventListener('click', closeUpgrades);
 // Click the scrim to dismiss, like every other panel here.
@@ -2557,6 +2704,9 @@ function frame(now) {
 /* -------------------------------------------------------------------- boot */
 
 load();
+// The colour scheme is applied before the first paint, so the page never
+// flashes the default palette at a player who chose another one.
+applyPalette();
 paintChrome();
 fitFigure();
 fitPet();

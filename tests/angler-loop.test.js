@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
          RODS, RODS_BY_PRICE, SEALS, startingLoadout, TIMES, WEATHER, LOST_ITEMS,
-         UPGRADES, BASE_BAG_CAP, bagCap,
+         UPGRADES, BASE_BAG_CAP, bagCap, ACHIEVEMENTS, PALETTES,
 } from '../vendor/fru-angler/fishing.js?v=2026-10-04-z';
 
 const PAGE = readFileSync(
@@ -4758,4 +4758,83 @@ test('the bubble clears itself when a message goes, and never stacks two', async
   // And the show must be OUTSIDE it, or clearing would immediately re-show.
   assert.ok(sayFn.lastIndexOf("removeAttribute('hidden')") > branchEnd,
     'the show must be outside the empty-text branch');
+});
+
+test('the achievements panel lists the ladder and the picker only offers earned colours', async () => {
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: { glidefin: 2 },
+    areaId: 'aero-lake', xp: 0, ownedSeals: [], equippedSeal: [], lost: [],
+    giftedRods: [], sealCoins: 0,
+  }, 8600);
+
+  ctx.doc.getElementById('trophy-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  const panel = ctx.doc.getElementById('trophy-panel');
+  assert.equal(panel.hidden, false, 'the achievements panel opens');
+
+  // Every achievement has a row, in table order.
+  const rows = () => [...panel.querySelectorAll('#trophy-list .trophy')];
+  assert.equal(rows().length, Object.keys(ACHIEVEMENTS).length,
+    'every achievement is listed');
+  assert.deepEqual(rows().map((r) => r.dataset.trophy),
+    Object.keys(ACHIEVEMENTS), 'in the same order as the table');
+
+  // The one earned is marked, and the rest are not.
+  const done = rows().filter((r) => r.classList.contains('trophy--done'));
+  assert.deepEqual(done.map((r) => r.dataset.trophy), ['first_catch'],
+    'exactly the earned achievement is marked done');
+
+  // And the picker offers your own look plus what you have earned -- no more.
+  const swatches = () => [...panel.querySelectorAll('#trophy-palettes .swatch')];
+  assert.deepEqual(swatches().map((s) => s.dataset.palette), ['aero', 'lagoon'],
+    'the picker offers your own look and the one earned scheme, and nothing else');
+  assert.equal(swatches()[0].getAttribute('aria-pressed'), 'true',
+    'your own look is the one being worn until you choose otherwise');
+
+  // Choosing an earned scheme applies it to the page.
+  swatches()[1].dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.equal(ctx.doc.documentElement.dataset.palette, 'lagoon',
+    'picking a scheme sets it on the root, where the CSS reads it');
+  assert.deepEqual(
+    JSON.parse(ctx.win.localStorage.getItem('fru-angler-save')).palette, 'lagoon',
+    'and it is remembered across a reload');
+  assert.equal(
+    ctx.doc.querySelector('#trophy-palettes .swatch[data-palette="lagoon"]')
+      .getAttribute('aria-pressed'), 'true', 'and the picker shows it as chosen');
+
+  // A scheme that was never earned cannot be clicked into, because it is not there.
+  assert.equal(panel.querySelector('.swatch[data-palette="void"]'), null,
+    'an unearned scheme is not offered at all');
+});
+
+test('the palette is applied on load, and an unearned one is refused there too', async () => {
+  // Two paths must both be right, and only the click path was tested:
+  //   - booting with a saved scheme, so the page does not flash the default palette;
+  //   - booting with a saved scheme that was never earned, which must fall back.
+  // A hand-edited save naming The Void used to be a way to wear the darkest scheme
+  // in the game without earning it, because only the picker checked.
+  const save = (extra) => ({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    ...extra,
+  });
+
+  const earned = await seedSave(save({ bestiary: { glidefin: 1 }, palette: 'lagoon' }), 8610);
+  assert.equal(earned.doc.documentElement.dataset.palette, 'lagoon',
+    'a saved, earned scheme is applied at boot, before the first paint');
+  // And the tokens it needs are actually on the root, or the CSS finds nothing.
+  assert.ok(earned.doc.documentElement.style.getPropertyValue('--p-deep'),
+    'the scheme must publish its tokens as --p-* for the stylesheet to read');
+
+  const cheated = await seedSave(save({ palette: 'void' }), 8611);
+  assert.equal(cheated.doc.documentElement.dataset.palette, 'aero',
+    'a scheme that was never earned must fall back to your own look on load too');
+
+  const junk = await seedSave(save({ palette: 'nonsense' }), 8612);
+  assert.equal(junk.doc.documentElement.dataset.palette, 'aero',
+    'and a nonsense value must not leave the page unthemed');
+
+  const fresh = await seedSave(save({}), 8613);
+  assert.equal(fresh.doc.documentElement.dataset.palette, 'aero',
+    'a save with no scheme at all is simply your own look');
 });

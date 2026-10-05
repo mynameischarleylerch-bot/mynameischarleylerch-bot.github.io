@@ -15,7 +15,8 @@ import {
   fishSilhouette,
   bondMilestones, bondProgress,
   UPGRADES, BASE_BAG_CAP, bagCap, buyUpgrade, sealSlots, upgradeLuck,
-  sealParty as sealPartyOf,} from '../vendor/fru-angler/fishing.js';
+  sealParty as sealPartyOf, ACHIEVEMENTS, PALETTES,
+  achievementProgress, achievementState, unlockedPalettes, paletteFor,} from '../vendor/fru-angler/fishing.js';
 
 /**
  * addToBag as it used to be: takes a bag, returns a bag.
@@ -3156,4 +3157,280 @@ test('equipping is a toggle, a one-slot dock swaps, and a dock with room adds', 
 
   // A non-array owned list is nobody owning anything.
   assert.equal(equipSeal('nonsense', 'bubbles', [], []).ok, false);
+});
+
+test('achievements are ordered easy to hard, and each unlocks a distinct palette', () => {
+  const list = Object.values(ACHIEVEMENTS);
+  assert.ok(list.length >= 10, `expected at least ten achievements, found ${list.length}`);
+
+  // Stable and ordered by difficulty: a table a player reads top to bottom must get
+  // harder, or "Rank 2" sitting below "Rank 20" is just noise.
+  assert.deepEqual(list.map((a) => a.id), Object.keys(ACHIEVEMENTS),
+    'the table must be in the same order as its keys');
+  for (let i = 1; i < list.length; i += 1) {
+    assert.ok(list[i].tier >= list[i - 1].tier,
+      `${list[i].id} (tier ${list[i].tier}) must not be easier than `
+      + `${list[i - 1].id} (tier ${list[i - 1].tier})`);
+  }
+
+  // Palettes are per TIER, not per achievement: there are eighteen achievements and
+  // nine unlockable schemes, so two in a tier share one. That is deliberate -- a
+  // player on tier 2 should still be wearing the tier-2 colour, and doubling the
+  // schemes would mean a barely-different shade for every achievement.
+  //
+  // What must hold is that a new scheme appears at EVERY tier, or the ramp would
+  // have tiers that buy nothing.
+  const tierPalettes = new Set(list.map((a) => `${a.tier}:${a.palette}`));
+  for (const tier of [...new Set(list.map((a) => a.tier))]) {
+    assert.ok([...tierPalettes].some((tp) => tp.startsWith(`${tier}:`)),
+      `tier ${tier} must unlock a palette`);
+  }
+  // Every scheme must be reachable from SOME achievement, or it is decoration.
+  const used = new Set(list.map((a) => a.palette));
+  for (const id of Object.keys(PALETTES)) {
+    if (id === 'aero') continue;
+    assert.ok(used.has(id), `${id} is a palette no achievement can unlock`);
+  }
+
+  for (const a of list) {
+    assert.ok(a.name && a.blurb, `${a.id} needs a name and a blurb`);
+    // goal 0 means "all of them" -- the two completion achievements. It is legal,
+    // but only because achievementState() resolves it against the real total; a
+    // negative or non-numeric goal is not.
+    assert.ok(typeof a.goal === 'number' && a.goal >= 0,
+      `${a.id} needs a goal of zero or more, got ${a.goal}`);
+    assert.ok(a.goal > 0 || a.stat === 'speciesTotal' || a.stat === 'achievementsTotal',
+      `${a.id} has goal 0 but is not a completion achievement (stat ${a.stat}), so `
+      + 'there is nothing for the zero to mean');
+    assert.ok(PALETTES[a.palette], `${a.id} unlocks unknown palette "${a.palette}"`);
+  }
+
+  // Frutiger Aero is the game's own look, so it is NOT an unlock: it is what you
+  // already have. Every unlock must therefore be something new.
+  assert.ok(Object.keys(PALETTES).length > 1,
+    'there must be more than one palette to switch between');
+});
+
+test('unlocked palettes really are cooler, and get cooler the harder they are', () => {
+  // "Cooler" has to be MEASURED, not eyeballed. Eyeballing it is what produced a
+  // ramp running lagoon -> bioluminescent -> fjord: biolum sat at hue 187 (teal)
+  // while everything around it sat at 210+ (blue), so it read warmer than the pale
+  // blues it was supposed to be cooler than.
+  //
+  // The first version of this test used `warmth = r - b`, which quietly ranked
+  // DARKNESS above hue and so called #00264a "warmer" than #013a63 -- a darker,
+  // bluer colour declared warmer than a lighter blue. Two numbers, not one:
+  //   - hue distance from BLUE (240 deg). Past 240 it falls away again, because
+  //     violet is not cooler than blue, merely a different hue.
+  //   - darkness, since a deep blue reads cooler than a pale one.
+  const toHsl = (hex) => {
+    const h = hex.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let deg = 0;
+    if (d) {
+      if (max === r) deg = 60 * (((g - b) / d) % 6);
+      else if (max === g) deg = 60 * ((b - r) / d + 2);
+      else deg = 60 * ((r - g) / d + 4);
+    }
+    if (deg < 0) deg += 360;
+    return { deg, light: (max + min) / 2 };
+  };
+  const coolness = (hex) => {
+    const { deg, light } = toHsl(hex);
+    const fromBlue = Math.min(Math.abs(240 - deg), 360 - Math.abs(240 - deg));
+    return { hue: 180 - fromBlue, dark: (1 - light) * 100 };
+  };
+
+  const key = (id) => PALETTES[id].deep;
+  const aero = coolness(key('aero'));
+
+  for (const id of Object.keys(PALETTES)) {
+    if (id === 'aero') continue;
+    const c = coolness(key(id));
+    // At least as blue as Aero, and no paler. "or", not "and": a deeper teal IS a
+    // cooler colour than a pale blue even a few degrees off hue.
+    const bluer = c.hue >= aero.hue - 8;
+    const darker = c.dark >= aero.dark - 3;
+    assert.ok(bluer || darker,
+      `${id} (${key(id)}) is not cooler than Frutiger Aero (${key('aero')}): `
+      + `hue-distance ${c.hue} vs ${aero.hue}, darkness ${c.dark.toFixed(0)} `
+      + `vs ${aero.dark.toFixed(0)}`);
+  }
+
+  // And the ramp must not double back. Grouped by tier, because two achievements
+  // in one tier deliberately share a scheme.
+  const byTier = new Map();
+  for (const a of Object.values(ACHIEVEMENTS)) {
+    if (!byTier.has(a.tier)) byTier.set(a.tier, a.palette);
+  }
+  const ramp = [...byTier.entries()].sort((x, y) => x[0] - y[0]);
+  assert.ok(ramp.length >= 4, 'expected several tiers of colour');
+  for (let i = 1; i < ramp.length; i += 1) {
+    const prev = coolness(key(ramp[i - 1][1]));
+    const now = coolness(key(ramp[i][1]));
+    assert.equal(now.hue > prev.hue + 8 && now.dark <= prev.dark, false,
+      `tier ${ramp[i][0]} (${ramp[i][1]}, ${key(ramp[i][1])}) must not be warmer than `
+      + `tier ${ramp[i - 1][0]} (${ramp[i - 1][1]}, ${key(ramp[i - 1][1])})`);
+  }
+});
+
+test('progress comes from the save and nothing else, so the panel cannot lie', () => {
+  // The one thing that must never happen is a progress bar reading 9/10 while the
+  // achievement says done. That happens when the rule and the readout are written
+  // separately, so progress() is the ONLY reader and achievementState() is the only
+  // judge. These are the cases that break that.
+  const empty = achievementProgress({});
+  for (const [k, v] of Object.entries(empty)) {
+    // achievementsTotal is the exception: it is the SIZE OF THE LADDER, not
+    // progress up it, so on an empty save it is the number of other achievements.
+    // It is the only stat that is not 0 before you have done anything.
+    if (k === 'achievementsTotal') {
+      assert.equal(v, Object.keys(ACHIEVEMENTS).length - 1,
+        'the "earn them all" achievement counts the others, excluding itself');
+      continue;
+    }
+    assert.equal(v, 0, `${k} must be 0 for an empty save, got ${v}`);
+  }
+
+  // Garbage in must not produce NaN -- a NaN goal renders as an empty bar and reads
+  // as "locked forever".
+  const junk = achievementProgress({
+    bestiary: 'not an object', bond: null, ownedSeals: 'nope',
+    stats: { catches: 'lots', peakBag: -5, heaviest: 'heavy' },
+  });
+  for (const [k, v] of Object.entries(junk)) {
+    assert.ok(Number.isFinite(v), `${k} must be a finite number, got ${v}`);
+    assert.ok(v >= 0, `${k} must not go negative, got ${v}`);
+  }
+
+  const save = {
+    bestiary: { glidefin: 4.2, sunscale: 9.1 },
+    bond: { bubbles: 12, tangerine: 3 },
+    ownedSeals: ['bubbles', 'tangerine'],
+    stats: { catches: 120, peakBag: 10, lakesVisited: 5, nightCatches: 2 },
+  };
+  const p = achievementProgress(save);
+  assert.equal(p.species, 2);
+  assert.equal(p.heaviest, 9.1, 'the heaviest fish in the bestiary, not the first');
+  assert.equal(p.bondTotal, 15, 'bond across every seal, not just the first');
+  assert.equal(p.sealsBonded, 2, 'both seals have been fed at least once');
+  assert.equal(p.catches, 120);
+
+  // progress() is clamped: a bar that reads 130% is a panel bug, not enthusiasm.
+  const over = achievementState(ACHIEVEMENTS.hundred_catches, { stats: { catches: 9999 } });
+  assert.equal(over.progress, 1);
+  assert.equal(over.done, true);
+});
+
+test('a palette is only wearable once earned, and a hand-edited save gets nothing', () => {
+  const earned = unlockedPalettes({ stats: { catches: 200 }, speciesTotal: 99 });
+  assert.ok(earned.includes('aero'), 'your own look is never an unlock');
+
+  // Nothing earned: only aero.
+  assert.deepEqual(unlockedPalettes({}), ['aero']);
+
+  // One earned: exactly one scheme more. The FIRST achievement is judged on
+  // species, not on catches -- a catch that was a duplicate of a species you
+  // already had does not land a new one -- so one landed species is what earns it.
+  assert.deepEqual(unlockedPalettes({ bestiary: { glidefin: 1 } }), ['aero', 'lagoon'],
+    'landing one new species earns the tier-1 scheme and nothing beyond it');
+  assert.deepEqual(unlockedPalettes({ stats: { catches: 1 } }), ['aero'],
+    'a raw catch count with no species earns nothing -- catches is the century\'s stat');
+
+  // A save claiming a scheme it has not earned is refused. paletteFor() is what the
+  // page calls, so this is the line between a cheat and a blank page.
+  assert.equal(paletteFor({ palette: 'void' }), 'aero',
+    'a scheme that was never earned must not be applied');
+  assert.equal(paletteFor({ palette: 'lagoon', bestiary: { glidefin: 1 } }), 'lagoon',
+    'but a genuinely earned one is applied');
+  assert.equal(paletteFor({}), 'aero', 'and no choice at all means your own look');
+  assert.equal(paletteFor({ palette: 'not_a_palette' }), 'aero',
+    'a nonsense value falls back rather than leaving the page unthemed');
+});
+
+test('no achievement is satisfied by an empty save, or by the bare minimum', () => {
+  // Three separate ways an achievement granted itself for free, all found the hard
+  // way:
+  //
+  //   1. `goal: 0` resolved with `Math.max(1, have)`, so a completion achievement
+  //      with have 0 got goal 1 and was done.
+  //   2. `achievementsTotal` was compared against itself -- it is the LADDER SIZE,
+  //      always 17 -- so "earn them all" was true on a fresh save.
+  //   3. goal was then set equal to have, so one earned achievement satisfied the
+  //      other 16, and a player who had caught one fish wore The Void.
+  //
+  // The bug each time was the same shape: a completion rule whose goal was derived
+  // from its own progress. So this checks the property directly, for every
+  // achievement, at three levels of progress.
+  const empty = achievementProgress({});
+  for (const a of Object.values(ACHIEVEMENTS)) {
+    assert.equal(achievementState(a, {}).done, false,
+      `${a.id} is satisfied by an EMPTY save`);
+    assert.equal(achievementState(a, {}).progress, 0,
+      `${a.id} shows progress on an empty save`);
+    void empty;
+  }
+
+  // One species earned: only the tier-1 achievements, and nothing above them.
+  const one = { bestiary: { glidefin: 1 } };
+  const doneAtOne = Object.values(ACHIEVEMENTS)
+    .filter((a) => achievementState(a, one).done).map((a) => a.id);
+  assert.deepEqual(doneAtOne.sort(), ['first_catch'],
+    `landing one species should complete exactly one thing, not ${doneAtOne.join(', ')}`);
+  assert.deepEqual(unlockedPalettes(one), ['aero', 'lagoon'],
+    'and unlock only the first scheme');
+
+  // And the progress a bar shows must never claim more than was done.
+  for (const a of Object.values(ACHIEVEMENTS)) {
+    const st = achievementState(a, one);
+    assert.ok(st.progress >= 0 && st.progress <= 1,
+      `${a.id} progress ${st.progress} is out of range`);
+    if (!st.done) assert.ok(st.progress < 1,
+      `${a.id} shows a full bar but is not done`);
+  }
+});
+
+test('every palette is legible on the glass the text actually sits on', () => {
+  // --ink-soft is not body copy on the sky. It is the small print on the HUD pill
+  // and the shop panels, which are white-ish glass at roughly #f2f9fd. Measured
+  // against the sky instead -- the obvious pairing -- every palette "failed" while
+  // the game has always been fine, because that is not where the ink goes.
+  //
+  // Measured against the real surface, four palettes were genuinely below AA:
+  // Lagoon 3.0, Bright Water 3.3, Poolside 3.7, Deep Water 4.1. Small print at 3:1
+  // on a glass panel is exactly the thing WCAG is about, so those were darkened.
+  const GLASS = '#f2f9fd';
+  const lum = (hex) => {
+    const h = hex.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a, b) => {
+    const la = lum(a), lb = lum(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+
+  for (const [id, p] of Object.entries(PALETTES)) {
+    // Every token must be a real colour, or the rule silently does nothing.
+    for (const key of ['deep', 'deepest', 'inkSoft', 'skyTop', 'skyMid',
+      'skyFloor', 'sun', 'wood', 'woodDeep']) {
+      assert.match(p[key], /^#[0-9a-f]{6}$/i,
+        `${id}.${key} must be a 6-digit hex, got ${p[key]}`);
+    }
+    // The small print clears AA on the glass.
+    const ink = ratio(p.inkSoft, GLASS);
+    assert.ok(ink >= 4.5,
+      `${id}: ink-soft ${p.inkSoft} is only ${ink.toFixed(2)}:1 on the glass panels, `
+      + 'under the 4.5 AA needs for small text');
+    // The main ink stays legible on the same glass, and the sky has enough range
+    // to read as a lit surface rather than a flat fill.
+    assert.ok(ratio(p.deepest, GLASS) >= 4.5,
+      `${id}: deepest ${p.deepest} must stay readable on glass`);
+    assert.ok(ratio(p.skyTop, p.skyFloor) >= 1.6,
+      `${id}: the sky must have depth, top ${p.skyTop} vs floor ${p.skyFloor} is too flat`);
+    // And the glass tint is a real rgba, because the HUD uses it directly.
+    assert.match(p.haze, /^rgba\(/, `${id}.haze must be an rgba`);
+  }
 });

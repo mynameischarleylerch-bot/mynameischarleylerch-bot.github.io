@@ -1346,6 +1346,80 @@
   .seal__equip.is-active{
     background: #2ea043; color: #fff; border-color: rgba(255,255,255,.6);
   }
+  /* Palettes. A scheme is `data-palette` on <html> plus the tokens below, so a new
+     colour is a row in PALETTES (data) rather than a new block here. Only the tokens
+     that differ from the default are restated: the glass, wood and ink are shared,
+     and re-deriving them per scheme is how a palette ends up unreadable. */
+  [data-palette] {
+    --deep: var(--p-deep); --deepest: var(--p-deepest); --ink-soft: var(--p-ink-soft);
+    --sky-top: var(--p-sky-top); --sky-mid: var(--p-sky-mid); --sky-floor: var(--p-sky-floor);
+    --sun: var(--p-sun); --haze-tint: var(--p-haze); --wood: var(--p-wood);
+    --wood-deep: var(--p-wood-deep);
+  }
+
+  /* A trophy row: what it is, how far along you are, and what it looks like. */
+  .trophy {
+    display: grid; gap: .2rem; padding: .6rem .7rem;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.66));
+    border: 1px solid var(--hairline);
+    box-shadow: inset 0 1px 0 #fff;
+  }
+  /* Earned: green, like a kept thing. A trophy you have not got stays quiet but
+     readable -- it is the row you are working towards. */
+  .trophy--done {
+    border-color: rgba(31, 122, 74, .5);
+    background: linear-gradient(180deg, rgba(240,252,244,.92), rgba(222,243,230,.7));
+  }
+  .trophy__head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: .6rem;
+  }
+  .trophy__name { font-weight: 700; color: var(--deep); }
+  .trophy--done .trophy__name { color: #1d5c33; }
+  .trophy__count {
+    margin-left: auto; font-size: .78rem; font-weight: 700;
+    font-variant-numeric: tabular-nums; color: var(--ink-soft);
+  }
+  .trophy--done .trophy__count { color: #1d7a4a; }
+  .trophy__blurb { font-size: .82rem; color: var(--ink-soft); }
+  /* The bar. `progress` rather than a div, because it announces itself and it
+     cannot be styled into a lie: the value IS the value. */
+  .trophy__bar {
+    width: 100%; height: .4rem; margin-top: .15rem;
+    border-radius: var(--pill); overflow: hidden;
+    border: 1px solid var(--hairline);
+    background: rgba(255,255,255,.5);
+  }
+  .trophy__bar::-webkit-progress-bar { background: rgba(255,255,255,.5); }
+  .trophy__bar::-webkit-progress-value {
+    background: linear-gradient(180deg, var(--lime), var(--accent));
+  }
+  .trophy--done .trophy__bar { display: none; }
+  .trophy__swatch {
+    width: 100%; height: .28rem; border-radius: var(--pill);
+    background: var(--trophy-colour, var(--deep));
+  }
+
+  /* The colour picker. A swatch IS its colour, which is the only honest way to
+     offer a palette: a labelled box that looks like the palette is a picture of a
+     palette. */
+  .swatches { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .4rem; }
+  .swatch {
+    width: 3.4rem; padding: 0; border: 2px solid transparent; cursor: pointer;
+    border-radius: 12px; background: none; font: inherit; color: inherit;
+    display: grid; gap: .2rem; padding: .2rem;
+  }
+  .swatch__chip {
+    height: 2.2rem; border-radius: 9px;
+    background: linear-gradient(180deg, var(--s-top) 0%, var(--s-mid) 55%, var(--s-floor) 100%);
+    border: 1px solid rgba(255,255,255,.8);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 5px rgba(1,87,155,.18);
+  }
+  .swatch__name { font-size: .66rem; font-weight: 700; text-align: center; }
+  .swatch[aria-pressed="true"] { border-color: var(--deep); }
+  .swatch:focus-visible { outline: 2px solid var(--deep); outline-offset: 2px; }
+  .swatch:disabled { opacity: .5; cursor: not-allowed; }
+
   /* Upgrade rows. Reuse the rod and seal row shape so the three shops read as one
      family; what differs is only the state -- fitted, buyable, or locked. */
   .upgrade {
@@ -2227,6 +2301,25 @@
         </div>
       </div>
 
+      <div class="shop" id="trophy-panel" hidden>
+        <div class="shop__panel" role="dialog" aria-modal="true" aria-labelledby="trophy-title">
+          <h2 class="shop__title" id="trophy-title">Achievements</h2>
+          <p class="shop__wallet" id="trophy-count"></p>
+
+          <!-- The colour picker. Only earned schemes are rendered: an unearned one
+               that could be clicked is an unearned one that gets clicked. -->
+          <h3 class="shop__section">Colours</h3>
+          <div class="swatches" id="trophy-palettes" role="group"
+               aria-label="Colour scheme, unlocked by achievements"></div>
+
+          <h3 class="shop__section">The ladder</h3>
+          <div class="shop__list" id="trophy-list"></div>
+          <p style="margin:.9rem 0 0">
+            <button class="btn" id="trophy-close" type="button">Close</button>
+          </p>
+        </div>
+      </div>
+
       <div class="shop" id="upgrade-panel" hidden>
         <div class="shop__panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
           <h2 class="shop__title" id="upgrade-title">Upgrades</h2>
@@ -2280,6 +2373,9 @@
     </div>
 
     <div class="hud" style="justify-content:space-between">
+      <button class="btn" id="trophy-open" type="button" aria-haspopup="dialog">
+        Trophies <b id="trophy-badge" class="hud__badge">0</b>
+      </button>
       <button class="btn" id="upgrade-open" type="button" aria-haspopup="dialog">
         Upgrades <b id="upgrade-count" class="hud__badge">0/22</b>
       </button>
