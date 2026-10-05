@@ -1517,6 +1517,7 @@ function renderLakes() {
 }
 
 function openLakes() {
+  closeOtherPanels(ui.lakePanel);
   renderLakes();
   ui.lakePanel.hidden = false;
   ui.lakePicker.setAttribute('aria-expanded', 'true');
@@ -1667,6 +1668,7 @@ function renderSealShop() {
 
 function openSealShop() {
   if (!ui.sealPanel) return;
+  closeOtherPanels(ui.sealPanel);
   renderSealShop();
   ui.sealPanel.hidden = false;
 }
@@ -1745,6 +1747,7 @@ function formatChance(percent) {
 }
 
 function openIndex() {
+  closeOtherPanels(ui.indexPanel);
   renderIndex();
   ui.indexPanel.hidden = false;
 }
@@ -1837,7 +1840,7 @@ function renderShop() {
 
 /** One overlay at a time: opening either panel closes the other. */
 function openShop() {
-  ui.inventory.hidden = true;
+  closeOtherPanels(ui.shopPanel);
   renderShop();
   ui.shopPanel.hidden = false;
   ui.shopClose.focus();
@@ -1934,6 +1937,46 @@ function paintBond() {
  * returns to the button the way it does when Close is pressed. Hiding the panel
  * alone would strand focus on a control behind the scrim.
  */
+/**
+ * Every full-screen panel, and what closes each one.
+ *
+ * A panel is a scrim over the whole lake, so two open at once is two dimmed screens
+ * stacked with the top one's Close button nowhere near the one underneath. The player
+ * closes the wrong thing, or gives up.
+ *
+ * This is a LIST rather than eight separate `ui.x.hidden = true` lines scattered
+ * through the openers, for one reason: a panel added later and not added here opens
+ * on top of whatever is already open, and nothing fails. That is exactly how the rod
+ * shop and the inventory ended up mutually exclusive -- two hand-written lines -- and
+ * the other six pairs stacking.
+ */
+const PANELS = [
+  { panel: () => ui.shopPanel, open: () => openShop, close: () => closeShop },
+  { panel: () => ui.inventory, open: () => openBag, close: () => closeBag },
+  { panel: () => ui.bagPanel, open: () => openBagPanel, close: () => closeBagPanel },
+  { panel: () => ui.upgradePanel, open: () => openUpgrades, close: () => closeUpgrades },
+  { panel: () => ui.sealPanel, open: () => openSealShop, close: () => closeSealShop },
+  { panel: () => ui.bondPanel, open: () => openBond, close: () => closeBond },
+  { panel: () => ui.indexPanel, open: () => openIndex, close: () => closeIndex },
+  { panel: () => ui.lakePanel, open: () => openLakes, close: () => closeLakes },
+];
+
+/**
+ * Close every panel except `keep`, which is the one about to open.
+ *
+ * Goes through each panel's OWN close function rather than setting `hidden` directly,
+ * so focus returns to the right button and aria-expanded is put back. Hiding alone
+ * would leave the keyboard focus stranded on a control behind the scrim, which is
+ * the bug that made a bare `hidden = true` a bad shortcut in the first place.
+ */
+function closeOtherPanels(keep) {
+  for (const entry of PANELS) {
+    const panel = entry.panel();
+    if (!panel || panel === keep || panel.hidden) continue;
+    entry.close()();
+  }
+}
+
 function togglePanel(panel, open, close) {
   if (!panel) return;
   if (panel.hidden) open();
@@ -1943,6 +1986,7 @@ function togglePanel(panel, open, close) {
 /** Open the bond timeline. Its own panel, so the bag stays exactly as it was. */
 function openBond() {
   if (!ui.bondPanel) return;
+  closeOtherPanels(ui.bondPanel);
   paintBond();
   ui.bondPanel.hidden = false;
   ui.bondClose?.focus();
@@ -1994,6 +2038,7 @@ function primarySeal() {
  */
 function openUpgrades() {
   if (!ui.upgradePanel) return;
+  closeOtherPanels(ui.upgradePanel);
   ui.upgradePanel.hidden = false;
   renderUpgrades();
 }
@@ -2275,6 +2320,7 @@ function paintBag() {
 
 function openBagPanel() {
   if (!ui.bagPanel) return;
+  closeOtherPanels(ui.bagPanel);
   paintBag();
   ui.bagPanel.removeAttribute('hidden');
 }
@@ -2284,7 +2330,7 @@ function closeBagPanel() {
 }
 
 function openBag() {
-  ui.shopPanel.hidden = true;
+  closeOtherPanels(ui.inventory);
   renderInventory();
   ui.inventory.hidden = false;
   ui.inventoryClose.focus();

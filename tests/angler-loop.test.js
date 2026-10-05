@@ -2815,47 +2815,57 @@ test('the Bond panel shows where the seal is and what is still ahead', async () 
   assert.match(head, /luck \+\d/,
     `and state the luck it is heading for, got "${head}"`);
 });
-
-test('with no seal the Bond panel says so instead of an empty ladder', async () => {
+test('feeding updates the Bond panel while it is the one open', async () => {
+  // The panel is the progress display, so a feed that leaves it stale is worse than
+  // no panel: it would show the count you had before you fed.
+  //
+  // This used to feed from the bag with the Bond panel open BEHIND it -- which only
+  // worked because panels stacked. They no longer do: opening the bag closes Bond.
+  // So the feed is driven from the bag while Bond is closed, and Bond is then checked
+  // for staleness once it is open again -- which is the state a player is actually in.
   const ctx = await seedSave({
     coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
-    xp: 0, ownedSeals: [], equippedSeal: null, lost: [], giftedRods: [], sealCoins: 0,
-  }, 1601);
-  ctx.doc.getElementById('bond-open').dispatchEvent(
-    new ctx.win.MouseEvent('click', { bubbles: true }));
-  const text = ctx.doc.getElementById('bond-panel').textContent;
-  assert.match(text, /seal/i, 'it must explain there is no seal');
-  assert.equal(ctx.doc.querySelectorAll('#bond-timeline .bond__step').length, 0,
-    'and show no steps, which would imply progress that does not exist');
-});
-
-
-test('feeding updates an open Bond panel without reopening it', async () => {
-  // The panel is the progress display, so a feed that leaves it stale is worse
-  // than no panel: it would show the count you had before you fed.
-  const ctx = await seedSave({
-    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
-    xp: 0, ownedSeals: ['bubbles'], equippedSeal: 'bubbles', lost: [],
+    xp: 0, ownedSeals: ['bubbles'], equippedSeal: ['bubbles'], lost: [],
     giftedRods: [], sealCoins: 0, bond: { bubbles: 11 },
     bag: [{ fishId: 'glidefin', weight: 2, mutation: null, multiplier: 1 }],
   }, 1602);
 
-  ctx.doc.getElementById('bond-open').dispatchEvent(
-    new ctx.win.MouseEvent('click', { bubbles: true }));
-  const before = ctx.doc.getElementById('bond-head').textContent;
-  assert.match(before, /11 fish fed/, `setup: "${before}"`);
-
-  // Feed from the bag, with the Bond panel still open behind it.
+  // Feed first, from the bag panel.
   ctx.doc.getElementById('bag-open').dispatchEvent(
     new ctx.win.MouseEvent('click', { bubbles: true }));
   ctx.doc.querySelector('#bag-list .bag__feed').click();
+  assert.deepEqual(
+    JSON.parse(ctx.win.localStorage.getItem('fru-angler-save')).bond.bubbles, 12,
+    'the fish was fed to the seal');
 
-  assert.match(ctx.doc.getElementById('bond-head').textContent, /12 fish fed/,
-    `feeding must update an open Bond panel: "${ctx.doc.getElementById('bond-head').textContent}"`);
-  const reached = ctx.doc.querySelectorAll('#bond-timeline .bond__step.is-on');
-  assert.ok(reached.length >= 3,
-    `12 fed reaches 1, 5 and 12; only ${reached.length} marked`);
+  // Then open Bond, which is now the only panel, and it must read the NEW count
+  // rather than the eleven from before the feed.
+  ctx.doc.getElementById('bond-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  const head = ctx.doc.getElementById('bond-head').textContent;
+  assert.match(head, /12 fish fed/, `the panel must not be stale after a feed: "${head}"`);
 });
+
+test('a feed never leaves a half-closed panel behind', async () => {
+  // The repaints that keep Bond current are guarded on "if it is open". With panels
+  // exclusive that guard is nearly always false -- but it must still be a guard, not
+  // an unconditional repaint, or feeding would silently open the Bond panel on top
+  // of the bag the player is using.
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: ['bubbles'], equippedSeal: ['bubbles'], lost: [],
+    giftedRods: [], sealCoins: 0, bond: { bubbles: 3 },
+    bag: [{ fishId: 'glidefin', weight: 2, mutation: null, multiplier: 1 }],
+  }, 1603);
+
+  ctx.doc.getElementById('bag-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.equal(ctx.doc.getElementById('bag-panel').hidden, false, 'the bag is open');
+  ctx.doc.querySelector('#bag-list .bag__feed').click();
+  assert.equal(ctx.doc.getElementById('bond-panel').hidden, true,
+    'feeding from the bag must not open the Bond panel over it');
+});
+
 
 
 
@@ -4546,4 +4556,85 @@ test('regression: a seal can be equipped again after being unequipped', async ()
   const visible = () => [...ctx.doc.querySelectorAll('#fa-pet-dock .fa-pet-slot')]
     .filter((g) => !g.hasAttribute('hidden')).length;
   assert.equal(visible(), 1, 'one seal, one animal');
+});
+
+test('opening any panel closes whichever one was open', async () => {
+  // Every panel is a full-screen scrim, so two of them at once is two dimmed
+  // screens stacked with the top one's Close button nowhere near the one underneath.
+  // The player closes the wrong thing, or gives up.
+  //
+  // The old test covered exactly one pair -- shop and inventory, the two openers
+  // that already closed each other by hand -- so every other combination stacked.
+  const PANELS = [
+    ['shop-open', 'shop-panel'],
+    ['inventory-open', 'inventory-panel'],
+    ['bag-open', 'bag-panel'],
+    ['upgrade-open', 'upgrade-panel'],
+    ['seal-shop-open', 'seal-shop-panel'],
+    ['bond-open', 'bond-panel'],
+    ['index-open', 'index-panel'],
+    ['lake-picker', 'lake-panel'],
+  ];
+
+  const openers = PANELS.map(([open]) => `#${open}`);
+  // Every ordered pair, so both directions are covered: A then B, and B then A.
+  for (let i = 0; i < PANELS.length; i += 1) {
+    for (let j = 0; j < PANELS.length; j += 1) {
+      if (i === j) continue;
+      const [aOpen, aPanel] = PANELS[i];
+      const [bOpen, bPanel] = PANELS[j];
+
+      const ctx = await boot(8300 + i * 20 + j);
+      ctx.doc.querySelector(`#${aOpen}`).click();
+      assert.equal(ctx.doc.querySelector(`#${aPanel}`).hidden, false,
+        `${aPanel} should be open after clicking ${aOpen}`);
+      ctx.doc.querySelector(`#${bOpen}`).click();
+
+      assert.equal(ctx.doc.querySelector(`#${aPanel}`).hidden, true,
+        `opening ${bOpen} must close ${aPanel}, not stack on it`);
+      assert.equal(ctx.doc.querySelector(`#${bPanel}`).hidden, false,
+        `and ${bOpen} must leave its own panel open`);
+
+      // Nothing else is left open either: exactly one scrim, whichever pair.
+      const alsoOpen = PANELS.filter(([, p]) => !ctx.doc.querySelector(`#${p}`).hidden)
+        .map(([, p]) => p);
+      assert.deepEqual(alsoOpen, [bPanel],
+        `only ${bPanel} may be open; found ${alsoOpen.join(', ')}`);
+      void openers;
+    }
+  }
+});
+
+test('every panel in the markup is in the registry, or it will stack', () => {
+  // The mutual exclusion is a LIST, which is only as good as the list. A panel added
+  // to index.html and not added to PANELS opens on top of whatever is already open
+  // and nothing fails -- which is exactly how six of the eight pairs stacked for
+  // weeks. So the registry is checked against the markup.
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+  const registered = [...src.slice(src.indexOf('const PANELS'), src.indexOf('function closeOtherPanels'))
+    .matchAll(/panel: \(\) => ui\.(\w+)/g)].map((m) => m[1]);
+
+  // Map each panel's DOM id to the ui key it is registered under, by reading the ui
+  // map's own `el('...')` lines. Guessing the mapping here would make this test
+  // check the list against itself.
+  const uiMap = src.slice(src.indexOf('const ui = {'), src.indexOf('function el(') > 0
+    ? src.indexOf('function el(') : src.indexOf('};', src.indexOf('const ui = {')));
+  const keyFor = {};
+  for (const [, key, id] of uiMap.matchAll(/(\w+):\s*el\('([\w-]+)'\)/g)) keyFor[id] = key;
+
+  const inMarkup = [...PAGE.matchAll(/<div class="shop" id="([\w-]+)"/g)].map((m) => m[1]);
+  const unregistered = inMarkup.filter((id) => !registered.includes(keyFor[id]));
+  assert.deepEqual(unregistered, [],
+    'these panels exist in the markup but are not in PANELS, so they stack on top of '
+    + `whatever is already open: ${unregistered.join(', ')}`);
+  assert.ok(inMarkup.length >= 8,
+    `expected a panel per feature; found ${inMarkup.length}: ${inMarkup.join(', ')}`);
+  assert.equal(registered.length, inMarkup.length,
+    `the registry lists ${registered.length} panels and the markup has ${inMarkup.length}. `
+    + 'Every .shop div needs an entry, or it stacks on top of whatever is open.');
+
+  // And no entry may be duplicated: two entries for one panel means closeOtherPanels
+  // closes it twice, and the second close focuses the opener of a panel already gone.
+  assert.equal(new Set(registered).size, registered.length,
+    `duplicate entries in PANELS: ${registered.join(', ')}`);
 });
