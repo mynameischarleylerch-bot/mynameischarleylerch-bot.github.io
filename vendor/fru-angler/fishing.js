@@ -3220,7 +3220,7 @@ export const AREAS = [
       water: '#2f81c4', accent: '#4fc3f7',
       haze: 'rgba(255, 255, 255, 0.75)', sun: 'rgba(255, 255, 255, 0.95)',
       deep: 'rgba(1, 58, 99, 0.3)',
-      art: './media/aero-lake.jpg?v=2026-10-04-Y',
+      art: './media/aero-lake.jpg?v=2026-10-04-Z',
     },
   },
   {
@@ -3255,7 +3255,7 @@ export const AREAS = [
       // hue shift that makes the blue wrong here; the measured hue barely moves
       // either way. The blue just bleaches the orange toward grey.
       deep: 'rgba(122, 46, 0, 0.3)',
-      art: './media/doric-delta.jpg?v=2026-10-04-Y',
+      art: './media/doric-delta.jpg?v=2026-10-04-Z',
     },
   },
   {
@@ -3298,7 +3298,7 @@ export const AREAS = [
       // A fix is one more palette key plus one more gradient layer; it is not
       // written blind, because it cannot be seen until it is rendered.
       deep: 'rgba(30, 62, 20, 0.3)',
-      art: './media/eco-marsh.jpg?v=2026-10-04-Y',
+      art: './media/eco-marsh.jpg?v=2026-10-04-Z',
     },
   },
   {
@@ -3339,7 +3339,7 @@ export const AREAS = [
       // scene's 78%, so the bobber lands in water and the marsh's grass problem
       // does not repeat here.
       deep: 'rgba(23, 74, 110, 0.3)',
-      art: './media/glacier-fjord.jpg?v=2026-10-04-Y',
+      art: './media/glacier-fjord.jpg?v=2026-10-04-Z',
     },
   },
   {
@@ -3380,7 +3380,7 @@ export const AREAS = [
       // here, stated as transparent rather than left carrying a colour that
       // does nothing.
       deep: 'rgba(0, 0, 0, 0)',
-      art: './media/dark-aero-deep.jpg?v=2026-10-04-Y',
+      art: './media/dark-aero-deep.jpg?v=2026-10-04-Z',
     },
   },
 ];
