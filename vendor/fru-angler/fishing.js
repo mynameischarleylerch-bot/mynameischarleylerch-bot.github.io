@@ -3061,10 +3061,18 @@ export const AREAS = [
       haze: 'rgba(150, 200, 240, 0.08)', sun: 'rgba(180, 225, 255, 0.22)',
       // The one lake a DARK bobber ring would disappear into: measured against its
       // own near-black water (#06221c) the default ring scores 1.01:1, where this
-      // accent scores 8.75:1. No art yet -- this is here so the lake is not a
-      // legibility trap the moment it is played, and so painting it later is one
-      // more palette line rather than a second fix.
+      // accent-adjacent cyan scores 8.75:1 unpainted. Re-measured against this
+      // picture it is 3.34:1, the tightest margin of the five, because the
+      // bobber lands on the lit green face of the slab rather than on black.
       bobberRing: 'rgba(127, 196, 232, 0.9)',
+      // No deepen, and that is the measured answer rather than a shrug: this
+      // picture's foreground sits at luminance 0.077, and deepening it toward
+      // the lake's own water (#06221c) at .3 moves luminance by 0.002 -- there is
+      // nothing left to take out of a near-black. So the gradient is a no-op
+      // here, stated as transparent rather than left carrying a colour that
+      // does nothing.
+      deep: 'rgba(0, 0, 0, 0)',
+      art: './media/dark-aero-deep.jpg?v=2026-10-04-Y',
     },
   },
 ];
