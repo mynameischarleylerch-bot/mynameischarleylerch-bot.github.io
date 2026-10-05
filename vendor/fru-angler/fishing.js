@@ -2975,6 +2975,22 @@ export const AREAS = [
       skyTop: '#a8cf8f', skyMid: '#c8e0b0', skyFloor: '#f6faf0',
       water: '#4e7a35', accent: '#7aa84a',
       haze: 'rgba(255, 255, 255, 0.45)', sun: 'rgba(255, 255, 245, 0.85)',
+      // The third lake, the third way the Aero blue literal is wrong -- and the
+      // mechanism is different again from the Delta's. Measured over this
+      // picture's foreground (84-99%, sat 0.363 / lum 0.373 / hue 106deg), the
+      // blue at .3 swings hue 24 DEGREES, 106 -> 130, turning the marsh green
+      // to teal. On the Delta it barely moved the hue and instead bleached the
+      // saturation. This dark green moves the hue 0.1deg and gains a little
+      // saturation. Darkening is comparable across all three (.044 on a
+      // foreground already at .373, against Aero's .098 on .612).
+      //
+      // KNOWN GAP, flagged rather than papered over: this picture has no water
+      // in it. The bottom is continuous hillside, so with the scene's own water
+      // rect at 0 for painted lakes, the bobber and the splash land on grass.
+      // A fix is one more palette key plus one more gradient layer; it is not
+      // written blind, because it cannot be seen until it is rendered.
+      deep: 'rgba(30, 62, 20, 0.3)',
+      art: './media/eco-marsh.jpg?v=2026-10-04-Y',
     },
   },
   {
