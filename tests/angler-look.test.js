@@ -237,7 +237,7 @@ test('rarity is shown as blocks under the name', () => {
 
 test('the game view keeps every element id angler.js and the tests rely on', () => {
   for (const id of [
-    'coins', 'rod', 'rod-stats', 'bestiary', 'message',
+    'coins', 'rod', 'rod-stats', 'bestiary', 'fa-say',
     'lake', 'bobber', 'splash', 'cast', 'cast-fill',
     'reel', 'reel-track', 'reel-player', 'reel-fish', 'reel-fill',
     'catch', 'catch-name', 'catch-meta', 'catch-value', 'catch-again',
@@ -456,7 +456,7 @@ test('the flat UI pieces have all gained gradients and gloss', () => {
     '.cast__band':    [/box-shadow/],
     '.reel__progress':[/gradient/, /box-shadow/],
     '.rod':           [/gradient|var\(--shine/, /box-shadow/],
-    '.message':       [/gradient/, /box-shadow/],
+    '.bubble--say':   [/gradient/, /box-shadow/],
   };
   for (const [sel, patterns] of Object.entries(need)) {
     const rule = PAGE.match(new RegExp(`${sel.replace('.', '\\.')}\\s*\\{([\\s\\S]*?)\\n  \\}`));
@@ -471,12 +471,38 @@ test('the flat UI pieces have all gained gradients and gloss', () => {
     'and deepen their shadow while lifted');
 });
 
-test('the hint bar fades in from transparent rather than boxing the lake', () => {
-  // .message covers the whole lake, so a solid background would draw a visible
-  // frame around the entire play area.
-  const rule = PAGE.match(/\.message\s*\{([^}]*)\}/)[1];
-  assert.match(rule, /rgba\([^)]*,\s*0\)/, 'the hint must start fully transparent');
-  assert.equal(/border:/.test(rule), false, 'a border would outline the whole lake');
+test('the message bubble is a bubble, not a slab over the lake', () => {
+  // This test used to be about .message: a full-lake overlay whose gradient had to
+  // start transparent so it did not draw a frame around the entire play area. That
+  // element is gone -- the message is a bubble beside the rod now -- so the question
+  // is the opposite one: does it stay a small pill, and does it actually disappear?
+  const body = PAGE.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = /\.bubble--say\s*\{([^}]*)\}/.exec(body);
+  assert.ok(rule, 'the message bubble must be styled');
+  const decl = rule[1];
+
+  // It must NOT cover the lake. `inset: 0` is what made the old one a slab.
+  assert.doesNotMatch(decl, /inset:\s*0/, 'a full-bleed message is the thing just removed');
+  assert.doesNotMatch(decl, /place-items:\s*center/,
+    'and it must not centre itself over the play area');
+
+  // Rounded, and narrow enough to be read as speech rather than a banner.
+  assert.match(decl, /border-radius:\s*1rem/, 'a speech bubble has rounded corners');
+  const max = /max-width:\s*([\d.]+)%/.exec(decl);
+  assert.ok(max && Number(max[1]) <= 50,
+    `a bubble wider than half the lake is a banner: ${max?.[1]}%`);
+
+  // And hidden means gone. Without this rule the bubble stays on screen as an empty
+  // pill, which is the idle state of the game.
+  assert.match(body, /\.bubble--say\[hidden\]\s*\{\s*display:\s*none/,
+    'an empty bubble must not linger on the water');
+
+  // The tail points back at the rod: the bubble is on the RIGHT of it, so its tail
+  // is on its left edge and mirrored, not the seal bubble's down-and-right.
+  const tail = /\.bubble--say \.bubble__tail\s*\{([^}]*)\}/.exec(body);
+  assert.ok(tail, 'the bubble needs a tail pointing at the rod');
+  assert.match(tail[1], /left:\s*-/, 'the tail sits on the LEFT edge, toward the rod');
+  assert.match(tail[1], /rotate\(45deg\)/, 'and is the same rotated square as the seal\'s');
 });
 
 

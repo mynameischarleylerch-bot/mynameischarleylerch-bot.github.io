@@ -89,11 +89,12 @@ const ui = {
   skyName: el('sky-name'),
   lakeClose: el('lake-close'),
   coins: el('coins'), rod: el('rod'), rodStats: el('rod-stats'), bestiary: el('bestiary'),
-  message: el('message'),
   line: el('line'),
   level: el('level'), levelTitle: el('level-title'), levelBar: el('level-progress'),
   sealWallet: el('seal-coins'),      // HUD
   bubble: el('fa-bubble'), bubbleText: el('fa-bubble-text'),
+  // The game's own speech, beside the rod. Was a full-screen <p class="message">.
+  say: el('fa-say'), sayText: el('fa-say-text'),
   notify: el('notify'),
   sealShopCoins: el('seal-shop-coins'),  // inside the seal shop
   sealHint: el('seal-shop-hint'),  // only shown with an empty dock
@@ -801,9 +802,35 @@ function setPhase(phase) {
   if (phase !== 'waiting') clearShake();
 }
 
+/**
+ * Say something, in the bubble beside the rod.
+ *
+ * This was a full-screen <p> with a blue gradient behind it. That covered the lake,
+ * and on a wide window the gradient read as a slab across the top of the game rather
+ * than as the angler talking -- it looked like the game was loading over itself.
+ *
+ * Empty text HIDES the bubble outright rather than showing an empty one. A message
+ * with no words in it is a rendering fault, not a message, and the idle state here is
+ * "nothing to say" rather than "saying nothing".
+ *
+ * No auto-hide timer, unlike the seal's bubble: this carries things like "Sold 3
+ * fish for 240 coins" that the player may be reading when they act, and the next
+ * message or the next panel replaces it. The seal's speech is chatter and can fade.
+ */
 function say(text) {
-  ui.message.hidden = !text;
-  ui.message.textContent = text || '';
+  if (!ui.say) return;
+  const line = text ? String(text).trim() : '';
+  if (!line) {
+    ui.say.setAttribute('hidden', '');
+    ui.say.classList.remove('is-speaking');
+    ui.sayText.textContent = '';
+    return;
+  }
+  // ONE text node, always: a second message replaces the first rather than stacking
+  // underneath it.
+  ui.sayText.textContent = line;
+  ui.say.classList.add('is-speaking');
+  ui.say.removeAttribute('hidden');
 }
 
 /* ------------------------------------------------------------------- shake */

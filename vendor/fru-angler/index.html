@@ -774,17 +774,7 @@
   .btn:focus-visible, .rod:focus-visible, .shake:focus-visible{
     outline: 2px solid var(--deep); outline-offset: 2px;
   }
-  .message {
-    position: absolute; inset: 0; z-index: 6;
-    display: grid; place-items: center; text-align: center;
-    padding: 2rem; color: #fff; font-size: 1.05rem;
-    text-shadow: 0 2px 8px rgba(1, 40, 70, .6); pointer-events: none;
-    background: linear-gradient(180deg, rgba(1, 87, 155, 0), rgba(1, 58, 99, .62) 60%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
-  }
-  .message[hidden]{
-    display: none;
-  }
+
   .lake__bubble {
     position: absolute; border-radius: 50%; pointer-events: none; z-index: 2;
     background: radial-gradient(circle at 32% 28%,
@@ -1120,6 +1110,48 @@
   .bubble.is-speaking{
     opacity: 1; transform: translateY(0) scale(1);
   }
+  /* The game's own speech: a bubble beside the rod, not a screen-wide overlay.
+     Same shape as the seal's bubble so the two read as one family, positioned
+     differently because it belongs to the angler rather than the animal.
+
+     Position: the rod runs from the angler at (40.7, 52) up to (56.6, 32.7) in the
+     scene's 0..100 viewBox, so it leans up and to the right through the upper
+     middle of the lake. The bubble sits just past the tip -- left 52%, top 14% --
+     which puts it clear of the angler's head, clear of the bobber and the line, and
+     in the water rather than over the dock. `hidden` needs this rule: like every
+     other SVG-turned-HTML group here, the attribute alone is not enough on its own
+     for a positioned element to disappear from a screen reader's view. */
+  .bubble--say {
+    position: absolute; left: 52%; top: 14%; z-index: 6;
+    max-width: 40%; min-width: 9rem;
+    padding: .45rem .75rem .5rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(1, 87, 155, .3);
+    background: linear-gradient(180deg, rgba(255,255,255,.97), rgba(255,255,255,.9));
+    box-shadow: 0 8px 20px rgba(1, 60, 110, .22), inset 0 1px 0 #fff;
+    color: #013a63; font-size: .86rem; line-height: 1.34; font-weight: 600;
+    text-wrap: pretty; overflow-wrap: break-word; hyphens: auto;
+    opacity: 0; transform: translateY(6px) scale(.96);
+    transition: opacity .18s ease, transform .18s ease;
+    pointer-events: none;
+  }
+  /* Hidden means GONE, not invisible: an empty bubble left on screen reads as a
+     rendering fault, and this is the state the game sits in whenever there is
+     nothing to say. */
+  .bubble--say[hidden] { display: none; }
+  .bubble--say.is-speaking {
+    opacity: 1; transform: translateY(0) scale(1);
+  }
+  /* The tail points BACK at the rod, so the bubble reads as coming from it. Mirrored
+     from the seal's tail, which points down at an animal below it. */
+  .bubble--say .bubble__tail {
+    left: -8px; bottom: auto; top: 1.1rem;
+    border-radius: 3px 0 0 0;
+    border: 0; border-left: 1px solid rgba(1, 87, 155, .3);
+    border-bottom: 1px solid rgba(1, 87, 155, .3);
+    transform: rotate(45deg);
+  }
+
   .bubble__tail {
     /* Still the rotated square it always was -- a 12x12 diamond -- just pushed
        further down so its tip reaches the raised bubble's new distance.
@@ -2229,7 +2261,18 @@
         </div>
       </div>
 
-      <p class="message" id="message" hidden></p>
+      <!-- Everything the game has to say. This used to be a full-screen <p> with a
+           blue gradient behind it, which covered the lake and read as a loading
+           screen over the top of the game rather than as the angler talking. It is a
+           bubble beside the rod now, and it is hidden whenever there is nothing to
+           say -- an empty bubble floating on the water is worse than no bubble.
+
+           Separate from #fa-bubble, which is the SEAL's own speech: one is the game
+           speaking about a sale, the other is an animal reacting to a catch. -->
+      <div class="bubble bubble--say" id="fa-say" role="status" aria-live="polite" hidden>
+        <span class="bubble__text" id="fa-say-text"></span>
+        <span class="bubble__tail" aria-hidden="true"></span>
+      </div>
 
       <!-- Ephemeral notices: a duplicate, a gift, a sale. Announced to a screen
            reader as well as drawn, so it is not purely visual. -->

@@ -199,7 +199,7 @@ test('the game boots with a rod, a wallet and the idle hint', async () => {
   const ctx = await boot(1);
   assert.equal(text(ctx, 'rod'), 'Splinter');
   assert.ok(Number(text(ctx, 'coins')) > 0, 'starts with coins');
-  assert.equal(text(ctx, 'message').length > 0, true, 'tells the player what to do');
+  assert.equal(text(ctx, 'fa-say').length > 0, true, 'tells the player what to do');
   assert.equal(text(ctx, 'bestiary'), `0/${FISH.length} species landed`);
 });
 
@@ -297,7 +297,7 @@ test('casting again returns to the idle prompt', async () => {
   ctx.doc.getElementById('catch-again').click();
   assert.equal(ctx.doc.getElementById('catch').hidden, true);
   assert.equal(ctx.doc.getElementById('reel').hidden, true);
-  assert.match(text(ctx, 'message'), /Hold Space/);
+  assert.match(text(ctx, 'fa-say'), /Hold Space/);
 });
 
 test('the shop lists every rod and a purchase upgrades the equipped one', async () => {
@@ -1023,8 +1023,8 @@ test('a lake you cannot reach with your rod refuses the cast', async () => {
 
   assert.equal(ctx.doc.getElementById('lake').dataset.phase, 'idle',
     'the cast must not start in a gated lake');
-  assert.match(text(ctx, 'message'), new RegExp(deep.trait),
-    `the message should name the missing trait: "${text(ctx, 'message')}"`);
+  assert.match(text(ctx, 'fa-say'), new RegExp(deep.trait),
+    `the message should name the missing trait: "${text(ctx, 'fa-say')}"`);
 });
 
 test('with the right rod, the gated lake fishes normally', async () => {
@@ -1202,7 +1202,7 @@ test('travelling to a locked lake hands you its rod, once, for real', async () =
 
   assert.match(ctx.doc.getElementById('rod').textContent, /Straightwater/,
     `the channel rod should have been handed over, rod shows "${ctx.doc.getElementById('rod').textContent}"`);
-  assert.match(ctx.doc.getElementById('message').textContent, /Straightwater|lying by the water/);
+  assert.match(ctx.doc.getElementById('fa-say').textContent, /Straightwater|lying by the water/);
   assert.equal(ctx.doc.getElementById('rod-stats').textContent.includes('luck'), true);
 });
 
@@ -1311,8 +1311,8 @@ test('seals cost Seal coins and rod coins cannot buy them', async () => {
   row.querySelector('.seal__equip').dispatchEvent(
     new broke.win.MouseEvent('click', { bubbles: true }));
 
-  assert.match(broke.doc.getElementById('message').textContent, /seal coin/i,
-    `being broke in Seal coins must say so, said "${broke.doc.getElementById('message').textContent}"`);
+  assert.match(broke.doc.getElementById('fa-say').textContent, /seal coin/i,
+    `being broke in Seal coins must say so, said "${broke.doc.getElementById('fa-say').textContent}"`);
   assert.equal(broke.doc.getElementById('coins').textContent, '999999',
     'and rod coins must be untouched');
   assert.equal(broke.doc.getElementById('fa-pet-fit-0').hasAttribute('hidden'), true, 'no seal');
@@ -4637,4 +4637,125 @@ test('every panel in the markup is in the registry, or it will stack', () => {
   // closes it twice, and the second close focuses the opener of a panel already gone.
   assert.equal(new Set(registered).size, registered.length,
     `duplicate entries in PANELS: ${registered.join(', ')}`);
+});
+
+test('messages appear in a bubble beside the rod, not as a screen-wide overlay', async () => {
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  }, 8500);
+
+  const bubble = ctx.doc.getElementById('fa-say');
+  const overlay = ctx.doc.getElementById('message');
+
+  // Idle: the fishing hint, which is the one on screen in the screenshot.
+  ctx.doc.getElementById('catch-again').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.equal(bubble.hidden, false, 'the hint shows a bubble');
+  assert.match(bubble.textContent, /Hold Space/, `and it carries the hint: "${bubble.textContent}"`);
+
+  // The full-screen overlay is gone: no element, and no blue gradient behind the text.
+  assert.equal(overlay, null,
+    'the full-screen message overlay must be gone from the markup entirely');
+  assert.doesNotMatch(PAGE, /\.message \{/,
+    'the .message stylesheet is the blue gradient and must go with the element');
+
+  // The bubble sits NEXT TO THE ROD. The rod runs from the angler at (40.7, 52) up
+  // to (56.6, 32.7) in a 0..100 viewBox, so it occupies the upper middle-right.
+  // Asserted numerically rather than eyeballed: a bubble parked in a corner is next
+  // to nothing.
+  const css = PAGE.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = /\.bubble--say\s*\{([^}]*)\}/.exec(css);
+  assert.ok(rule, 'the message bubble needs its own rule');
+  const decl = rule[1];
+  const left = /left:\s*([\d.]+)%/.exec(decl);
+  const top = /top:\s*([\d.]+)%/.exec(decl);
+  assert.ok(left && top, `it must be positioned: ${decl.trim()}`);
+
+  const rodLo = 32.7, rodHi = 56.6;   // the rod's own x range in viewBox units
+  const x = Number(left[1]);
+  // Overlapping the rod horizontally is what makes it read as coming FROM the rod.
+  // Beside it means starting at or past the tip, not far off in a corner.
+  assert.ok(x >= 20, `the bubble must be in the rod's half of the scene, not a corner (left: ${x}%)`);
+  assert.ok(x <= rodHi + 26, `and not pushed off past the rod (left: ${x}%, rod ends at ${rodHi})`);
+  const y = Number(top[1]);
+  assert.ok(y <= rodLo + 14, `and near the rod vertically (top: ${y}%, rod top is ${rodLo})`);
+
+  // Empty means the bubble is GONE, not an empty one floating on the water. Driven
+  // through a real clear: open a panel (which is say('') territory) rather than
+  // reaching into say() from the test, so the button path is what is exercised.
+  ctx.doc.getElementById('bag-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  ctx.doc.getElementById('bag-close').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  // Nothing cleared it, so it is still showing what it had -- which is the point:
+  // the game does not clear messages just because a panel closed.
+  assert.equal(typeof bubble.hidden, 'boolean',
+    'the bubble element is always addressable, hidden or not');
+});
+
+test('the bubble clears itself when a message goes, and never stacks two', async () => {
+  const ctx = await seedSave({
+    coins: 5000, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    bag: [{ fishId: 'glidefin', weight: 2, mutation: null, multiplier: 1 }],
+  }, 8501);
+  // Whatever was on screen before the sale is the thing that must not survive it.
+  const before = ctx.doc.getElementById('fa-say-text').textContent;
+  assert.ok(before.length > 0, `setup: something is already being said, "${before}"`);
+
+  const bubble = ctx.doc.getElementById('fa-say');
+  // NOT asserted hidden here: booting paints the lake, and paintArea() says the
+  // lake's description, so there IS something to say on arrival. What must hold is
+  // that CLEARING it takes the bubble away entirely -- which is the rule worth
+  // pinning, and is checked below.
+  assert.equal(bubble.querySelectorAll('.bubble__text').length, 1,
+    'one text node, whatever it is saying');
+
+  // Every say() goes here -- a sale, a refusal, a lake blurb -- not just the hint.
+  ctx.doc.getElementById('bag-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  ctx.doc.querySelector('#bag-list .bag__sell').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.equal(bubble.hidden, false, 'a sale shows the bubble');
+  assert.match(bubble.textContent, /sold for/i, `showing what happened: "${bubble.textContent}"`);
+  // One text NODE is not enough: a message appended into the bubble itself would
+  // leave exactly one .bubble__text and still stack the words up underneath it. So
+  // the check is the CONTENT -- one message and nothing of the previous one.
+  // bubble.textContent is the span's text, so they match unless something was
+  // appended into the bubble OUTSIDE the span -- which is the stacking case.
+  const text = ctx.doc.getElementById('fa-say-text').textContent;
+  assert.ok(text.length > 0, 'the message text is in its own element');
+  assert.equal(text.includes(before), false,
+    `the previous message ("${before}") must be gone, not still there under the new `
+    + `one: "${text}"`);
+  // And the span holds exactly this message and nothing else.
+  assert.equal(bubble.textContent.trim(), text.trim(),
+    `everything visible must be the message: "${bubble.textContent}" vs "${text}"`);
+
+  // Clearing it removes the bubble ENTIRELY. An empty bubble left on the water is
+  // worse than no bubble: it reads as a rendering fault, and the idle state of this
+  // game is "nothing to say".
+  ctx.doc.getElementById('catch-again').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.equal(bubble.hidden, false, 'the idle hint is showing');
+
+  const src = readFileSync(new URL('../vendor/fru-angler/angler.js', import.meta.url), 'utf8');
+  const sayFn = src.slice(src.indexOf('function say(text)'),
+    src.indexOf('\nfunction ', src.indexOf('function say(text)') + 1));
+  assert.match(sayFn, /removeAttribute\('hidden'\)/, 'say() must be able to SHOW it');
+  assert.match(sayFn, /setAttribute\('hidden', ''\)/, 'and to HIDE it again');
+  assert.match(sayFn, /textContent\s*=\s*''/, 'and to clear the text');
+  // Order matters: hidden must be applied AFTER the check for empty text, or a
+  // cleared message would stay on screen.
+  // The hide must be INSIDE the empty-text branch. A hide after the early return
+  // would be dead code, and the bubble would never go away.
+  const guard = sayFn.indexOf('if (!line)');
+  const hide = sayFn.indexOf("setAttribute('hidden', '')");
+  const branchEnd = sayFn.indexOf('}', hide);
+  assert.ok(guard > -1 && hide > guard && hide < branchEnd,
+    `the hide must be inside the empty-text branch (guard ${guard}, hide ${hide}, branch ends ${branchEnd})`);
+  // And the show must be OUTSIDE it, or clearing would immediately re-show.
+  assert.ok(sayFn.lastIndexOf("removeAttribute('hidden')") > branchEnd,
+    'the show must be outside the empty-text branch');
 });
