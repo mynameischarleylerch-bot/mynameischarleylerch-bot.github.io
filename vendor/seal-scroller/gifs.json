@@ -1,6 +1,6 @@
 {
   "generated": "user supplied",
-  "credit": "Photographs supplied by The creator for personal use. Not Creative Commons — do not redistribute.",
+  "credit": "Photographs and video clips supplied by The creator for personal use. Not Creative Commons — do not redistribute.",
   "items": [
     {
       "file": "stars/seal-01.png",
@@ -138,6 +138,60 @@
     {
       "file": "stars/seal-20.png",
       "title": "Seal 20",
+      "creator": "The creator",
+      "license": "all rights reserved",
+      "source": ""
+    },
+    {
+      "file": "stars/seal-21.webp",
+      "title": "Seal 21",
+      "creator": "The creator",
+      "license": "all rights reserved",
+      "source": ""
+    },
+    {
+      "file": "stars/seal-22.webp",
+      "title": "Seal 22",
+      "creator": "The creator",
+      "license": "all rights reserved",
+      "source": ""
+    },
+    {
+      "file": "clips/seal-23.mp4",
+      "poster": "clips/seal-23.webp",
+      "title": "Seal 23",
+      "creator": "The creator",
+      "license": "all rights reserved",
+      "source": ""
+    },
+    {
+      "file": "clips/seal-24.mp4",
+      "poster": "clips/seal-24.webp",
+      "title": "Seal 24",
+      "creator": "The creator",
+      "license": "all rights reserved",
+      "source": ""
+    },
+    {
+      "file": "clips/seal-25.mp4",
+      "poster": "clips/seal-25.webp",
+      "title": "Seal 25",
+      "creator": "The creator",
+      "license": "all rights reserved",
+      "source": ""
+    },
+    {
+      "file": "clips/seal-26.mp4",
+      "poster": "clips/seal-26.webp",
+      "title": "Seal 26",
+      "creator": "The creator",
+      "license": "all rights reserved",
+      "source": ""
+    },
+    {
+      "file": "clips/seal-27.mp4",
+      "poster": "clips/seal-27.webp",
+      "title": "Seal 27",
       "creator": "The creator",
       "license": "all rights reserved",
       "source": ""

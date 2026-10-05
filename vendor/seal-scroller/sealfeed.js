@@ -14,7 +14,7 @@ import { loadLikes, saveLikes, toggleLike } from './likes.js?v=2026-10-01-a';
  * build id. Bump BUILD_ID in a commit whenever gifs.json or sources.json changes
  * and every visitor picks it up on their next normal load.
  */
-const BUILD_ID = '2026-10-01-the-creator';
+const BUILD_ID = '2026-10-04-clips';
 const MANIFEST_URL = `./gifs.json?v=${BUILD_ID}`;
 const SOURCES_URL = `./sources.json?v=${BUILD_ID}`;
 const PRELOAD_RADIUS = 2;   // neighbours either side get eager loading
@@ -41,17 +41,79 @@ function showMessage(text) {
   dotsEl.innerHTML = '';
 }
 
+/*
+ * The feed carries two kinds of slide: a still photograph, and a short video
+ * clip. Both live in ./media/, and the manifest says which by file extension —
+ * gifs.json has no "type" field, so adding a clip is just adding an item whose
+ * file ends in .mp4 with a matching poster.
+ */
+const VIDEO_EXTENSIONS = /\.(mp4|webm|mov)$/i;
+const isVideo = (item) => VIDEO_EXTENSIONS.test(item.file);
+
+/*
+ * prefers-reduced-motion means the visitor asked for nothing to move on its
+ * own, so a clip is never started automatically and the poster frame stays up.
+ * Tapping it is then the only way to play. Every clip carries a poster, which
+ * is what makes that acceptable.
+ */
+const motionAllowed = () =>
+  !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/*
+ * play() returns a promise that rejects when the browser refuses (autoplay
+ * policy, a decode error). On a slide the visitor did not choose that must not
+ * become an unhandled rejection, so it is swallowed and the poster stays.
+ */
+function playClip(video) {
+  const started = video.play?.();
+  if (started && typeof started.catch === 'function') started.catch(() => {});
+}
+
+/*
+ * Tapping a clip pauses it; tapping again plays it. playClip/pauseClip are the
+ * only things that touch playback, so a clip the visitor has paused is never
+ * yanked back by a scroll. The like button calls stopPropagation(), so liking
+ * a slide can never reach this handler.
+ */
+function bindClipToggle() {
+  feedEl.addEventListener('click', (event) => {
+    const video = event.target.closest('.slide__video');
+    if (!video) return;
+    if (video.paused) {
+      delete video.dataset.pausedByUser;
+      playClip(video);
+    } else {
+      video.dataset.pausedByUser = 'true';
+      video.pause?.();
+    }
+  });
+}
+
 function renderSlides(items) {
   // No counter anywhere: the badge and the dots both leaked the total, so the
   // feed is an endless-feeling scroll rather than a finite list.
   feedEl.innerHTML = items
-    .map(
-      (item, index) => `
+    .map((item, index) => {
+      const src = `./media/${escapeHtml(item.file)}`;
+      const eager = index <= PRELOAD_RADIUS ? 'eager' : 'lazy';
+      /*
+       * A clip autoplays muted and loops, and is stopped by setActive() the
+       * moment it scrolls off screen — five videos decoding at once would peg
+       * the CPU. The poster is a still of frame one, so the slide shows
+       * something before the first byte of video arrives.
+       */
+      const media = isVideo(item)
+        ? `<video class="slide__video" data-video src="${src}"
+                 ${item.poster ? `poster="./media/${escapeHtml(item.poster)}"` : ''}
+                 muted loop playsinline preload="${index <= PRELOAD_RADIUS ? 'auto' : 'none'}"
+                 aria-label="${escapeHtml(item.title)}"></video>`
+        : `<img class="slide__img" src="${src}"
+                 alt="${escapeHtml(item.title)}" loading="${eager}"
+                 decoding="async" draggable="false">`;
+      return `
       <section class="slide" data-index="${index}" aria-label="${escapeHtml(item.title)}">
         <div class="slide__frame">
-          <img class="slide__img" src="./media/${escapeHtml(item.file)}"
-               alt="${escapeHtml(item.title)}" loading="${index <= PRELOAD_RADIUS ? 'eager' : 'lazy'}"
-               decoding="async" draggable="false">
+          ${media}
         </div>
         <button class="like" type="button" data-like="${index}" aria-pressed="false"
                 aria-label="Like this seal">
@@ -66,9 +128,9 @@ function renderSlides(items) {
                </a>`
             : `<span class="slide__by">${escapeHtml(item.creator)} · ${escapeHtml(item.license)}</span>`}
         </div>
-      </section>`,
-    )
-    .join('');
+      </section>`;
+            })
+            .join('');
 }
 
 /* The dots used to render one per seal, which gave the total away. Removed. */
@@ -83,8 +145,21 @@ function setActive(index, items) {
     const slideIndex = Number(slide.dataset.index);
     slide.classList.toggle('is-active', slideIndex === active);
     const img = slide.querySelector('.slide__img');
-    // Only neighbours are worth decoding; the rest stay lazy.
-    img.loading = isAdjacent(slideIndex, active, PRELOAD_RADIUS) ? 'eager' : 'lazy';
+    const video = slide.querySelector('.slide__video');
+    if (img) {
+      // Only neighbours are worth decoding; the rest stay lazy.
+      img.loading = isAdjacent(slideIndex, active, PRELOAD_RADIUS) ? 'eager' : 'lazy';
+    }
+    if (video) {
+      // Only the slide you are looking at plays. Every other clip is paused, so
+      // scrolling through a photo costs nothing and a clip costs one decoder.
+      // A clip the visitor paused by tapping it is left alone.
+      if (slideIndex !== active) {
+        video.pause?.();
+      } else if (video.dataset.pausedByUser !== 'true' && motionAllowed()) {
+        playClip(video);
+      }
+    }
   }
   renderProgress(active);
   // Deliberately no "n / total" here — the feed should not advertise its length.
@@ -242,6 +317,7 @@ async function main() {
   setActive(0, items);
   bindScroll(items);
   bindLikes();
+  bindClipToggle();
   loadSources();
 }
 

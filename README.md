@@ -74,12 +74,33 @@ A vertical, snap-scrolling feed in the same Aero glass as the rest of the site. 
 page keys, mouse wheel and touch all work; the last seal wraps to the top. Each photo gets a
 slow CSS pan/zoom so it reads as a moving clip.
 
+The feed holds **two kinds of slide**. A photograph is an `<img>` and gets the Ken Burns pan.
+A clip is a `<video>` in `media/clips/`, plays muted and looping, and does **not** get the pan —
+scaling a moving picture reads as a wobble, not as cinema. `gifs.json` has no `type` field: a
+slide is a clip purely because its `file` ends in `.mp4`/`.webm`/`.mov`, and it names a `poster`
+still of frame one so something shows before the video arrives.
+
+**Only the visible clip plays.** `setActive()` pauses every other clip on each scroll, so the
+feed costs one video decoder instead of five. Tapping a clip pauses it, and a later scroll will
+not override that choice — the visitor's decision outranks the autoplay rule. The like button
+calls `stopPropagation()`, so liking a slide can never pause its clip. Under
+`prefers-reduced-motion: reduce` nothing autoplays at all and the poster stays up.
+
+**Every clip is H.264/AAC in yuv420p with `+faststart`.** This is not incidental: four of the
+five supplied `.mp4` files were VP9-in-an-MP4-container, which Chrome plays and **Safari on
+iPhone does not**, so those seals would have been black rectangles for most visitors. They were
+re-encoded rather than copied. The same pass capped the long edge at 960×1200 and the bitrate
+per second of runtime, taking 13.2 MB of originals down to 7.4 MB in the repository.
+
 ### Where the photos come from
 
-The photographs in `vendor/seal-scroller/media/stars/` were **supplied directly by The
-creator** for this site, and each slide credits them as "The creator". They are not Creative
-Commons and are committed for personal use only — do not redistribute them. `gifs.json`
-records the credit line and the file order.
+The photographs in `vendor/seal-scroller/media/stars/` and the video clips in
+`vendor/seal-scroller/media/clips/` were **supplied directly by The creator** for this site, and
+each slide credits them as "The creator". They are not Creative Commons and are committed for
+personal use only — do not redistribute them. `gifs.json` records the credit line and the file
+order. Adding a clip is three steps: drop the file in `media/clips/`, export a frame-one still
+beside it, and add an item with both paths. `tests/seal-sources.test.js` fails if a manifest
+entry points at a file that is not on disk, so a typo cannot ship as a broken slide.
 
 `scripts/fetch-seals.mjs` is **disabled**. It used to pull CC-licensed photos from
 [Openverse](https://openverse.org), and it exited non-zero rather than being deleted because
@@ -116,7 +137,12 @@ the layout. Under 760px, where there is no room beside the feed, the panel slide
 bottom instead of across.
 
 `tests/seal-sources.test.js` covers the collapsed initial state, all three ways of closing,
-`aria-expanded` wiring, the three links, and that the feed still renders. The close-button test
+`aria-expanded` wiring, the three links, and that the feed still renders. It also covers the
+clips: that every manifest entry resolves to a real file, that each clip is muted/looping/
+inline with a poster, that only the visible clip plays, and that tapping or liking a clip
+behaves. jsdom has no media stack, so the test stubs `play`/`pause` and records the calls, and
+boots with `pretendToBeVisual` — the scroll handler is `requestAnimationFrame`-throttled and
+without that flag every scroll would silently no-op. The close-button test
 exists because rendering the sources used to overwrite the aside's `innerHTML` and silently
 delete the `×` button.
 
@@ -132,9 +158,9 @@ covered by an open-source licence. You may read it, but you may not copy, modify
 redistribute, republish, sub-license, sell, or build derivative works from it without
 written permission. See [LICENSE](LICENSE).
 
-The photographs in `vendor/seal-scroller/media/stars/` are **not** covered by that notice
-and are not open either — they are credited on screen as "The creator" and are for personal,
-non-commercial display only.
+The photographs in `vendor/seal-scroller/media/stars/` and the clips in
+`vendor/seal-scroller/media/clips/` are **not** covered by that notice and are not open either —
+they are credited on screen as "The creator" and are for personal, non-commercial display only.
 
 The repository is public because GitHub Pages only serves public repositories on the free
 plan. That is a hosting constraint, not an invitation to reuse the code.

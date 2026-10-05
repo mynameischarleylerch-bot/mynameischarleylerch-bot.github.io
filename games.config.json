@@ -48,15 +48,16 @@
     {
       "slug": "seal-scroller",
       "title": "Seal Scroller",
-      "summary": "An endless vertical feed of seals, panning slowly past.",
+      "summary": "An endless vertical feed of seals: slow-panning photos and playing clips.",
       "repoUrl": "https://github.com/mynameischarleylerch-bot",
       "playUrl": "./vendor/seal-scroller/index.html",
       "cover": "./assets/covers/seal-scroller.svg",
       "tags": [
         "scroller",
-        "photography"
+        "photography",
+        "video"
       ],
-      "controls": "Scroll or arrow keys",
+      "controls": "Scroll or arrow keys. Tap a clip to pause it",
       "year": 2026,
       "featured": false
     },

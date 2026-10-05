@@ -71,6 +71,18 @@
     to   { transform: scale(1.14) translate(-2%, -1.5%); }
   }
 
+  /* A clip fills the same frame as a photo, but must NOT get the Ken Burns pan:
+     scaling a moving picture reads as a wobble rather than as cinema. */
+  .slide__video {
+    width: 100%; height: 100%;
+    /* The clips are a mix of portrait and landscape; object-fit keeps each one
+       from being stretched, whatever shape it was shot at. */
+    object-fit: cover;
+    display: block;
+    background: #0d2a3d;   /* same letterbox colour the frame already uses */
+    cursor: pointer;
+  }
+
   /* Like button — bottom-left of the slide, clear of the credit line. */
   .like {
     position: absolute;
@@ -246,6 +258,6 @@
     running stale JS for up to ten minutes — which is what kept the old credit
     line on screen after the data had already been fixed.
   -->
-  <script type="module" src="./sealfeed.js?v=2026-10-01-a"></script>
+  <script type="module" src="./sealfeed.js?v=2026-10-04-clips"></script>
 </body>
 </html>
