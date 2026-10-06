@@ -1495,7 +1495,7 @@ function paintSky(sky) {
 }
 
 function paintArea(area) {
-  const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art, deep, bobberRing } = area.palette;
+  const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art, deep, bobberRing, wood, woodDeep } = area.palette;
 
   // TINT the lake toward the scheme being worn.
   //
@@ -1520,6 +1520,10 @@ function paintArea(area) {
   ui.lake.style.setProperty('--accent', solid(accent));
   ui.lake.style.setProperty('--haze-tint', glassy(haze));
   ui.lake.style.setProperty('--sun', glassy(sun));
+  // Also tint the dock wood toward the worn scheme.
+  // The pier, seal area, and rod rest all use --wood/--wood-deep.
+  if (wood) ui.lake.style.setProperty('--wood', solid(wood));
+  if (woodDeep) ui.lake.style.setProperty('--wood-deep', solid(woodDeep));
   // How far the near water is deepened, and in whose colour. Set unconditionally,
   // not with the art below: only a painted lake consumes it, and a lake whose art
   // is added later must not inherit the colour of whichever lake you left.

@@ -2214,7 +2214,7 @@ export const PALETTES = {
     deep: '#0288d1', deepest: '#013a63', inkSoft: '#01579b',
     skyTop: '#e1f5fe', skyMid: '#4fc3f7', skyFloor: '#0288d1',
     sun: '#fff9c4', haze: 'rgba(2, 136, 209, 0.3)',
-    wood: '#a9714a', woodDeep: '#7d4f2e',
+    wood: '#8d6e63', woodDeep: '#5d4037',
   },
   // Tier 3: Bright blue - travelling
   poolside: {
@@ -2222,7 +2222,7 @@ export const PALETTES = {
     deep: '#039be5', deepest: '#013a63', inkSoft: '#01579b',
     skyTop: '#e3f2fd', skyMid: '#29b6f6', skyFloor: '#039be5',
     sun: '#fff9c4', haze: 'rgba(3, 155, 229, 0.35)',
-    wood: '#a9714a', woodDeep: '#7d4f2e',
+    wood: '#795548', woodDeep: '#4e342e',
   },
   // Tier 4: Deep blue - a companion
   deep: {
@@ -2230,7 +2230,7 @@ export const PALETTES = {
     deep: '#1565c0', deepest: '#0d1b5e', inkSoft: '#1565c0',
     skyTop: '#e3f2fd', skyMid: '#1e88e5', skyFloor: '#1565c0',
     sun: '#fff9c4', haze: 'rgba(21, 101, 192, 0.4)',
-    wood: '#a9714a', woodDeep: '#7d4f2e',
+    wood: '#6d4c41', woodDeep: '#3e2723',
   },
   // Tier 5: Darker blue - mastery
   midnight: {
@@ -2238,7 +2238,7 @@ export const PALETTES = {
     deep: '#1a237e', deepest: '#0d1b5e', inkSoft: '#1a237e',
     skyTop: '#e8eaf6', skyMid: '#3f51b5', skyFloor: '#1a237e',
     sun: '#ffd54f', haze: 'rgba(26, 35, 126, 0.45)',
-    wood: '#a9714a', woodDeep: '#7d4f2e',
+    wood: '#5d4037', woodDeep: '#3e2723',
   },
   // Tier 6: Indigo - rare things
   biolum: {
@@ -2246,7 +2246,7 @@ export const PALETTES = {
     deep: '#311b92', deepest: '#0d1b5e', inkSoft: '#311b92',
     skyTop: '#e8eaf6', skyMid: '#5c6bc0', skyFloor: '#311b92',
     sun: '#7c4dff', haze: 'rgba(49, 27, 146, 0.5)',
-    wood: '#a9714a', woodDeep: '#7d4f2e',
+    wood: '#4e342e', woodDeep: '#3e2723',
   },
   // Tier 7: Violet - night/deep water
   aurora: {
@@ -2254,7 +2254,7 @@ export const PALETTES = {
     deep: '#4a148c', deepest: '#21155e', inkSoft: '#4a148c',
     skyTop: '#f3e5f5', skyMid: '#ab47bc', skyFloor: '#4a148c',
     sun: '#e040fb', haze: 'rgba(74, 20, 140, 0.55)',
-    wood: '#a9714a', woodDeep: '#7d4f2e',
+    wood: '#3e2723', woodDeep: '#212121',
   },
   // Tier 8: Dark violet - the deep
   abyss: {
@@ -2262,7 +2262,7 @@ export const PALETTES = {
     deep: '#1a0a3a', deepest: '#000000', inkSoft: '#1a0a3a',
     skyTop: '#ede7f6', skyMid: '#4a148c', skyFloor: '#1a0a3a',
     sun: '#d500f9', haze: 'rgba(26, 35, 126, 0.65)',
-    wood: '#a9714a', woodDeep: '#7d4f2e',
+    wood: '#212121', woodDeep: '#000000',
   },
   // Tier 9: Near-black iridescent - everything
   void: {
@@ -2270,7 +2270,7 @@ export const PALETTES = {
     deep: '#1a0a3a', deepest: '#000000', inkSoft: '#1a0a3a',
     skyTop: '#f3e5f5', skyMid: '#4a148c', skyFloor: '#1a0a3a',
     sun: '#fff9c4', haze: 'rgba(255, 255, 255, 0.85)',
-    wood: '#424242', woodDeep: '#212121',
+    wood: '#000000', woodDeep: '#000000',
   },
 };
 
