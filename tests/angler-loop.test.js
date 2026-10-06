@@ -11,10 +11,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
-import { FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
+import { rollMutation, FISH, RARITY_ORDER, fishIndex, hookLineFor, AREAS,
          RODS, RODS_BY_PRICE, SEALS, startingLoadout, TIMES, WEATHER, LOST_ITEMS,
          UPGRADES, BASE_BAG_CAP, bagCap, ACHIEVEMENTS, PALETTES,
-} from '../vendor/fru-angler/fishing.js?v=2026-10-04-z';
+} from '../vendor/fru-angler/fishing.js?v=2026-10-05-A';
 
 const PAGE = readFileSync(
   new URL('../vendor/fru-angler/index.html', import.meta.url),
@@ -4838,3 +4838,457 @@ test('the palette is applied on load, and an unearned one is refused there too',
   assert.equal(fresh.doc.documentElement.dataset.palette, 'aero',
     'a save with no scheme at all is simply your own look');
 });
+
+test('the lake itself changes colour when a scheme is worn', async () => {
+  // THE bug this test exists for. applyPalette() set the scheme on <html>, and
+  // paintArea() set --sky-top and friends as INLINE styles on #lake. Inline styles
+  // beat any selector, so every lake kept its own colours and an achievement changed
+  // nothing visible in the scene -- the panels and HUD text moved, the water did not.
+  const lake = (ctx) => ctx.doc.getElementById('lake');
+  const sky = (ctx) => lake(ctx).style.getPropertyValue('--sky-top');
+  const water = (ctx) => lake(ctx).style.getPropertyValue('--water');
+
+  const plain = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  }, 8620);
+  const own = { sky: sky(plain), water: water(plain) };
+  assert.match(own.sky, /^#[0-9a-f]{6}$/i, `a lake has a sky: ${own.sky}`);
+
+  // Frutiger Aero is your own look: the lake must be EXACTLY as it was.
+  assert.equal(own.sky, '#81d4fa', 'Aero Lake keeps its own sky when nothing is earned');
+
+  // Earn a scheme, and the same lake must come out different.
+  const worn = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: { glidefin: 1 },
+    areaId: 'aero-lake', xp: 0, ownedSeals: [], equippedSeal: [], lost: [],
+    giftedRods: [], sealCoins: 0, palette: 'lagoon',
+  }, 8621);
+  assert.notEqual(sky(worn), own.sky,
+    `wearing Lagoon must change the lake's sky, but it is still ${sky(worn)}`);
+  assert.notEqual(water(worn), own.water,
+    `and its water, but it is still ${water(worn)}`);
+
+  // The strongest scheme must change it MOST. This is what "cooler as it gets
+  // harder" means in practice rather than in a table of hex values.
+  const last = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: ['bubbles', 'tangerine', 'moss', 'frost', 'abyss'],
+    equippedSeal: ['bubbles'], lost: [], giftedRods: [], sealCoins: 0,
+    palette: 'void',
+  }, 8622);
+  const shift = (hex) => {
+    const h = hex.replace('#', '');
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  };
+  const gap = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
+  const lagoonGap = gap(shift(sky(worn)), shift(own.sky));
+  const voidGap = gap(shift(sky(last)), shift(own.sky));
+  assert.ok(voidGap > lagoonGap,
+    `The Void must shift the lake further than Lagoon does: ${voidGap} vs ${lagoonGap}`);
+
+  // And a lake keeps its own character: Eco Marsh must stay GREENER than
+  // Dark Aero Deep after the same scheme is applied to both.
+  const marsh = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'eco-marsh',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    palette: 'lagoon',
+  }, 8623);
+  const greenness = (hex) => {
+    const [r, g, b] = shift(hex);
+    return g - (r + b) / 2;
+  };
+  assert.ok(greenness(sky(marsh)) > 0,
+    `Eco Marsh must still read as marsh-green under a blue scheme, not ${sky(marsh)}`);
+});
+
+test('picking a scheme changes the lake there and then, alpha intact', async () => {
+  // Two paths, only one of which was tested. Boot was covered; the CLICK was not, so
+  // the picker could repaint nothing and still pass -- applyPalette() publishes root
+  // tokens, and paintArea() writes inline styles over them, so without an explicit
+  // repaint picking a colour does nothing at all.
+  const lakeOf = (ctx) => ctx.doc.getElementById('lake');
+  const cssVar = (ctx, name) => lakeOf(ctx).style.getPropertyValue(name);
+  const before = {};
+
+  // Enough progress to have earned several schemes, so there is more than one thing
+  // to switch BETWEEN. A single scheme cannot tell "the click repaints" from "the
+  // click did nothing and the lake already looked like that".
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: { glidefin: 1 },
+    areaId: 'aero-lake', xp: 27_000, ownedSeals: [], equippedSeal: [], lost: [],
+    giftedRods: [], sealCoins: 0,
+    stats: { catches: 150, peakBag: 10, lakesVisited: 5 },
+  }, 8624);
+
+  // Earn several schemes so there is somewhere to switch TO.
+  ctx.doc.getElementById('trophy-open').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+  // The sky is read AFTER the click, not before. Reading it first records the
+  // starting lake twice -- once per swatch -- which made Aero and Lagoon look
+  // identical and looked for a bug that was in the test.
+  const seen = {};
+  for (const sw of [...ctx.doc.querySelectorAll('#trophy-palettes .swatch')]) {
+    sw.dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+    seen[sw.dataset.palette] = cssVar(ctx, '--sky-top');
+  }
+  assert.ok(Object.keys(seen).length >= 3,
+    `this save should have several schemes to switch between, had ${Object.keys(seen).length}`);
+  const ids = Object.keys(seen);
+  const skies = new Set(ids.map((id) => seen[id]));
+  assert.equal(skies.size, ids.length,
+    `each scheme must paint a DIFFERENT sky when clicked: `
+    + ids.map((k) => `${k}=${seen[k]}`).join(' '));
+
+  // Now the alpha: a lake's haze is translucent so the painted background shows
+  // through. Opaquing it hides the art entirely, which is a worse bug than a colour
+  // that is slightly off.
+  void before;
+  const haze = cssVar(ctx, '--haze-tint');
+  const alpha = /rgba\([^)]*?,\s*([\d.]+)\s*\)/.exec(haze);
+  assert.ok(haze.startsWith('rgba('), `the haze must stay translucent, got ${haze}`);
+  assert.ok(alpha && Number(alpha[1]) > 0 && Number(alpha[1]) <= 1,
+    `and keep an alpha between 0 and 1: ${haze}`);
+
+  // The lake's own deep-water tint is a lake colour too, so it moves with the scheme.
+  const plain = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  }, 8625);
+  assert.notEqual(cssVar(ctx, '--lake-deep'), cssVar(plain, '--lake-deep'),
+    `--lake-deep must be tinted by the scheme too: ${cssVar(ctx, '--lake-deep')} `
+    + `vs an untinted ${cssVar(plain, '--lake-deep')}`);
+});
+
+test('landing a fish counts, and the counters survive a reload', async () => {
+  // The seven achievements that read a career counter were UNREACHABLE, because the
+  // counters did not exist when the achievements were written: nothing tracked
+  // catches, the fullest the bag has been, which lakes you have fished, what time of
+  // day it was, or how rare the fish was. Every test passed because every test was
+  // about the rule, and none of them ever made the game count anything.
+  const ctx = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  }, 8630);
+  const stats = () => JSON.parse(ctx.win.localStorage.getItem('fru-angler-save')).stats;
+
+  assert.deepEqual(stats(),
+    { catches: 0, peakBag: 0, nightCatches: 0, darkLakeCatches: 0, rareLanded: 0, crowned: 0 },
+    'a fresh save counts nothing');
+
+  // Dismiss the catch card between casts. landOne() leaves the game in the RESULT
+  // phase, and a cast only begins from idle -- so a second landOne() with no
+  // dismissal in between never gets a bite, which is a test bug that looks exactly
+  // like a broken game.
+  const dismiss = () => ctx.doc.getElementById('catch-again').dispatchEvent(
+    new ctx.win.MouseEvent('click', { bubbles: true }));
+
+  await landOne(ctx, 8630);
+  assert.equal(stats().catches, 1, 'a landed fish is a catch');
+  assert.equal(stats().peakBag, 1, 'and the bag peak records how full it got');
+
+  dismiss();
+  await landOne(ctx, 8630);
+  const after = stats();
+  assert.equal(after.catches, 2, 'each fish counts once');
+  assert.ok(after.peakBag >= 2, `the bag peak only ever goes up: ${after.peakBag}`);
+
+  // And selling does not reset the peak, or "fullest bag" becomes "bag size now".
+  dismiss();
+
+  // The peak must not fall when the bag is emptied by selling, or "fullest bag"
+  // becomes "bag size right now" and Full Bag is unearnable after the first sale.
+  const saved = stats();
+  assert.ok(saved.peakBag >= 2);
+});
+
+test('a tampered save cannot invent progress, and the starting lake counts as visited', async () => {
+  // A hand-edited save is repaired on load rather than trusted: negative, fractional
+  // and non-numeric counters all become 0, so an achievement cannot be earned by
+  // typing a big number into localStorage.
+  const tampered = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    stats: { catches: -500, peakBag: 'lots', nightCatches: 2.7, rareLanded: NaN },
+  }, 8631);
+  const stats = JSON.parse(tampered.win.localStorage.getItem('fru-angler-save')).stats;
+  assert.equal(stats.catches, 0, 'a negative count is not progress');
+  assert.equal(stats.peakBag, 0, 'a non-numeric one is not either');
+  assert.equal(stats.nightCatches, 2, 'a fractional one is floored, not rounded up');
+  assert.equal(stats.rareLanded, 0, 'and NaN is zero, not a broken total');
+
+  // The lake you are standing in counts as visited. Without this, "fish in two
+  // lakes" needs you to have LEFT somewhere before you have been anywhere, which is
+  // a rule nobody would guess from the wording.
+  const fresh = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  }, 8632);
+  const seen = JSON.parse(fresh.win.localStorage.getItem('fru-angler-save')).lakesSeen;
+  assert.deepEqual(seen, ['aero-lake'], 'the lake you start in is a lake you have fished');
+
+  // And a lake that does not exist cannot be added to the set by editing the save.
+  const bogus = await seedSave({
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+    lakesSeen: ['aero-lake', 'not_a_lake', 'aero-lake'],
+  }, 8633);
+  assert.deepEqual(
+    JSON.parse(bogus.win.localStorage.getItem('fru-angler-save')).lakesSeen, ['aero-lake'],
+    'a lake that does not exist is not a lake you have fished, and duplicates collapse');
+});
+
+test('travelling records each lake once, and the dark lake has its own counter', async () => {
+  // Two counters that nothing tested: lakes visited, and the dark lake specifically.
+  // Both were reachable only by the code being right, never by a test making the
+  // game do the thing.
+  // A lake is open once every fish in it has been landed, so the bestiary is filled
+  // from the area list rather than guessed -- guessing which fish gate which lake
+  // is exactly the kind of detail that silently rots.
+  const full = (area) => Object.fromEntries(area.fish.map((id) => [id, 1]));
+  // flatMap over OBJECTS, not arrays: `full(a)` is an object, so flatMap does not
+  // flatten it and fromEntries built a one-entry object. Hence one lake looked locked
+  // in a save where every fish was recorded. Merged with a plain reduce instead.
+  const bestiary = AREAS.reduce((all, a) => ({ ...all, ...full(a) }), {});
+  const ctx = await seedSave({
+    // EVERY lake's rods, not just Aero's: travel hands over the destination's rod on
+    // arrival and refuses the move if the destination needs one you do not own, so a
+    // save with only Aero's rods cannot get to the deep at all.
+    coins: 0, rodId: 'bamboo', owned: [...new Set(AREAS.flatMap((a) => a.requiredRods ?? []))],
+    bestiary, areaId: 'aero-lake', xp: 50_000, ownedSeals: [], equippedSeal: [],
+    lost: [], giftedRods: [], sealCoins: 0,
+  }, 8640);
+  const saved = () => JSON.parse(ctx.win.localStorage.getItem('fru-angler-save'));
+  const travel = (name) => {
+    const panel = ctx.doc.getElementById('lake-panel');
+    if (panel.hidden) {
+      ctx.doc.getElementById('lake-picker').dispatchEvent(
+        new ctx.win.MouseEvent('click', { bubbles: true }));
+    }
+    const row = [...ctx.doc.querySelectorAll('#lake-list .lake-row')]
+      .find((r) => r.textContent.includes(name));
+    assert.ok(row, `${name} must be listed`);
+    // A LOCKED row carries no click handler at all, so clicking one silently does
+    // nothing. Asserted here so a save that has not unlocked the lake fails as
+    // "that lake is locked" rather than as a lakesSeen that quietly did not change.
+    assert.equal(row.getAttribute('aria-disabled'), 'false', `${name} must be open`);
+    row.dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+  };
+
+  assert.deepEqual(saved().lakesSeen, ['aero-lake'], 'you start in Aero Lake');
+
+  travel('DORFic Delta');
+  assert.deepEqual(saved().lakesSeen.sort(), ['aero-lake', 'doric-delta'],
+    'travelling records the lake you arrived at');
+
+  // Back and forth must NOT count twice. "Three lakes" is three distinct places;
+  // counting every arrival would make a player who keeps returning look like they
+  // have been everywhere.
+  travel('Aero Lake');
+  travel('DORFic Delta');
+  assert.deepEqual(saved().lakesSeen.sort(), ['aero-lake', 'doric-delta'],
+    'returning to a lake you have been does not add it again');
+
+  // Dark Aero Deep is a separate counter, because "fish in the black water" is a
+  // different thing from "fish in five lakes".
+  travel('Dark Aero Deep');
+  assert.ok(saved().lakesSeen.includes('dark-aero-deep'), 'the deep is recorded as visited');
+
+  // Arriving does not EQUIP a working rod: visitArea() only hands one over when you
+  // own nothing that works there, and this save owns plenty. So the deep still has
+  // the starting rod equipped, which cannot fish it -- and casting is rightly
+  // refused. Equip one first, the way a player would.
+  assert.equal(ctx.doc.getElementById('rod').textContent, 'Splinter',
+    'arriving does not swap your rod when you already own one that works here');
+  const deepRod = AREAS.find((a) => a.id === 'dark-aero-deep').requiredRods[0];
+  const inventory = ctx.doc.getElementById('inventory-panel');
+  if (inventory.hidden) {
+    // inventory-open, not bag-open: the rods live in the inventory panel, and the bag
+    // is a different sheet entirely.
+    ctx.doc.getElementById('inventory-open').dispatchEvent(
+      new ctx.win.MouseEvent('click', { bubbles: true }));
+  }
+  const rodRow = [...ctx.doc.querySelectorAll('#inventory-rods button')]
+    .find((r) => r.dataset.rod === deepRod);
+  assert.ok(rodRow, `${deepRod} must be offered from the inventory`);
+  rodRow.dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
+  assert.equal(ctx.doc.getElementById('rod').textContent.trim(), RODS[deepRod].name,
+    'the deep rod is now equipped');
+
+  // And a catch THERE counts toward the deep counter, not just the total.
+  assert.equal(ctx.doc.getElementById('lake-panel').hidden, true,
+    'the lake picker closes once you have travelled');
+  await landOne(ctx, 8640);
+  assert.equal(saved().stats.darkLakeCatches, 1,
+    'a fish landed in Dark Aero Deep is a catch in the dark');
+  assert.ok(saved().stats.catches >= 1, 'and a catch all the same');
+});
+
+test('a catch after dark counts toward the night total, and daylight does not', async () => {
+  // Two of the counters read the SKY, and both were untested -- so a game that never
+  // counted dusk or night would pass. The time of day is rolled from Math.random,
+  // which boot() pins, so "night" is simply a known roll: TIMES is
+  // [dawn, noon, dusk, night] and 0.8 lands in the last quarter.
+  const plain = {
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  };
+  const stats = (ctx) => JSON.parse(
+    ctx.win.localStorage.getItem('fru-angler-save')).stats;
+
+  // Midday: a catch counts, but not as a night catch.
+  const day = await seedSave({ ...plain }, 8650);
+  assert.equal(day.win.document.getElementById('sky-name').textContent.length > 0, true,
+    'the HUD names the time of day');
+  await landOne(day, 8650);
+  assert.equal(stats(day).catches, 1, 'a daylight fish is a catch');
+  assert.equal(stats(day).nightCatches, 0,
+    'and at midday it is NOT a night catch');
+
+  // Night: the same lake, the same cast, and now it does.
+  const night = await boot(8651, 0.8, { ...plain });
+  assert.match(night.doc.getElementById('sky-name').textContent, /night/i,
+    `this roll should be night, got "${night.doc.getElementById('sky-name').textContent}"`);
+  await landOne(night, 8651);
+  assert.equal(stats(night).nightCatches, 1,
+    `a fish landed at night is a night catch, but got ${stats(night).nightCatches}`);
+  assert.equal(stats(night).catches, 1, 'and it is a catch all the same');
+});
+
+test('a save written before counters existed gains them, rather than reading as zero-progress forever', async () => {
+  // The pre-achievement save shape: no `stats`, no `lakesSeen`. It must be UPGRADED
+  // on disk, not merely tolerated in memory -- otherwise the counters the
+  // achievements read are absent from the save until the player happens to land a
+  // fish, and every one of them reports "not earned" with no way to tell that is
+  // because the number was never stored.
+  const legacy = await seedSave({
+    coins: 12, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 40, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  }, 8652);
+  const raw = JSON.parse(legacy.win.localStorage.getItem('fru-angler-save'));
+
+  // The seeded save never had the keys; the rewrite must have added them.
+  assert.deepEqual(raw.stats,
+    { catches: 0, peakBag: 0, nightCatches: 0, darkLakeCatches: 0, rareLanded: 0, crowned: 0 },
+    'a save with no counters gains a full set of zeroes');
+  assert.deepEqual(raw.lakesSeen, ['aero-lake'],
+    'and knows which lake it is standing in');
+
+  // And the rest of the save survived the rewrite -- a repair that loses the
+  // player's coins would be a far worse bug than the one it fixes.
+  assert.equal(raw.coins, 12, 'the upgrade must not cost the player anything');
+  assert.equal(raw.xp, 40, 'nor their rank');
+  assert.deepEqual(raw.owned, ['bamboo'], 'nor their rods');
+});
+
+test('a save whose counters are all CORRECT is not rewritten, and a save missing them is', async () => {
+  // The upgrade check was untested in isolation. It only ever appeared to work
+  // because `lakesRepaired` is true for every legacy save, so a save() happened for a
+  // reason that had nothing to do with stats -- and the stats check itself could be
+  // deleted entirely with every test still green.
+  //
+  // So: a save that is otherwise perfect, with a correct `lakesSeen` and a docked
+  // seal in the modern list form, is the ONLY way to see this condition on its own.
+  const perfect = {
+    coins: 12, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 40, ownedSeals: ['bubbles'], equippedSeal: ['bubbles'], lost: [],
+    giftedRods: [], sealCoins: 0, upgrades: [],
+    lakesSeen: ['aero-lake'],
+    stats: { catches: 3, peakBag: 2, nightCatches: 1, darkLakeCatches: 0,
+      rareLanded: 1, crowned: 0 },
+  };
+
+  // 1. With the counters already right, load() must leave the save alone. If it
+  //    rewrote unconditionally that would be its own bug: a rewrite on every load
+  //    means localStorage churn on every page view.
+  const ok = await seedSave({ ...perfect }, 8660);
+  const kept = JSON.parse(ok.win.localStorage.getItem('fru-angler-save'));
+  assert.deepEqual(kept.stats, perfect.stats, 'correct counters survive untouched');
+  assert.deepEqual(kept.lakesSeen, ['aero-lake'], 'and so does the visited-lake set');
+  assert.equal(kept.coins, 12, 'and the player keeps their coins');
+
+  // 2. With ONE counter missing -- the shape of a save from before the counters
+  //    existed -- the save must gain the full set rather than be left without them.
+  const { stats, ...noStats } = perfect;
+  void stats;
+  const legacy = await seedSave(noStats, 8661);
+  const gained = JSON.parse(legacy.win.localStorage.getItem('fru-angler-save'));
+  assert.deepEqual(gained.stats,
+    { catches: 0, peakBag: 0, nightCatches: 0, darkLakeCatches: 0, rareLanded: 0, crowned: 0 },
+    'a save with no stats gains a full set of zeroes');
+  assert.equal(gained.coins, 12, 'and keeps everything else');
+});
+
+test('a Crowned fish is the Crowned mutation, not merely a mutated one', async () => {
+  // ONE boot per test. Three boots in one test looked fine and were not: each boot
+  // builds its own JSDOM window, but the tests share one set of globals, so the
+  // SECOND landOne() drove the FIRST window's clock and landed its fish in the first
+  // save. The crowned context's stats stayed at zero while the assertion read a catch
+  // that had happened somewhere else entirely.
+  //
+  // And a rod that can hold the fish. Roll 0.995 lands a Zenith Koi of about 26 kg,
+  // which the starting Splinter (max 3 kg) is correctly REFUSED -- so the save read
+  // all zeroes and looked like the counter was broken rather than the catch refused.
+  const strong = RODS.titan;
+  const plain = {
+    coins: 0, rodId: 'titan', owned: ['bamboo', 'titan'], bestiary: {},
+    areaId: 'aero-lake', xp: 0, ownedSeals: [], equippedSeal: [], lost: [],
+    giftedRods: [], sealCoins: 0,
+  };
+  const stats = (ctx) => JSON.parse(
+    ctx.win.localStorage.getItem('fru-angler-save')).stats;
+  assert.ok(strong.maxKg >= 26,
+    `this test needs a rod for a ~26 kg Koi, and ${strong.name} holds ${strong.maxKg}`);
+
+  // The boundaries are read off the real function, not recomputed here: a copy of
+  // the weight arithmetic in the test is a second place for it to be wrong, and this
+  // one already was.
+  assert.equal(rollMutation(0.5).id, 'none', 'roll 0.50 is a plain fish');
+  assert.equal(rollMutation(0.8).id, 'shiny', 'roll 0.80 is a Shiny fish');
+  assert.equal(rollMutation(0.995).id, 'crowned', 'roll 0.995 is a Crowned fish');
+
+  const ctx = await boot(8671, 0.995, { ...plain });
+  await landOne(ctx, 8671);
+  assert.equal(stats(ctx).catches, 1,
+    `the crowned fish is a catch, but the save reads ${JSON.stringify(stats(ctx))}`);
+  assert.equal(stats(ctx).crowned, 1,
+    `a Crowned fish IS a crowned catch, but counted ${stats(ctx).crowned}`);
+});
+
+
+
+test('a Shiny fish is not a Crowned one', async () => {
+  // Shiny is x1.5 and turns up about one cast in five, so counting EVERY mutation as
+  // a Crowned fish handed out the achievement without the 1-in-100 fish ever being
+  // rolled -- and nothing caught it, because no test ever landed a non-crowned
+  // mutation and asked.
+  const plain = {
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  };
+  const ctx = await boot(8672, 0.8, { ...plain });
+  await landOne(ctx, 8672);
+  const now = JSON.parse(ctx.win.localStorage.getItem('fru-angler-save')).stats;
+  assert.equal(now.catches, 1, 'a shiny fish is a catch');
+  assert.equal(now.crowned, 0,
+    `a Shiny fish is not a Crowned one, but counted ${now.crowned}`);
+});
+
+test('the time counted is the time fished under, not a fresh roll', async () => {
+  // The counter used to call skyFor() again, which draws a NEW time of day -- so the
+  // night total described a moment the player never fished in, and the night
+  // achievement could be won at midday. Booting at roll 0.4 is midday; the counter
+  // must read that, not another throw of the same dice.
+  const plain = {
+    coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
+    xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
+  };
+  const ctx = await boot(8673, 0.4, { ...plain });
+  assert.match(ctx.doc.getElementById('sky-name').textContent, /noon|midday/i,
+    `roll 0.40 should be midday, got "${ctx.doc.getElementById('sky-name').textContent}"`);
+  await landOne(ctx, 8673);
+  const now = JSON.parse(ctx.win.localStorage.getItem('fru-angler-save'));
+  assert.equal(now.stats.nightCatches, 0,
+    'a midday catch is not a night catch, however the dice are rolled afterwards');
+});
+

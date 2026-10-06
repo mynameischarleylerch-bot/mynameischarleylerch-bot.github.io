@@ -2194,70 +2194,70 @@ export function bagWorthByFish(bag) {
  */
 export const PALETTES = {
   aero: {
-    id: 'aero', name: 'Frutiger Aero', unlock: null,
+    id: 'aero', name: 'Frutiger Aero', unlock: null, tint: 0,
     deep: '#01579b', deepest: '#013a63', inkSoft: '#3d6b85',
     skyTop: '#b3e5fc', skyMid: '#7fc4e8', skyFloor: '#4aa8d8',
     sun: '#fff9c4', haze: 'rgba(255, 255, 255, 0.75)',
     wood: '#a9714a', woodDeep: '#7d4f2e',
   },
   lagoon: {
-    id: 'lagoon', name: 'Lagoon', unlock: 'lagoon',
+    id: 'lagoon', name: 'Lagoon', unlock: 'lagoon', tint: 0.14,
     deep: '#074e8d', deepest: '#043662', inkSoft: '#3f75a4',
     skyTop: '#c3d9e4', skyMid: '#60a9d7', skyFloor: '#147ac8',
     sun: '#cde8ef', haze: 'rgba(255, 255, 255, 0.69)',
     wood: '#c39974', woodDeep: '#9e673d',
   },
   fjord: {
-    id: 'fjord', name: 'Bright Water', unlock: 'fjord',
+    id: 'fjord', name: 'Bright Water', unlock: 'fjord', tint: 0.24,
     deep: '#064584', deepest: '#032e59', inkSoft: '#3f74aa',
     skyTop: '#bbd4e2', skyMid: '#56a1d7', skyFloor: '#116ec0',
     sun: '#c4e4ed', haze: 'rgba(255, 255, 255, 0.7)',
     wood: '#c0946d', woodDeep: '#97623b',
   },
   poolside: {
-    id: 'poolside', name: 'Poolside', unlock: 'poolside',
+    id: 'poolside', name: 'Poolside', unlock: 'poolside', tint: 0.34,
     deep: '#043c7b', deepest: '#022650', inkSoft: '#3f73ae',
     skyTop: '#b3cedf', skyMid: '#4c98d6', skyFloor: '#0f63b8',
     sun: '#bcdfeb', haze: 'rgba(255, 255, 255, 0.71)',
     wood: '#bd8e65', woodDeep: '#8f5e38',
   },
   deep: {
-    id: 'deep', name: 'Deep Water', unlock: 'deep',
+    id: 'deep', name: 'Deep Water', unlock: 'deep', tint: 0.44,
     deep: '#043372', deepest: '#011f46', inkSoft: '#4072b5',
     skyTop: '#acc8dd', skyMid: '#438fd6', skyFloor: '#0d59af',
     sun: '#b3d9ea', haze: 'rgba(255, 255, 255, 0.72)',
     wood: '#ba895e', woodDeep: '#885935',
   },
   midnight: {
-    id: 'midnight', name: 'Midnight', unlock: 'midnight',
+    id: 'midnight', name: 'Midnight', unlock: 'midnight', tint: 0.54,
     deep: '#032b68', deepest: '#01193c', inkSoft: '#4071ba',
     skyTop: '#a4c1db', skyMid: '#3985d5', skyFloor: '#0c4fa7',
     sun: '#abd4e8', haze: 'rgba(255, 255, 255, 0.73)',
     wood: '#b78457', woodDeep: '#815432',
   },
   biolum: {
-    id: 'biolum', name: 'Bioluminescent', unlock: 'biolum',
+    id: 'biolum', name: 'Bioluminescent', unlock: 'biolum', tint: 0.64,
     deep: '#03245e', deepest: '#011332', inkSoft: '#4069b0',
     skyTop: '#9ebad6', skyMid: '#337ad1', skyFloor: '#0d469c',
     sun: '#a4cde5', haze: 'rgba(255, 255, 255, 0.75)',
     wood: '#b47f50', woodDeep: '#794f2f',
   },
   aurora: {
-    id: 'aurora', name: 'Aurora', unlock: 'aurora',
+    id: 'aurora', name: 'Aurora', unlock: 'aurora', tint: 0.74,
     deep: '#042052', deepest: '#020f27', inkSoft: '#4064a5',
     skyTop: '#99b4d1', skyMid: '#3273c8', skyFloor: '#0e4090',
     sun: '#9ec7e0', haze: 'rgba(255, 255, 255, 0.76)',
     wood: '#af7a4b', woodDeep: '#724a2c',
   },
   abyss: {
-    id: 'abyss', name: 'Abyssal', unlock: 'abyss',
+    id: 'abyss', name: 'Abyssal', unlock: 'abyss', tint: 0.86,
     deep: '#021640', deepest: '#010714', inkSoft: '#37579a',
     skyTop: '#88a7cd', skyMid: '#2a64bb', skyFloor: '#0a337f',
     sun: '#8cbcde', haze: 'rgba(255, 255, 255, 0.78)',
     wood: '#a17045', woodDeep: '#634127',
   },
   void: {
-    id: 'void', name: 'The Void', unlock: 'void',
+    id: 'void', name: 'The Void', unlock: 'void', tint: 1,
     deep: '#030e2b', deepest: '#010613', inkSoft: '#374d86',
     skyTop: '#7f9bc3', skyMid: '#2c58a5', skyFloor: '#0c296a',
     sun: '#81afd5', haze: 'rgba(255, 255, 255, 0.81)',
@@ -2265,6 +2265,61 @@ export const PALETTES = {
   },
 };
 
+
+/* ------------------------------------------------------------ lake tinting */
+
+/**
+ * Mix two hex colours. `t` of 0 is `a` untouched, 1 is `b` outright.
+ *
+ * Mixed in sRGB on purpose. Linear-light mixing looks more "correct" but turns a
+ * blue lake grey on the way to a dark one, because the two hues cross the luminance
+ * curve differently -- and the whole point is that the scheme should READ as the
+ * scheme, not as mud.
+ */
+export function mixHex(a, b, t) {
+  const parse = (hex) => {
+    const h = String(hex).replace('#', '');
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  };
+  if (!t || !Number.isFinite(t)) return String(a);
+  const [ar, ag, ab] = parse(a);
+  const [br, bg, bb] = parse(b);
+  const mix = (x, y) => Math.round(x + (y - x) * Math.min(1, Math.max(0, t)));
+  const hex = [mix(ar, br), mix(ag, bg), mix(ab, bb)]
+    .map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+  return `#${hex}`;
+}
+
+/**
+ * Mix the colour of an rgba() string toward a hex, keeping its alpha.
+ *
+ * A lake's haze and sun are translucent on purpose -- that is what lets the painted
+ * background show through. Dropping the alpha when tinting would turn a soft haze
+ * into an opaque wash and hide the art the other session painted, so only the
+ * colour is mixed and the alpha is left exactly as the lake declared it.
+ */
+export function mixRgba(colour, hex, t) {
+  const m = /rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?/.exec(String(colour));
+  if (!m) return mixHex(colour, hex, t);
+  const base = '#' + [m[1], m[2], m[3]]
+    .map((v) => Math.round(Number(v)).toString(16).padStart(2, '0')).join('');
+  const mixed = mixHex(base, hex, t).slice(1);
+  const rgb = [0, 2, 4].map((i) => parseInt(mixed.slice(i, i + 2), 16)).join(', ');
+  const alpha = m[4] === undefined ? '' : `, ${Number(m[4])}`;
+  return `rgba(${rgb}${alpha})`;
+}
+
+/**
+ * How hard a scheme pushes the lakes toward it.
+ *
+ * Read off the PALETTES entry rather than from the tier, so a scheme is one number
+ * and not a second rule. Frutiger Aero is 0 on purpose: it is what you already have,
+ * and if it tinted anything then earning nothing would still change every lake.
+ */
+export function tintFor(paletteId) {
+  const n = Number(PALETTES[paletteId]?.tint);
+  return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
+}
 
 /* --------------------------------------------------------------- achievements */
 
@@ -3220,7 +3275,7 @@ export const AREAS = [
       water: '#2f81c4', accent: '#4fc3f7',
       haze: 'rgba(255, 255, 255, 0.75)', sun: 'rgba(255, 255, 255, 0.95)',
       deep: 'rgba(1, 58, 99, 0.3)',
-      art: './media/aero-lake.jpg?v=2026-10-04-Z',
+      art: './media/aero-lake.jpg?v=2026-10-05-A',
     },
   },
   {
@@ -3255,7 +3310,7 @@ export const AREAS = [
       // hue shift that makes the blue wrong here; the measured hue barely moves
       // either way. The blue just bleaches the orange toward grey.
       deep: 'rgba(122, 46, 0, 0.3)',
-      art: './media/doric-delta.jpg?v=2026-10-04-Z',
+      art: './media/doric-delta.jpg?v=2026-10-05-A',
     },
   },
   {
@@ -3298,7 +3353,7 @@ export const AREAS = [
       // A fix is one more palette key plus one more gradient layer; it is not
       // written blind, because it cannot be seen until it is rendered.
       deep: 'rgba(30, 62, 20, 0.3)',
-      art: './media/eco-marsh.jpg?v=2026-10-04-Z',
+      art: './media/eco-marsh.jpg?v=2026-10-05-A',
     },
   },
   {
@@ -3339,7 +3394,7 @@ export const AREAS = [
       // scene's 78%, so the bobber lands in water and the marsh's grass problem
       // does not repeat here.
       deep: 'rgba(23, 74, 110, 0.3)',
-      art: './media/glacier-fjord.jpg?v=2026-10-04-Z',
+      art: './media/glacier-fjord.jpg?v=2026-10-05-A',
     },
   },
   {
@@ -3380,7 +3435,7 @@ export const AREAS = [
       // here, stated as transparent rather than left carrying a colour that
       // does nothing.
       deep: 'rgba(0, 0, 0, 0)',
-      art: './media/dark-aero-deep.jpg?v=2026-10-04-Z',
+      art: './media/dark-aero-deep.jpg?v=2026-10-05-A',
     },
   },
 ];

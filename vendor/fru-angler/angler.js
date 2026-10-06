@@ -23,13 +23,13 @@ import {
  SEALS, LOST_ITEMS,
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
- addToBag, bagCap, ACHIEVEMENTS, PALETTES, achievementState, unlockedPalettes, paletteFor, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
+ addToBag, bagCap, mixHex, mixRgba, tintFor, ACHIEVEMENTS, PALETTES, achievementState, unlockedPalettes, paletteFor, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-04-Z';
+} from './fishing.js?v=2026-10-05-A';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
-} from './reel.js?v=2026-10-04-Z';
+} from './reel.js?v=2026-10-05-A';
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -146,6 +146,25 @@ const state = {
   upgrades: [],      // permanent one-off purchases, in the order they were bought
   palette: 'aero',    // the colour scheme being worn; only ever one you have earned
 
+  // Career counters, for the achievements. Counted here rather than derived on read
+  // because most of them are things that HAPPEN -- you cannot work out how many
+  // catches you have made from the bag, which is emptied by selling.
+  //
+  // This block did not exist when the achievements were written, so seven of the
+  // eighteen read a stat nothing ever set and could never be earned at all.
+  // Which lakes you have fished in, as a set of ids. Separate from the counters
+  // because "three lakes" is a COUNT OF DISTINCT PLACES, and incrementing a counter
+  // every time you cast would make it a count of visits.
+  lakesSeen: [],
+  stats: {
+    catches: 0,        // every fish landed, duplicates included
+    peakBag: 0,        // fullest the bag has ever been
+    nightCatches: 0,   // landed while the lake is at dusk or night
+    darkLakeCatches: 0,
+    rareLanded: 0,     // Rare or better
+    crowned: 0,        // a Crowned fish, worth five times its weight
+  },
+
   duplicates: 0,        // seal copies handed over, all time
   bond: {},            // sealId -> how many fish it has been fed
 };
@@ -209,6 +228,20 @@ function load() {
     // one place decides what you may wear, not two that can disagree.
     state.palette = typeof saved.palette === 'string' ? saved.palette : 'aero';
 
+    // Career counters. Absent in every save written before achievements existed, and
+    // a hand-edited one can carry anything, so every field is repaired to a
+    // non-negative integer rather than trusted.
+    state.lakesSeen = Array.isArray(saved.lakesSeen)
+      ? [...new Set(saved.lakesSeen.filter((id) => AREAS.some((a) => a.id === id)))]
+      : [];
+    state.stats = { ...startingStats() };
+    if (saved.stats && typeof saved.stats === 'object') {
+      for (const key of Object.keys(state.stats)) {
+        const n = Number(saved.stats[key]);
+        if (Number.isFinite(n) && n >= 0) state.stats[key] = Math.floor(n);
+      }
+    }
+
     state.lost = Array.isArray(saved.lost)
       ? saved.lost.filter((id) => LOST_ITEMS.some((item) => item.id === id))
       : [];
@@ -271,16 +304,34 @@ function load() {
     // save is never rewritten -- leaving the scalar on disk for the next load to
     // misread again. The shape itself has to be part of the test. That is the whole
     // difference between normalising the value and normalising the file.
+    // Rewritten when anything was repaired: a legacy creel key, an upgrade id that no
+    // longer exists, a dock shape that was normalised, or career counters that were
+    // tampered with. Without this the repair is undone by the very next save(), and a
+    // hand-edited "-500 catches" sits in the save looking legitimate until the player
+    // next lands a fish.
+    const savedStats = saved.stats && typeof saved.stats === 'object' ? saved.stats : {};
+    // A MISSING key counts as a difference. Comparing only the numeric values made a
+    // save with no `stats` at all look identical to a repaired one -- both read zero
+    // -- so the key was never written and the counters did not exist on disk until
+    // the player happened to land a fish.
+    const statsRepaired = Object.keys(startingStats())
+      .some((key) => !(key in savedStats)
+        || Math.floor(Number(savedStats[key]) || 0) !== state.stats[key]);
+    const savedLakes = Array.isArray(saved.lakesSeen) ? saved.lakesSeen : [];
+    const lakesRepaired = savedLakes.length !== state.lakesSeen.length
+      || savedLakes.some((id, n) => id !== state.lakesSeen[n]);
     const dockWasList = Array.isArray(saved.equippedSeal);
     const savedDock = saved.equippedSeal == null ? []
       : (dockWasList ? saved.equippedSeal : [saved.equippedSeal]);
     if (Array.isArray(saved.creel)
+      || statsRepaired
+      || lakesRepaired
       || !dockWasList
       || (Array.isArray(saved.upgrades)
         && (saved.upgrades.length !== state.upgrades.length
-          || saved.upgrades.some((id, i) => id !== state.upgrades[i])))
+          || saved.upgrades.some((id, n) => id !== state.upgrades[n])))
       || savedDock.length !== state.equippedSeal.length
-      || savedDock.some((id, i) => id !== state.equippedSeal[i])) {
+      || savedDock.some((id, n) => id !== state.equippedSeal[n])) {
       save();
     }
   } catch {
@@ -304,6 +355,9 @@ function save() {
       bag: state.bag,
       upgrades: state.upgrades,
       palette: state.palette,
+      // Career counters for achievements.
+      stats: state.stats,
+      lakesSeen: state.lakesSeen,
       bond: state.bond,
       // Duplicates ever handed over. It was bumped in memory and never written
       // anywhere, so it only ever existed for the session that counted it.
@@ -1173,6 +1227,34 @@ function landFish() {
   // Bestiary and rank still happen on landing -- the fish was caught either way.
   const kept = bagFish(fish, kg, mutation);
   state.bestiary = recordCatch(state.bestiary, fish, kg);
+
+  // The career counters, all of them, at the one moment a fish is landed. The bag
+  // peak is the depth AFTER this fish, so it counts a fish that then did not fit.
+  state.stats.catches += 1;
+  state.stats.peakBag = Math.max(state.stats.peakBag, state.bag.length);
+  // The sky IN EFFECT when the fish was landed, not a fresh roll. skyFor() draws a
+  // new time of day every call, so rolling here meant the counter described a moment
+  // the player never fished in -- a night catch could be recorded on a bright noon
+  // lake, and the achievement that depends on this was unearnable honestly.
+  //
+  // state.sky is kept by paintSky() and is the same object the fish roll reads.
+  //
+  // paintSky() keeps state.sky as the two ENTITIES (`{ time, weather }`), so the
+  // time is reached by ID on the time object, not compared as a string. Comparing
+  // `now.time === 'dusk'` is always false -- an object is never a string -- which is
+  // why the night counter stayed at zero however late you fished.
+  const now = state.sky ?? skyFor(state.areaId);
+  const timeId = typeof now.time === 'string' ? now.time : now.time?.id;
+  if (timeId === 'dusk' || timeId === 'night') state.stats.nightCatches += 1;
+  if (state.areaId === 'dark-aero-deep') state.stats.darkLakeCatches += 1;
+  // Named distinctly: `tier` is already in scope below, for the junk roll.
+  const rarityTier = RARITY_ORDER.indexOf(fish.rarity);
+  if (rarityTier >= RARITY_ORDER.indexOf('Rare')) state.stats.rareLanded += 1;
+  // CROWNED specifically, not "any mutation". Shiny (x1.5) and Glowy (x2) are common
+  // enough to turn up in an afternoon, so counting them as Crowned would hand the
+  // player a Crowned fish without one ever having been rolled. The achievement asks
+  // for a Crowned fish, so it checks the id.
+  if (mutation.id === 'crowned') state.stats.crowned += 1;
   if (!kept) {
     // notify(), not say(): the seal speaks on the same catch and would replace
     // this line before it could be read. Same reasoning as the duplicate below.
@@ -1414,17 +1496,34 @@ function paintSky(sky) {
 
 function paintArea(area) {
   const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art, deep, bobberRing } = area.palette;
-  ui.lake.style.setProperty('--sky-top', skyTop);
-  ui.lake.style.setProperty('--sky-mid', skyMid);
-  ui.lake.style.setProperty('--sky-floor', skyFloor);
-  ui.lake.style.setProperty('--water', water);
-  ui.lake.style.setProperty('--accent', accent);
-  ui.lake.style.setProperty('--haze-tint', haze);
-  ui.lake.style.setProperty('--sun', sun);
+
+  // TINT the lake toward the scheme being worn.
+  //
+  // This is the whole feature. The scheme was applied to <html> by applyPalette(),
+  // but these are INLINE styles on #lake, and an inline style beats any selector --
+  // so the lake kept its own colours no matter what you had earned, and an
+  // achievement changed nothing you could see in the scene.
+  //
+  // Mixed rather than replaced, so a lake is still ITSELF: the DORFic Delta stays
+  // warm and Dark Aero Deep stays dark. What changes is how far the achievement's
+  // colour reaches across it. Frutiger Aero tints 0, so your own look is untouched.
+  const worn = PALETTES[paletteFor(state)];
+  const tint = tintFor(worn.id);
+  const toward = worn.deep;
+  const solid = (c) => (tint > 0 ? mixHex(c, toward, tint) : c);
+  const glassy = (c) => (tint > 0 ? mixRgba(c, toward, tint) : c);
+
+  ui.lake.style.setProperty('--sky-top', solid(skyTop));
+  ui.lake.style.setProperty('--sky-mid', solid(skyMid));
+  ui.lake.style.setProperty('--sky-floor', solid(skyFloor));
+  ui.lake.style.setProperty('--water', solid(water));
+  ui.lake.style.setProperty('--accent', solid(accent));
+  ui.lake.style.setProperty('--haze-tint', glassy(haze));
+  ui.lake.style.setProperty('--sun', glassy(sun));
   // How far the near water is deepened, and in whose colour. Set unconditionally,
   // not with the art below: only a painted lake consumes it, and a lake whose art
   // is added later must not inherit the colour of whichever lake you left.
-  if (deep) ui.lake.style.setProperty('--lake-deep', deep);
+  if (deep) ui.lake.style.setProperty('--lake-deep', glassy(deep));
   // The ring that keeps the bobber findable against this lake's own water. Dark
   // by default, because most lakes are bright water; Dark Aero Deep overrides it,
   // being the one lake a dark ring would vanish into. Set unconditionally for the
@@ -1539,6 +1638,12 @@ function renderLakes() {
         // your gear is never a dead end.
         const moved = visitArea(state, area.id);
         state.areaId = moved.areaId;
+        // Remember that you have been here. A SET, not a counter: "three lakes" is
+        // three distinct places, and counting every arrival would make it a count of
+        // visits. Deduplicated, so travelling back and forth is not progress.
+        if (!state.lakesSeen.includes(moved.areaId)) {
+          state.lakesSeen = [...state.lakesSeen, moved.areaId];
+        }
         state.owned = moved.owned;
         state.giftedRods = moved.giftedRods;
         state.rodId = moved.rodId;
@@ -2059,6 +2164,20 @@ function closeBond() {
  * than the whole filter spelled out here: the rule is where it can be tested without
  * booting the game, and this is the only place that knows about `state`.
  */
+/**
+ * A fresh set of career counters.
+ *
+ * A FUNCTION, not a shared object literal, because a literal at module scope would
+ * be one object mutated by every game on the page and by every test -- which is how
+ * "peak bag" ends up reading 40 in a fresh save.
+ */
+function startingStats() {
+  return {
+    catches: 0, peakBag: 0, nightCatches: 0,
+    darkLakeCatches: 0, rareLanded: 0, crowned: 0,
+  };
+}
+
 function sealParty() {
   return sealPartyOf(state.equippedSeal, state.ownedSeals, state.upgrades);
 }
@@ -2164,6 +2283,11 @@ function renderTrophies() {
         state.palette = id;
         save();
         applyPalette();
+        // Repaint the lake, or the pick does nothing visible: paintArea() sets the
+        // lake's colours as inline styles, which override the root tokens the
+        // scheme just published.
+        paintArea(AREAS.find((a) => a.id === state.areaId) ?? AREAS[0]);
+        paintSky(skyFor(state.areaId));
         renderTrophies();
       });
       ui.trophyPalettes.appendChild(btn);
@@ -2704,6 +2828,17 @@ function frame(now) {
 /* -------------------------------------------------------------------- boot */
 
 load();
+// The lake you are standing in counts as visited, or "fish in five lakes" needs you
+// to have LEFT somewhere before you have been anywhere. After load(), because load()
+// is what settles state.areaId and rebuilds lakesSeen from the save.
+//
+// And it is SAVED. load() cannot do this itself: it runs before areaId is known, and
+// adding a lake after the rewrite means the set only reaches disk whenever the player
+// next lands a fish.
+if (!state.lakesSeen.includes(state.areaId)) {
+  state.lakesSeen = [state.areaId];
+  save();
+}
 // The colour scheme is applied before the first paint, so the page never
 // flashes the default palette at a player who chose another one.
 applyPalette();
