@@ -1497,45 +1497,27 @@ function paintSky(sky) {
 function paintArea(area) {
   const { skyTop, skyMid, skyFloor, water, accent, haze, sun, art, deep, bobberRing, wood, woodDeep, figureTop, figureMid, figureDeep } = area.palette;
 
-  // TINT the lake toward the scheme being worn.
-  //
-  // This is the whole feature. The scheme was applied to <html> by applyPalette(),
-  // but these are INLINE styles on #lake, and an inline style beats any selector --
-  // so the lake kept its own colours no matter what you had earned, and an
-  // achievement changed nothing you could see in the scene.
-  //
-  // Mixed rather than replaced, so a lake is still ITSELF: the DORFic Delta stays
-  // warm and Dark Aero Deep stays dark. What changes is how far the achievement's
-  // colour reaches across it. Frutiger Aero tints 0, so your own look is untouched.
-  const worn = PALETTES[paletteFor(state)];
-  const tint = tintFor(worn.id);
-  const toward = worn.deep;
-  const solid = (c) => (tint > 0 ? mixHex(c, toward, tint) : c);
-  const glassy = (c) => (tint > 0 ? mixRgba(c, toward, tint) : c);
+  // Set the lake's native colors as inline styles (so they beat any CSS defaults).
+  // The lake keeps its own character per area. Only the ANGLER FIGURE changes
+  // with the worn achievement scheme.
+  ui.lake.style.setProperty('--sky-top', skyTop);
+  ui.lake.style.setProperty('--sky-mid', skyMid);
+  ui.lake.style.setProperty('--sky-floor', skyFloor);
+  ui.lake.style.setProperty('--water', water);
+  ui.lake.style.setProperty('--accent', accent);
+  ui.lake.style.setProperty('--haze-tint', haze);
+  ui.lake.style.setProperty('--sun', sun);
+  if (wood) ui.lake.style.setProperty('--wood', wood);
+  if (woodDeep) ui.lake.style.setProperty('--wood-deep', woodDeep);
 
-  ui.lake.style.setProperty('--sky-top', solid(skyTop));
-  ui.lake.style.setProperty('--sky-mid', solid(skyMid));
-  ui.lake.style.setProperty('--sky-floor', solid(skyFloor));
-  ui.lake.style.setProperty('--water', solid(water));
-  ui.lake.style.setProperty('--accent', solid(accent));
-  ui.lake.style.setProperty('--haze-tint', glassy(haze));
-  ui.lake.style.setProperty('--sun', glassy(sun));
-  // Also tint the dock wood toward the worn scheme.
-  // The pier, seal area, and rod rest all use --wood/--wood-deep.
-  if (wood) ui.lake.style.setProperty('--wood', solid(wood));
-  if (woodDeep) ui.lake.style.setProperty('--wood-deep', solid(woodDeep));
-  // Also set the angler figure colors from the worn scheme.
-  if (figureTop) ui.lake.style.setProperty('--figure-top', figureTop);
-  if (figureMid) ui.lake.style.setProperty('--figure-mid', figureMid);
-  if (figureDeep) ui.lake.style.setProperty('--figure-deep', figureDeep);
-  // How far the near water is deepened, and in whose colour. Set unconditionally,
-  // not with the art below: only a painted lake consumes it, and a lake whose art
-  // is added later must not inherit the colour of whichever lake you left.
-  if (deep) ui.lake.style.setProperty('--lake-deep', glassy(deep));
-  // The ring that keeps the bobber findable against this lake's own water. Dark
-  // by default, because most lakes are bright water; Dark Aero Deep overrides it,
-  // being the one lake a dark ring would vanish into. Set unconditionally for the
-  // same reason as --lake-deep: a lake must never inherit the previous one's.
+  // Set ONLY the angler figure colors from the worn achievement scheme.
+  const worn = PALETTES[paletteFor(state)];
+  if (worn.figureTop) ui.lake.style.setProperty('--figure-top', worn.figureTop);
+  if (worn.figureMid) ui.lake.style.setProperty('--figure-mid', worn.figureMid);
+  if (worn.figureDeep) ui.lake.style.setProperty('--figure-deep', worn.figureDeep);
+
+  // Bobber ring and lake-deep still need to be set per lake for visibility.
+  if (deep) ui.lake.style.setProperty('--lake-deep', deep);
   ui.lake.style.setProperty('--bobber-ring', bobberRing ?? 'rgba(1, 32, 54, 0.82)');
 
   // The scene's own defs: the deep water gradient and the far shore.

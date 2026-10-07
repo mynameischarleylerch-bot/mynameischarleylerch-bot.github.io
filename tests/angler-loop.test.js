@@ -4793,9 +4793,9 @@ test('the achievements panel lists the ladder and the picker only offers earned 
   assert.equal(ctx.doc.documentElement.dataset.palette, 'sunrise',
     'clicking an earned swatch applies its scheme immediately');
 
-  // And the lake repaints.
-  const sky = ctx.doc.getElementById('lake').style.getPropertyValue('--sky-top');
-  assert.notEqual(sky, '#81d4fa', 'the lake sky must have changed from Aero');
+  // And the ANGLER FIGURE repaints (not the lake sky).
+  const figureTop = ctx.doc.getElementById('lake').style.getPropertyValue('--figure-top');
+  assert.notEqual(figureTop, '#0b5586', 'the angler figure must have changed from Aero');
 
   // Close the panel so subsequent tests start clean
   ctx.doc.getElementById('trophy-close').dispatchEvent(
@@ -4841,14 +4841,12 @@ test('the palette is applied on load, and an unearned one is refused there too',
     'a save with no scheme at all is simply your own look');
 });
 
-test('the lake itself changes colour when a scheme is worn', async () => {
-  // THE bug this test exists for. applyPalette() set the scheme on <html>, and
-  // paintArea() set --sky-top and friends as INLINE styles on #lake. Inline styles
-  // beat any selector, so every lake kept its own colours and an achievement changed
-  // nothing visible in the scene -- the panels and HUD text moved, the water did not.
+test('the lake itself does NOT change colour when a scheme is worn', async () => {
+  // The lake should keep its native colors. Only the angler figure changes.
   const lake = (ctx) => ctx.doc.getElementById('lake');
   const sky = (ctx) => lake(ctx).style.getPropertyValue('--sky-top');
   const water = (ctx) => lake(ctx).style.getPropertyValue('--water');
+  const figureTop = (ctx) => lake(ctx).style.getPropertyValue('--figure-top');
 
   // Need a save with ALL fish caught so all lakes are unlocked.
   const fullBestiary = AREAS.reduce((all, a) => ({ ...all, ...Object.fromEntries(a.fish.map((id) => [id, 1])) }), {});
@@ -4859,43 +4857,27 @@ test('the lake itself changes colour when a scheme is worn', async () => {
     areaId: 'aero-lake', xp: 0, ownedSeals: [], equippedSeal: [], lost: [],
     giftedRods: [], sealCoins: 0,
   }, 9620);
-  const own = { sky: sky(plain), water: water(plain) };
+  const own = { sky: sky(plain), water: water(plain), figureTop: figureTop(plain) };
   assert.match(own.sky, /^#[0-9a-f]{6}$/i, `a lake has a sky: ${own.sky}`);
 
   // Frutiger Aero is your own look: the lake must be EXACTLY as it was.
   assert.equal(own.sky, '#81d4fa', 'Aero Lake keeps its own sky when nothing is earned');
 
-  // Earn a scheme, and the same lake must come out different.
+  // Earn a scheme - the lake sky/water must NOT change, only the figure.
   const worn = await seedSave({
     coins: 0, rodId: 'bamboo', owned: allRods, bestiary: fullBestiary,
     areaId: 'aero-lake', xp: 0, ownedSeals: [], equippedSeal: [], lost: [],
     giftedRods: [], sealCoins: 0, palette: 'sunrise',
   }, 9621);
-  assert.notEqual(sky(worn), own.sky,
-    `wearing Sunrise must change the lake's sky, but it is still ${sky(worn)}`);
-  assert.notEqual(water(worn), own.water,
-    `and its water, but it is still ${water(worn)}`);
+  assert.equal(sky(worn), own.sky,
+    `wearing Sunrise must NOT change the lake's sky, but it became ${sky(worn)}`);
+  assert.equal(water(worn), own.water,
+    `and must NOT change its water, but it became ${water(worn)}`);
+  // But the figure SHOULD change
+  assert.notEqual(figureTop(worn), own.figureTop,
+    `wearing Sunrise MUST change the angler figure, but it is still ${figureTop(worn)}`);
 
-  // The strongest earned scheme must change it MOST. This is what "cooler as it gets
-  // harder" means in practice rather than in a table of hex values.
-  const last = await seedSave({
-    coins: 0, rodId: 'bamboo', owned: allRods, bestiary: fullBestiary,
-    areaId: 'aero-lake', xp: 0, ownedSeals: ['bubbles', 'tangerine', 'moss', 'frost', 'abyss'],
-    equippedSeal: ['bubbles'], lost: [], giftedRods: [], sealCoins: 0,
-    palette: 'rainbow',
-  }, 9622);
-  const shift = (hex) => {
-    const h = hex.replace('#', '');
-    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-  };
-  const gap = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
-  const sunriseGap = gap(shift(sky(worn)), shift(own.sky));
-  const rainbowGap = gap(shift(sky(last)), shift(own.sky));
-  assert.ok(rainbowGap > sunriseGap,
-    `Rainbow must shift the lake further than Sunrise does: ${rainbowGap} vs ${sunriseGap}`);
-
-  // And a lake keeps its own character: Eco Marsh must stay GREENER than
-  // Dark Aero Deep after the same scheme is applied to both.
+  // Different lakes must keep their native colors even with a scheme
   const marsh = await seedSave({
     coins: 0, rodId: 'bamboo', owned: allRods, bestiary: fullBestiary,
     areaId: 'eco-marsh', xp: 0, ownedSeals: [], equippedSeal: [], lost: [],
@@ -4906,14 +4888,16 @@ test('the lake itself changes colour when a scheme is worn', async () => {
     areaId: 'dark-aero-deep', xp: 0, ownedSeals: [], equippedSeal: [], lost: [],
     giftedRods: [], sealCoins: 0, palette: 'sunrise',
   }, 9624);
+  // Eco Marsh sky should be greener than Dark Aero Deep sky
   const greenness = (hex) => {
-    const [r, g, b] = shift(hex);
+    const h = hex.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
     return g - (r + b) / 2;
   };
   assert.ok(greenness(sky(marsh)) > greenness(sky(deep)),
-    `Eco Marsh must still read as marsh-green under an orange scheme, not ${sky(marsh)}`);
+    `Eco Marsh must still read as marsh-green, not ${sky(marsh)}`);
 });
-test('picking a scheme changes the lake there and then, alpha intact', async () => {
+test('picking a scheme changes the ANGLER there and then, alpha intact', async () => {
   // Two paths, only one of which was tested. Boot was covered; the CLICK was not, so
   // the picker could repaint nothing and still pass -- applyPalette() publishes root
   // tokens, and paintArea() writes inline styles over them, so without an explicit
@@ -4945,21 +4929,21 @@ test('picking a scheme changes the lake there and then, alpha intact', async () 
   // Small delay for the panel to fully render and swatches to be created.
   await new Promise(r => setTimeout(r, 50));
 
-  // The sky is read AFTER the click, not before. Reading it first records the
-  // starting lake twice -- once per swatch -- which made Aero and Lagoon look
+  // The figure is read AFTER the click, not before. Reading it first records the
+  // starting figure twice -- once per swatch -- which made Aero and Lagoon look
   // identical and looked for a bug that was in the test.
   const seen = {};
   for (const sw of [...ctx.doc.querySelectorAll('#trophy-palettes .swatch')]) {
     sw.dispatchEvent(new ctx.win.MouseEvent('click', { bubbles: true }));
     // Use getAttribute instead of dataset for jsdom compatibility
-    seen[sw.getAttribute('data-palette')] = cssVar(ctx, '--sky-top');
+    seen[sw.getAttribute('data-palette')] = cssVar(ctx, '--figure-top');
   }
   assert.ok(Object.keys(seen).length >= 3,
     `this save should have several schemes to switch between, had ${Object.keys(seen).length}`);
   const ids = Object.keys(seen);
-  const skies = new Set(ids.map((id) => seen[id]));
-  assert.equal(skies.size, ids.length,
-    `each scheme must paint a DIFFERENT sky when clicked: `
+  const figures = new Set(ids.map((id) => seen[id]));
+  assert.equal(figures.size, ids.length,
+    `each scheme must paint a DIFFERENT angler when clicked: `
     + ids.map((k) => `${k}=${seen[k]}`).join(' '));
 
   // Now the alpha: a lake's haze is translucent so the painted background shows
@@ -4972,13 +4956,13 @@ test('picking a scheme changes the lake there and then, alpha intact', async () 
   assert.ok(alpha && Number(alpha[1]) > 0 && Number(alpha[1]) <= 1,
     `and keep an alpha between 0 and 1: ${haze}`);
 
-  // The lake's own deep-water tint is a lake colour too, so it moves with the scheme.
+  // The lake's own deep-water tint is a lake colour too - should NOT be tinted by scheme.
   const plain = await seedSave({
     coins: 0, rodId: 'bamboo', owned: ['bamboo'], bestiary: {}, areaId: 'aero-lake',
     xp: 0, ownedSeals: [], equippedSeal: [], lost: [], giftedRods: [], sealCoins: 0,
   }, 28625);
-  assert.notEqual(cssVar(ctx, '--lake-deep'), cssVar(plain, '--lake-deep'),
-    `--lake-deep must be tinted by the scheme too: ${cssVar(ctx, '--lake-deep')} `
+  assert.equal(cssVar(ctx, '--lake-deep'), cssVar(plain, '--lake-deep'),
+    `--lake-deep must NOT be tinted by the scheme: ${cssVar(ctx, '--lake-deep')} `
     + `vs an untinted ${cssVar(plain, '--lake-deep')}`);
 
   // Close the panel so subsequent tests start clean

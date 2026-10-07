@@ -2228,13 +2228,14 @@ export const PALETTES = {
     // Tier 3: Gold - golden yellow
     // Tier 3: Gold - golden yellow
     // Tier 3: Gold - golden yellow
+    // Tier 3: Gold - golden yellow
   gold: {
     id: 'gold', name: 'Gold', unlock: 'gold', tint: 0.30,
     deep: '#f57f17', deepest: '#bf360c', inkSoft: '#bf360c',
     skyTop: '#fff8e1', skyMid: '#ffd54f', skyFloor: '#f9a825',
     sun: '#fff176', haze: 'rgba(255, 193, 7, 0.45)',
     wood: '#6d4c41', woodDeep: '#3e2723',
-    figureTop: '#ffe082', figureMid: '#ffd54f', figureDeep: '#f57f17',
+    figureTop: '#fff176', figureMid: '#ffc107', figureDeep: '#f57f17',
   },
   // Tier 4: Moss - natural green
   moss: {
