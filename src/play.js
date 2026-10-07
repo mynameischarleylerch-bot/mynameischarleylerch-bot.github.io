@@ -14,9 +14,9 @@
 
  */
 
-import { versioned } from './build.js?v=2026-10-05-A';
-import { findBySlug } from './config.js?v=2026-10-05-A';
-import { backUrl } from './router.js?v=2026-10-05-A';
+import { versioned } from './build.js?v=2026-10-06-A';
+import { findBySlug } from './config.js?v=2026-10-06-A';
+import { backUrl } from './router.js?v=2026-10-06-A';
 
 
 const ESCAPE_KEY = 'Escape';
