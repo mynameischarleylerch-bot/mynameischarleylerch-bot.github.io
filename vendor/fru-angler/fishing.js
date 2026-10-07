@@ -2713,6 +2713,28 @@ export function buyUpgrade(wallet, upgradeId, level = 1, owned = []) {
   return { ok: true, upgradeId, coins: wallet.coins - upgrade.price, owned: [...(owned ?? []), upgradeId] };
 }
 
+/**
+ * Convert seal coins to rod coins.
+ * 10 seal coins = 1 rod coin (pure, no mutation).
+ */
+export function convertSealToRod(wallet, sealCoins) {
+  const rate = 10;
+  const available = Number(wallet?.sealCoins) || 0;
+  const want = Math.floor(Number(sealCoins) / rate) * rate;
+  if (!Number.isFinite(want) || want < rate) {
+    return { ...wallet, ok: false, reason: 'Need at least 10 seal coins.' };
+  }
+  if (available < want) {
+    return { ...wallet, ok: false, reason: 'Not enough seal coins.' };
+  }
+  const rodCoins = want / rate;
+  return {
+    ok: true,
+    coins: (Number(wallet?.coins) || 0) + rodCoins,
+    sealCoins: available - want,
+  };
+}
+
 /* ---------------------------------------------------------------- pet seals */
 
 /**

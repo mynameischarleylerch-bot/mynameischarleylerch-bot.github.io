@@ -26,7 +26,8 @@ import {
  addToBag, bagCap, mixHex, mixRgba, tintFor, ACHIEVEMENTS, PALETTES, achievementState, unlockedPalettes, paletteFor, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
-} from './fishing.js?v=2026-10-05-A';
+ convertSealToRod,
+} from './fishing.js?v=2026-10-06-A';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
 } from './reel.js?v=2026-10-05-A';
@@ -1702,6 +1703,29 @@ function renderSealShop() {
       ui.sealHint.setAttribute('hidden', '');
       ui.sealHint.textContent = '';
     }
+  }
+
+  // Conversion button: 10 seal coins -> 1 rod coin
+  if (ui.sealConvertBtn === undefined && ui.sealList) {
+    const convertSection = document.createElement('div');
+    convertSection.className = 'shop__section--row';
+    convertSection.style.marginTop = '.7rem';
+    convertSection.innerHTML = `
+      <span class="shop__section" style="margin:0">Convert</span>
+      <button class="btn btn--small" id="seal-convert-btn" type="button">10 seal coins → 1 rod coin</button>
+    `;
+    ui.sealList.parentNode.insertBefore(convertSection, ui.sealList);
+    ui.sealConvertBtn = convertSection.querySelector('#seal-convert-btn');
+    ui.sealConvertBtn.addEventListener('click', () => {
+      const result = convertSealToRod({ coins: state.coins, sealCoins: state.sealCoins }, state.sealCoins);
+      if (!result.ok) return say(result.reason);
+      state.coins = result.coins;
+      state.sealCoins = result.sealCoins;
+      save();
+      paintChrome();
+      renderSealShop();
+      say(`Converted ${state.sealCoins - result.sealCoins} seal coins for ${result.coins - state.coins} rod coin${result.coins - state.coins === 1 ? '' : 's'}.`);
+    });
   }
 
   ui.sealList.textContent = '';
