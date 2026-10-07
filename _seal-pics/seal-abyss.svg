@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 27 30 26" width="900" height="780" role="img" aria-label="Abyss">
+  <defs>
+    <linearGradient id="sky-abyss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="hsl(158 60% 82%)"/>
+      <stop offset="1" stop-color="hsl(158 46% 44%)"/>
+    </linearGradient>
+    <linearGradient id="g-abyss" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.4" stop-color="hsl(158 84% 76%)"/>
+      <stop offset="1" stop-color="hsl(158 62% 36%)"/>
+    </linearGradient>
+    <symbol id="fx-abyss" overflow="visible">
+              <!-- bioluminescence: a jellyfish bell and trailing motes -->
+              <g transform="translate(5 30.4)">
+                <path d="M-1.6 0 C-1.6 -1.6 1.6 -1.6 1.6 0 Z" fill="#7dffc4" fill-opacity=".34"/>
+                <path d="M0 0 C-.52 .84 -.76 1.66 -.58 2.4
+                         M0 0 C.52 .84 .76 1.66 .58 2.4
+                         M0 0 C-.25 1.14 -.28 1.96 -.19 2.6"
+                      fill="none" stroke="#7dffc4" stroke-width=".18"
+                      stroke-opacity=".7" stroke-linecap="round"/>
+              </g>
+              <g fill="#5effc0">
+                <circle cx="2.4" cy="33.4" r=".3" opacity=".88"/>
+                <circle cx="9.2" cy="32" r=".25" opacity=".8"/>
+                <circle cx="11.6" cy="34.2" r=".2" opacity=".68"/>
+              </g>
+              <g fill="#d6fff2" opacity=".75">
+                <circle cx="13.8" cy="30.4" r=".17"/>
+                <circle cx="7.4" cy="28.8" r=".15"/>
+                <circle cx="15.2" cy="33" r=".13"/>
+              </g>
+            </symbol>
+  </defs>
+  <rect x="0" y="27" width="30" height="26" fill="url(#sky-abyss)"/>
+  <g><ellipse cx="12.9" cy="48.4" rx="11.6" ry="1.4" fill="#0a4a70" opacity=".24"/><ellipse class="pet__ring" cx="4.6" cy="38.2" rx="1.3" ry="1"
+                     stroke-opacity=".5" stroke-width=".3"/><ellipse class="pet__ring" cx="3.4" cy="45.4" rx="1.1" ry=".82"
+                     stroke-opacity=".44" stroke-width=".28"/><ellipse class="pet__ring" cx="8.4" cy="34.2" rx="1" ry=".75"
+                     stroke-opacity=".42" stroke-width=".28"/><path id="pet-body-0" class="pet__body"
+                d="M12.9 31.4
+                   C19.6 31.4 24.9 36.6 24.9 42.2
+                   C24.9 47.2 19.4 49.8 12.9 49.8
+                   C6.4 49.8 0.9 47.2 0.9 42.2
+                   C0.9 36.6 6.2 31.4 12.9 31.4 Z"
+                fill="url(#g-abyss)" stroke="#28405a" stroke-opacity=".32" stroke-width=".22"/><path id="pet-cheek-0"
+                d="M16.6 32.7 C20.8 34.2 23.9 37.5 24.2 41.4 C24.4 43.7 23.7 45.8 22.2 47.2
+                   C23.7 44.1 24.1 40 23.2 36.5 C22.5 34 20.1 32.4 16.6 32.7 Z"
+                fill="#2f4a5e" opacity=".14"/><path id="pet-flipper-0"
+                d="M8.6 44.6 C10.4 44.4 11.7 45.8 11.9 47.6 C12 48.8 11.2 49.8 10 49.9
+                   C8.8 50 8 48.6 7.9 47 C7.8 45.7 8 44.8 8.6 44.6 Z"
+                fill="#3f5a6e" opacity=".4"/>
+    <use href="#fx-abyss" overflow="visible"/>
+    <g id="pet-face-0">
+            <!-- The tilt. A NESTED group on purpose: fitPet() overwrites the
+                 transform on #pet-face every time the lake resizes, so a rotation
+                 written on #pet-face itself would be silently destroyed on the
+                 first refit and the face would snap upright with nothing failing.
+                 The glyph only; the body stays upright.
+                 TILT: 90 degrees CLOCKWISE, about the glyph centre. Measured from
+                 the reference: its colon's two dots sit 0.15 degrees off horizontal,
+                 which can only be a quarter turn, and rotating it 90 degrees
+                 counter-clockwise restores an upright ":3". An earlier -12 was a
+                 guess, made without being able to see the picture, and was wrong.
+
+                 The pivot is (17.714, 38.186) and the glyph is scaled to 30% about
+                 its own centre (20.5275, 40.75) -- the scale goes FIRST in the list, so
+                 it is applied before the rotation, which is what "about its own centre"
+                 has to mean.
+
+                 THE FACE IS SMALL ON PURPOSE, and the reason is the squeeze. The body is
+                 drawn round, but the scene uses preserveAspectRatio="none", so fitPet()
+                 then SQUEEZES the seal's x by lake.height/lake.width -- about 0.47 on a
+                 1920x1080 desktop. The face carries the INVERSE correction so it keeps the
+                 size it was drawn at. The body therefore gets NARROWER as the window gets
+                 wider and the face does not, and a glyph sized for the unsqueezed drawing
+                 hangs out past the curved shoulder: at 85% the turned face reached x=24.6
+                 on screen, which is where it crossed the outline.
+
+                 At 30% the nearest approach is 1.62 units of clear INK -- half the stroke
+                 counted, not just the centreline -- at every aspect a real window produces,
+                 from a wide desktop to a tall portrait one, and the face still sits 2.25
+                 units right of the body's middle so it looks at the angler rather than out
+                 to sea. Below s=0.44, an unusually wide AND short window, the margin
+                 narrows to about 0.7 -- still inside the body, but not by much.
+
+                 FACE_X in fitPet() is 13 -- the SEAL's centre, not the glyph's -- which is
+                 what makes the two corrections cancel and the face stop drifting as the
+                 window reshapes. See the tests at the foot of angler-look.test.js. -->
+          <!-- THE PARTICLES. Drawn AFTER the body, not before.
+               They started out behind it and inside its outline, and an opaque
+               body painted over them covers every pixel -- so all five motifs
+               were invisible. They sit on top now and overlap the seal's edge,
+               which is what atmosphere around an animal actually looks like.
+               Still inside fa-pet-fit, so they scale and hide with the seal. -->
+          <!-- The stamped particles for the equipped seal. paintPet() swaps which
+               <use> is shown; the rest are hidden. Behind the body, so they read as
+               the seal's own atmosphere. -->
+          <g id="pet-fx-0" aria-hidden="true">
+            <use href="#fx-bubbles"   class="pet__fx" data-fx="bubbles"/>
+            <use href="#fx-tangerine" class="pet__fx" data-fx="tangerine"/>
+            <use href="#fx-moss"      class="pet__fx" data-fx="moss"/>
+            <use href="#fx-frost"     class="pet__fx" data-fx="frost"/>
+            <use href="#fx-abyss"     class="pet__fx" data-fx="abyss"/>
+          </g>
+  </g>
+  <g font-family="Segoe UI, system-ui, sans-serif" fill="#ffffff">
+    <text x="1.2" y="30.6" font-size="2.2" font-weight="700">Abyss</text>
+    <text x="1.2" y="32.7" font-size="1.05" opacity=".9">Dark Aero Deep</text>
+    <text x="1.2" y="51.4" font-size="1.05" opacity=".9">Green-teal — Dark Aero</text>
+    <text x="1.2" y="52.9" font-size=".95" opacity=".78">Bioluminescence: a jellyfish bell</text>
+  </g>
+</svg>

@@ -2201,88 +2201,101 @@ export const PALETTES = {
     wood: '#a9714a', woodDeep: '#7d4f2e',
     figureTop: '#0b5586', figureMid: '#013a63', figureDeep: '#012741',
   },
-  // Tier 1: Pale blue - just starting out
-  lagoon: {
-    id: 'lagoon', name: 'Lagoon', unlock: 'lagoon', tint: 0.14,
-    deep: '#0277bd', deepest: '#013a63', inkSoft: '#01579b',
-    skyTop: '#e1f5fe', skyMid: '#81d4fa', skyFloor: '#0277bd',
-    sun: '#fff9c4', haze: 'rgba(2, 119, 189, 0.25)',
-    wood: '#a9714a', woodDeep: '#7d4f2e',
-    figureTop: '#4fc3f7', figureMid: '#0288d1', figureDeep: '#0277bd',
-  },
-  // Tier 2: Sky blue - getting going
-  fjord: {
-    id: 'fjord', name: 'Fjord', unlock: 'fjord', tint: 0.24,
-    deep: '#0288d1', deepest: '#013a63', inkSoft: '#01579b',
-    skyTop: '#e1f5fe', skyMid: '#4fc3f7', skyFloor: '#0288d1',
-    sun: '#fff9c4', haze: 'rgba(2, 136, 209, 0.3)',
+  // Tier 1: Sunrise - warm dawn colors
+    // Tier 1: Sunrise - warm dawn colors
+  sunrise: {
+    id: 'sunrise', name: 'Sunrise', unlock: 'sunrise', tint: 0.12,
+    deep: '#c62828', deepest: '#8b0000', inkSoft: '#c62828',
+    skyTop: '#ffebee', skyMid: '#ffcdd2', skyFloor: '#e53935',
+    sun: '#ffeb3b', haze: 'rgba(198, 40, 40, 0.35)',
     wood: '#8d6e63', woodDeep: '#5d4037',
-    figureTop: '#81d4fa', figureMid: '#039be5', figureDeep: '#0288d1',
+    figureTop: '#ffccbc', figureMid: '#ef9a9a', figureDeep: '#c62828',
   },
-  // Tier 3: Bright blue - travelling
-  poolside: {
-    id: 'poolside', name: 'Poolside', unlock: 'poolside', tint: 0.34,
-    deep: '#039be5', deepest: '#013a63', inkSoft: '#01579b',
-    skyTop: '#e3f2fd', skyMid: '#29b6f6', skyFloor: '#039be5',
-    sun: '#fff9c4', haze: 'rgba(3, 155, 229, 0.35)',
+  // Tier 2: Ember - warm orange/amber
+    // Tier 2: Ember - warm orange/amber
+    // Tier 2: Ember - warm orange/amber
+  ember: {
+    id: 'ember', name: 'Ember', unlock: 'ember', tint: 0.20,
+    deep: '#e65100', deepest: '#bf360c', inkSoft: '#bf360c',
+    skyTop: '#fff3e0', skyMid: '#ffcc80', skyFloor: '#ff9800',
+    sun: '#ffc107', haze: 'rgba(255, 152, 0, 0.4)',
     wood: '#795548', woodDeep: '#4e342e',
-    figureTop: '#81d4fa', figureMid: '#29b6f6', figureDeep: '#039be5',
+    figureTop: '#ffe0b2', figureMid: '#ffb74d', figureDeep: '#e65100',
   },
-  // Tier 4: Deep blue - a companion
-  deep: {
-    id: 'deep', name: 'Deep Water', unlock: 'deep', tint: 0.44,
-    deep: '#1565c0', deepest: '#0d1b5e', inkSoft: '#1565c0',
-    skyTop: '#e3f2fd', skyMid: '#1e88e5', skyFloor: '#1565c0',
-    sun: '#fff9c4', haze: 'rgba(21, 101, 192, 0.4)',
+  // Tier 3: Gold - golden yellow
+    // Tier 3: Gold - golden yellow
+    // Tier 3: Gold - golden yellow
+    // Tier 3: Gold - golden yellow
+    // Tier 3: Gold - golden yellow
+    // Tier 3: Gold - golden yellow
+  gold: {
+    id: 'gold', name: 'Gold', unlock: 'gold', tint: 0.30,
+    deep: '#f57f17', deepest: '#bf360c', inkSoft: '#bf360c',
+    skyTop: '#fff8e1', skyMid: '#ffd54f', skyFloor: '#f9a825',
+    sun: '#fff176', haze: 'rgba(255, 193, 7, 0.45)',
     wood: '#6d4c41', woodDeep: '#3e2723',
-    figureTop: '#81d4fa', figureMid: '#1e88e5', figureDeep: '#1565c0',
+    figureTop: '#ffe082', figureMid: '#ffd54f', figureDeep: '#f57f17',
   },
-  // Tier 5: Darker blue - mastery
-  midnight: {
-    id: 'midnight', name: 'Midnight', unlock: 'midnight', tint: 0.54,
-    deep: '#1a237e', deepest: '#0d1b5e', inkSoft: '#1a237e',
-    skyTop: '#e8eaf6', skyMid: '#3f51b5', skyFloor: '#1a237e',
-    sun: '#ffd54f', haze: 'rgba(26, 35, 126, 0.45)',
-    wood: '#5d4037', woodDeep: '#3e2723',
-    figureTop: '#aed581', figureMid: '#3f51b5', figureDeep: '#1a237e',
+  // Tier 4: Moss - natural green
+  moss: {
+    id: 'moss', name: 'Moss', unlock: 'moss', tint: 0.40,
+    deep: '#1b5e20', deepest: '#0d3d0e', inkSoft: '#1b5e20',
+    skyTop: '#e8f5e9', skyMid: '#81c784', skyFloor: '#4caf50',
+    sun: '#aed581', haze: 'rgba(76, 175, 80, 0.5)',
+    wood: '#2e7d32', woodDeep: '#1b5e20',
+    figureTop: '#c8e6c9', figureMid: '#66bb6a', figureDeep: '#1b5e20',
   },
-  // Tier 6: Indigo - rare things
-  biolum: {
-    id: 'biolum', name: 'Bioluminescent', unlock: 'biolum', tint: 0.64,
-    deep: '#311b92', deepest: '#0d1b5e', inkSoft: '#311b92',
-    skyTop: '#e8eaf6', skyMid: '#5c6bc0', skyFloor: '#311b92',
-    sun: '#7c4dff', haze: 'rgba(49, 27, 146, 0.5)',
-    wood: '#4e342e', woodDeep: '#3e2723',
-    figureTop: '#5c6bc0', figureMid: '#311b92', figureDeep: '#283593',
+  // Tier 5: Ruby - deep red
+  ruby: {
+    id: 'ruby', name: 'Ruby', unlock: 'ruby', tint: 0.50,
+    deep: '#b71c1c', deepest: '#7f0000', inkSoft: '#b71c1c',
+    skyTop: '#ffebee', skyMid: '#ffcdd2', skyFloor: '#e53935',
+    sun: '#ff5252', haze: 'rgba(183, 28, 28, 0.55)',
+    wood: '#8d6e63', woodDeep: '#5d4037',
+    figureTop: '#ffccbc', figureMid: '#ef9a9a', figureDeep: '#b71c1c',
   },
-  // Tier 7: Violet - night/deep water
-  aurora: {
-    id: 'aurora', name: 'Aurora', unlock: 'aurora', tint: 0.74,
-    deep: '#4a148c', deepest: '#21155e', inkSoft: '#4a148c',
-    skyTop: '#f3e5f5', skyMid: '#ab47bc', skyFloor: '#4a148c',
-    sun: '#e040fb', haze: 'rgba(74, 20, 140, 0.55)',
-    wood: '#3e2723', woodDeep: '#212121',
-    figureTop: '#ab47bc', figureMid: '#4a148c', figureDeep: '#283593',
+  // Tier 6: Emerald - rich green
+  emerald: {
+    id: 'emerald', name: 'Emerald', unlock: 'emerald', tint: 0.60,
+    deep: '#0d4d0e', deepest: '#052e05', inkSoft: '#0d4d0e',
+    skyTop: '#e8f5e9', skyMid: '#81c784', skyFloor: '#4caf50',
+    sun: '#a5d6a7', haze: 'rgba(13, 77, 14, 0.6)',
+    wood: '#1b5e20', woodDeep: '#0d3d0e',
+    figureTop: '#c8e6c9', figureMid: '#66bb6a', figureDeep: '#0d4d0e',
   },
-  // Tier 8: Dark violet - the deep
-  abyss: {
-    id: 'abyss', name: 'Abyssal', unlock: 'abyss', tint: 0.86,
+  // Tier 7: Amber - warm golden orange
+    // Tier 7: Amber - warm golden orange
+    // Tier 7: Amber - warm golden orange
+  amber: {
+    id: 'amber', name: 'Amber', unlock: 'amber', tint: 0.70,
+    deep: '#ff6f00', deepest: '#bf360c', inkSoft: '#bf360c',
+    skyTop: '#fff8e1', skyMid: '#ffd54f', skyFloor: '#ffa000',
+    sun: '#ffd600', haze: 'rgba(255, 111, 0, 0.65)',
+    wood: '#6d4c41', woodDeep: '#3e2723',
+    figureTop: '#ffe082', figureMid: '#ffd54f', figureDeep: '#ff6f00',
+  },
+  // Tier 8: Prism - iridescent white
+    // Tier 8: Prism - iridescent white
+  prism: {
+    id: 'prism', name: 'Prism', unlock: 'prism', tint: 0.85,
+    deep: '#37474f', deepest: '#263238', inkSoft: '#37474f',
+    skyTop: '#ffffff', skyMid: '#eceff1', skyFloor: '#b0bec5',
+    sun: '#fff9c4', haze: 'rgba(255, 255, 255, 0.75)',
+    wood: '#546e7a', woodDeep: '#37474f',
+    figureTop: '#ffffff', figureMid: '#eceff1', figureDeep: '#b0bec5',
+  },
+  // Tier 9: Rainbow - full iridescent
+  rainbow: {
+    id: 'rainbow', name: 'Rainbow', unlock: 'rainbow', tint: 1.0,
     deep: '#1a0a3a', deepest: '#000000', inkSoft: '#1a0a3a',
-    skyTop: '#ede7f6', skyMid: '#4a148c', skyFloor: '#1a0a3a',
-    sun: '#d500f9', haze: 'rgba(26, 35, 126, 0.65)',
-    wood: '#212121', woodDeep: '#000000',
-    figureTop: '#ab47bc', figureMid: '#4a148c', figureDeep: '#212121',
-  },
-  // Tier 9: Near-black iridescent - everything
-  void: {
-    id: 'void', name: 'The Void', unlock: 'void', tint: 1,
-    deep: '#1a0a3a', deepest: '#000000', inkSoft: '#1a0a3a',
-    skyTop: '#f3e5f5', skyMid: '#4a148c', skyFloor: '#1a0a3a',
+    skyTop: '#f3e5f5', skyMid: '#e0e0e0', skyFloor: '#9e9e9e',
     sun: '#fff9c4', haze: 'rgba(255, 255, 255, 0.85)',
     wood: '#000000', woodDeep: '#000000',
     figureTop: '#ffffff', figureMid: '#e0e0e0', figureDeep: '#757575',
   },
 };
+
+
 
 
 /* ------------------------------------------------------------ lake tinting */
@@ -2359,82 +2372,84 @@ export function tintFor(paletteId) {
  */
 export const ACHIEVEMENTS = {
   first_catch: {
-    id: 'first_catch', name: 'First Fish', tier: 1, palette: 'lagoon', stat: 'species', goal: 1,
-    blurb: "Land anything at all.",
+    id: 'first_catch', name: 'First Cast', tier: 1, palette: 'sunrise', stat: 'species', goal: 1,
+    blurb: "Land your very first fish.",
   },
   bag_of_ten: {
-    id: 'bag_of_ten', name: 'Full Bag', tier: 1, palette: 'lagoon', stat: 'peakBag', goal: 10,
-    blurb: "Fill the bag all the way to the brim.",
+    id: 'bag_of_ten', name: 'Heavy Haul', tier: 1, palette: 'sunrise', stat: 'peakBag', goal: 10,
+    blurb: "Fill the bag to the brim.",
   },
   ten_species: {
-    id: 'ten_species', name: 'Menagerie', tier: 2, palette: 'fjord', stat: 'species', goal: 10,
+    id: 'ten_species', name: 'Menagerie', tier: 2, palette: 'ember', stat: 'species', goal: 10,
     blurb: "Land ten different species.",
   },
   hundred_catches: {
-    id: 'hundred_catches', name: 'Century', tier: 2, palette: 'fjord', stat: 'catches', goal: 100,
+    id: 'hundred_catches', name: 'Century Angler', tier: 2, palette: 'ember', stat: 'catches', goal: 100,
     blurb: "Land a hundred fish.",
   },
   two_lakes: {
-    id: 'two_lakes', name: 'Travelling', tier: 3, palette: 'poolside', stat: 'lakesVisited', goal: 2,
+    id: 'two_lakes', name: 'Wayfarer', tier: 3, palette: 'gold', stat: 'lakesVisited', goal: 2,
     blurb: "Fish in two different lakes.",
   },
   every_lake: {
-    id: 'every_lake', name: 'Every Water', tier: 3, palette: 'deep', stat: 'lakesVisited', goal: 5,
+    id: 'every_lake', name: 'Five Waters', tier: 3, palette: 'gold', stat: 'lakesVisited', goal: 5,
     blurb: "Fish in all five lakes.",
   },
   first_seal: {
-    id: 'first_seal', name: 'Company', tier: 4, palette: 'poolside', stat: 'sealsOwned', goal: 1,
+    id: 'first_seal', name: 'First Companion', tier: 4, palette: 'moss', stat: 'sealsOwned', goal: 1,
     blurb: "Buy a seal. It will sit with you and judge you.",
   },
   bonded: {
-    id: 'bonded', name: 'Good Friends', tier: 4, palette: 'deep', stat: 'bondTotal', goal: 10,
+    id: 'bonded', name: 'Kindred Spirits', tier: 4, palette: 'moss', stat: 'bondTotal', goal: 10,
     blurb: "Feed one seal ten fish.",
   },
   biggest_fish: {
-    id: 'biggest_fish', name: 'Heavy Water', tier: 5, palette: 'midnight', stat: 'heaviest', goal: 20,
+    id: 'biggest_fish', name: 'Leviathan', tier: 5, palette: 'ruby', stat: 'heaviest', goal: 20,
     blurb: "Land a fish of twenty kilos.",
   },
   all_species: {
-    id: 'all_species', name: 'Complete Book', tier: 5, palette: 'midnight', stat: 'speciesTotal', goal: 0,
+    id: 'all_species', name: 'Master Naturalist', tier: 5, palette: 'ruby', stat: 'speciesTotal', goal: 0,
     blurb: "Land every species in the game.",
   },
   rare_catch: {
-    id: 'rare_catch', name: 'That Once', tier: 6, palette: 'biolum', stat: 'rareLanded', goal: 1,
+    id: 'rare_catch', name: 'Rare Find', tier: 6, palette: 'emerald', stat: 'rareLanded', goal: 1,
     blurb: "Land something Rare or better.",
   },
   crowned_catch: {
-    id: 'crowned_catch', name: 'Crowned', tier: 6, palette: 'biolum', stat: 'crowned', goal: 1,
+    id: 'crowned_catch', name: 'Crowned Glory', tier: 6, palette: 'emerald', stat: 'crowned', goal: 1,
     blurb: "Land a Crowned fish. Worth five times what it was.",
   },
   midnight_angler: {
-    id: 'midnight_angler', name: 'Night Shift', tier: 7, palette: 'aurora', stat: 'nightCatches', goal: 1,
+    id: 'midnight_angler', name: 'Night Walker', tier: 7, palette: 'amber', stat: 'nightCatches', goal: 1,
     blurb: "Land a fish after dusk, when the lake goes quiet.",
   },
   all_seals_fed: {
-    id: 'all_seals_fed', name: 'The Pod', tier: 7, palette: 'aurora', stat: 'sealsBonded', goal: 5,
+    id: 'all_seals_fed', name: 'The Caretaker', tier: 7, palette: 'amber', stat: 'sealsBonded', goal: 5,
     blurb: "Feed every seal you own at least once.",
   },
   deep_water: {
-    id: 'deep_water', name: 'Where The Light Gives Up', tier: 8, palette: 'abyss', stat: 'darkLakeCatches', goal: 1,
+    id: 'deep_water', name: 'Abyssal Diver', tier: 8, palette: 'prism', stat: 'darkLakeCatches', goal: 1,
     blurb: "Fish in Dark Aero Deep.",
   },
   full_dock: {
-    id: 'full_dock', name: 'Full Dock', tier: 8, palette: 'abyss', stat: 'sealsOwned', goal: 2,
+    id: 'full_dock', name: 'Dockmaster', tier: 8, palette: 'prism', stat: 'sealsOwned', goal: 2,
     blurb: "Buy Bigger Dock and keep two seals with you.",
   },
   rare_seals: {
-    id: 'rare_seals', name: 'Collector', tier: 9, palette: 'void', stat: 'sealsOwned', goal: 5,
+    id: 'rare_seals', name: 'Seal Collector', tier: 9, palette: 'rainbow', stat: 'sealsOwned', goal: 5,
     blurb: "Own every seal in the game.",
   },
   everything: {
-    id: 'everything', name: 'Everything', tier: 9, palette: 'void', stat: 'achievementsTotal', goal: 0,
-    blurb: "Earn every other achievement. Then wear the dark.",
+    id: 'everything', name: 'Grandmaster', tier: 9, palette: 'rainbow', stat: 'achievementsTotal', goal: 0,
+    blurb: "Earn every other achievement. Then wear the rainbow.",
   },
 };
 
+;
 
 
 /** Every achievement's goal, as a count, for the "earn them all" rule. */
+
 const ACHIEVEMENT_COUNT = Object.keys(ACHIEVEMENTS).length;
 
 /**

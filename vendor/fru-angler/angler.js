@@ -2183,6 +2183,7 @@ function startingStats() {
   return {
     catches: 0, peakBag: 0, nightCatches: 0,
     darkLakeCatches: 0, rareLanded: 0, crowned: 0,
+    lakesVisited: 0,
   };
 }
 

@@ -1,0 +1,18 @@
+mutation,caught,failures,first
+travelling does not record a lake,YES,10,a Crowned fish is the Crowned mutation, not merely a mutated one
+a missing stats key is not a difference,YES,10,a Crowned fish is the Crowned mutation, not merely a mutated one
+night catches never counted,YES,9,a Crowned fish is the Crowned mutation, not merely a mutated one
+the dark lake is never counted,YES,9,a Crowned fish is the Crowned mutation, not merely a mutated one
+the sky is re-rolled instead of the one fished under,YES,9,a Crowned fish is the Crowned mutation, not merely a mutated one
+Shiny/Glowy counted as Crowned,YES,9,a Crowned fish is the Crowned mutation, not merely a mutated one
+the starting lake is not counted,YES,10,a Crowned fish is the Crowned mutation, not merely a mutated one
+a catch does not count,YES,9,a Crowned fish is the Crowned mutation, not merely a mutated one
+the bag peak is never recorded,YES,9,a Crowned fish is the Crowned mutation, not merely a mutated one
+a hand-edited stat is trusted,YES,9,a Crowned fish is the Crowned mutation, not merely a mutated one
+stats are never saved,SKIP,0,
+lakesSeen is never saved,SKIP,0,
+the lake-deep colour is not tinted,SKIP,0,
+the picker does not repaint the lake,YES,10,a Crowned fish is the Crowned mutation, not merely a mutated one
+
+GAPS: stats are never saved,lakesSeen is never saved,the lake-deep colour is not tinted
+restored byte-identical: true

@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 27 30 26" width="900" height="780" role="img" aria-label="Frost">
+  <defs>
+    <linearGradient id="sky-frost" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="hsl(196 60% 90%)"/>
+      <stop offset="1" stop-color="hsl(196 46% 68%)"/>
+    </linearGradient>
+    <linearGradient id="g-frost" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.4" stop-color="hsl(196 84% 92%)"/>
+      <stop offset="1" stop-color="hsl(196 62% 51%)"/>
+    </linearGradient>
+    <symbol id="fx-frost" overflow="visible">
+              <!-- ice crystals, six-fold, settled on the seal's back -->
+              <g fill="none" stroke="#f2fdff" stroke-linecap="round">
+                <path d="M2.80 30.60 L6.00 30.60" stroke-width="0.2" stroke-opacity="0.96"/>
+                <path d="M5.36 30.60 L5.75 30.27" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M5.36 30.60 L5.75 30.93" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M3.44 30.60 L3.83 30.27" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M3.44 30.60 L3.83 30.93" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M3.60 29.21 L5.20 31.99" stroke-width="0.2" stroke-opacity="0.96"/>
+                <path d="M4.88 31.43 L5.36 31.61" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M4.88 31.43 L4.79 31.94" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M3.92 29.77 L4.40 29.94" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M3.92 29.77 L3.83 30.27" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M5.20 29.21 L3.60 31.99" stroke-width="0.2" stroke-opacity="0.96"/>
+                <path d="M3.92 31.43 L4.01 31.94" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M3.92 31.43 L3.44 31.61" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M4.88 29.77 L4.97 30.27" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M4.88 29.77 L4.40 29.94" stroke-width="0.140" stroke-opacity="0.86"/>
+                <path d="M8.15 31.80 L10.25 31.80" stroke-width="0.17" stroke-opacity="0.84"/>
+                <path d="M9.83 31.80 L10.09 31.58" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M9.83 31.80 L10.09 32.02" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M8.57 31.80 L8.83 31.58" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M8.57 31.80 L8.83 32.02" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M8.67 30.89 L9.72 32.71" stroke-width="0.17" stroke-opacity="0.84"/>
+                <path d="M9.51 32.35 L9.83 32.46" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M9.51 32.35 L9.46 32.68" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M8.88 31.25 L9.20 31.37" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M8.88 31.25 L8.83 31.59" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M9.72 30.89 L8.67 32.71" stroke-width="0.17" stroke-opacity="0.84"/>
+                <path d="M8.88 32.35 L8.94 32.68" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M8.88 32.35 L8.57 32.46" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M9.51 31.25 L9.57 31.59" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M9.51 31.25 L9.20 31.37" stroke-width="0.119" stroke-opacity="0.76"/>
+                <path d="M11.94 29.80 L13.26 29.80" stroke-width="0.15" stroke-opacity="0.68"/>
+                <path d="M13.00 29.80 L13.16 29.66" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M13.00 29.80 L13.16 29.94" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.20 29.80 L12.37 29.66" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.20 29.80 L12.37 29.94" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.27 29.23 L12.93 30.37" stroke-width="0.15" stroke-opacity="0.68"/>
+                <path d="M12.80 30.14 L13.00 30.22" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.80 30.14 L12.76 30.35" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.40 29.46 L12.60 29.53" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.40 29.46 L12.37 29.67" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.93 29.23 L12.27 30.37" stroke-width="0.15" stroke-opacity="0.68"/>
+                <path d="M12.40 30.14 L12.44 30.35" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.40 30.14 L12.20 30.22" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.80 29.46 L12.83 29.67" stroke-width="0.105" stroke-opacity="0.61"/>
+                <path d="M12.80 29.46 L12.60 29.53" stroke-width="0.105" stroke-opacity="0.61"/>
+              </g>
+            </symbol>
+  </defs>
+  <rect x="0" y="27" width="30" height="26" fill="url(#sky-frost)"/>
+  <g><ellipse cx="12.9" cy="48.4" rx="11.6" ry="1.4" fill="#0a4a70" opacity=".24"/><ellipse class="pet__ring" cx="4.6" cy="38.2" rx="1.3" ry="1"
+                     stroke-opacity=".5" stroke-width=".3"/><ellipse class="pet__ring" cx="3.4" cy="45.4" rx="1.1" ry=".82"
+                     stroke-opacity=".44" stroke-width=".28"/><ellipse class="pet__ring" cx="8.4" cy="34.2" rx="1" ry=".75"
+                     stroke-opacity=".42" stroke-width=".28"/><path id="pet-body-0" class="pet__body"
+                d="M12.9 31.4
+                   C19.6 31.4 24.9 36.6 24.9 42.2
+                   C24.9 47.2 19.4 49.8 12.9 49.8
+                   C6.4 49.8 0.9 47.2 0.9 42.2
+                   C0.9 36.6 6.2 31.4 12.9 31.4 Z"
+                fill="url(#g-frost)" stroke="#28405a" stroke-opacity=".32" stroke-width=".22"/><path id="pet-cheek-0"
+                d="M16.6 32.7 C20.8 34.2 23.9 37.5 24.2 41.4 C24.4 43.7 23.7 45.8 22.2 47.2
+                   C23.7 44.1 24.1 40 23.2 36.5 C22.5 34 20.1 32.4 16.6 32.7 Z"
+                fill="#2f4a5e" opacity=".14"/><path id="pet-flipper-0"
+                d="M8.6 44.6 C10.4 44.4 11.7 45.8 11.9 47.6 C12 48.8 11.2 49.8 10 49.9
+                   C8.8 50 8 48.6 7.9 47 C7.8 45.7 8 44.8 8.6 44.6 Z"
+                fill="#3f5a6e" opacity=".4"/>
+    <use href="#fx-frost" overflow="visible"/>
+    <g id="pet-face-0">
+            <!-- The tilt. A NESTED group on purpose: fitPet() overwrites the
+                 transform on #pet-face every time the lake resizes, so a rotation
+                 written on #pet-face itself would be silently destroyed on the
+                 first refit and the face would snap upright with nothing failing.
+                 The glyph only; the body stays upright.
+                 TILT: 90 degrees CLOCKWISE, about the glyph centre. Measured from
+                 the reference: its colon's two dots sit 0.15 degrees off horizontal,
+                 which can only be a quarter turn, and rotating it 90 degrees
+                 counter-clockwise restores an upright ":3". An earlier -12 was a
+                 guess, made without being able to see the picture, and was wrong.
+
+                 The pivot is (17.714, 38.186) and the glyph is scaled to 30% about
+                 its own centre (20.5275, 40.75) -- the scale goes FIRST in the list, so
+                 it is applied before the rotation, which is what "about its own centre"
+                 has to mean.
+
+                 THE FACE IS SMALL ON PURPOSE, and the reason is the squeeze. The body is
+                 drawn round, but the scene uses preserveAspectRatio="none", so fitPet()
+                 then SQUEEZES the seal's x by lake.height/lake.width -- about 0.47 on a
+                 1920x1080 desktop. The face carries the INVERSE correction so it keeps the
+                 size it was drawn at. The body therefore gets NARROWER as the window gets
+                 wider and the face does not, and a glyph sized for the unsqueezed drawing
+                 hangs out past the curved shoulder: at 85% the turned face reached x=24.6
+                 on screen, which is where it crossed the outline.
+
+                 At 30% the nearest approach is 1.62 units of clear INK -- half the stroke
+                 counted, not just the centreline -- at every aspect a real window produces,
+                 from a wide desktop to a tall portrait one, and the face still sits 2.25
+                 units right of the body's middle so it looks at the angler rather than out
+                 to sea. Below s=0.44, an unusually wide AND short window, the margin
+                 narrows to about 0.7 -- still inside the body, but not by much.
+
+                 FACE_X in fitPet() is 13 -- the SEAL's centre, not the glyph's -- which is
+                 what makes the two corrections cancel and the face stop drifting as the
+                 window reshapes. See the tests at the foot of angler-look.test.js. -->
+          <!-- THE PARTICLES. Drawn AFTER the body, not before.
+               They started out behind it and inside its outline, and an opaque
+               body painted over them covers every pixel -- so all five motifs
+               were invisible. They sit on top now and overlap the seal's edge,
+               which is what atmosphere around an animal actually looks like.
+               Still inside fa-pet-fit, so they scale and hide with the seal. -->
+          <!-- The stamped particles for the equipped seal. paintPet() swaps which
+               <use> is shown; the rest are hidden. Behind the body, so they read as
+               the seal's own atmosphere. -->
+          <g id="pet-fx-0" aria-hidden="true">
+            <use href="#fx-bubbles"   class="pet__fx" data-fx="bubbles"/>
+            <use href="#fx-tangerine" class="pet__fx" data-fx="tangerine"/>
+            <use href="#fx-moss"      class="pet__fx" data-fx="moss"/>
+            <use href="#fx-frost"     class="pet__fx" data-fx="frost"/>
+            <use href="#fx-abyss"     class="pet__fx" data-fx="abyss"/>
+          </g>
+  </g>
+  <g font-family="Segoe UI, system-ui, sans-serif" fill="#ffffff">
+    <text x="1.2" y="30.6" font-size="2.2" font-weight="700">Frost</text>
+    <text x="1.2" y="32.7" font-size="1.05" opacity=".9">Glacier Fjord</text>
+    <text x="1.2" y="51.4" font-size="1.05" opacity=".9">Ice blue — Glacier</text>
+    <text x="1.2" y="52.9" font-size=".95" opacity=".78">Ice crystals, six-fold</text>
+  </g>
+</svg>

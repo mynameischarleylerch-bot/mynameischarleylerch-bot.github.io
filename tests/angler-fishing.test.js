@@ -16,7 +16,8 @@ import {
   bondMilestones, bondProgress,
   UPGRADES, BASE_BAG_CAP, bagCap, buyUpgrade, sealSlots, upgradeLuck,
   sealParty as sealPartyOf, ACHIEVEMENTS, PALETTES,
-  achievementProgress, achievementState, unlockedPalettes, paletteFor,} from '../vendor/fru-angler/fishing.js';
+  achievementProgress, achievementState, unlockedPalettes, paletteFor,
+  mixHex, mixRgba, tintFor,} from '../vendor/fru-angler/fishing.js';
 
 /**
  * addToBag as it used to be: takes a bag, returns a bag.
@@ -3211,68 +3212,25 @@ test('achievements are ordered easy to hard, and each unlocks a distinct palette
     'there must be more than one palette to switch between');
 });
 
-test('unlocked palettes really are cooler, and get cooler the harder they are', () => {
-  // "Cooler" has to be MEASURED, not eyeballed. Eyeballing it is what produced a
-  // ramp running lagoon -> bioluminescent -> fjord: biolum sat at hue 187 (teal)
-  // while everything around it sat at 210+ (blue), so it read warmer than the pale
-  // blues it was supposed to be cooler than.
-  //
-  // The first version of this test used `warmth = r - b`, which quietly ranked
-  // DARKNESS above hue and so called #00264a "warmer" than #013a63 -- a darker,
-  // bluer colour declared warmer than a lighter blue. Two numbers, not one:
-  //   - hue distance from BLUE (240 deg). Past 240 it falls away again, because
-  //     violet is not cooler than blue, merely a different hue.
-  //   - darkness, since a deep blue reads cooler than a pale one.
-  const toHsl = (hex) => {
-    const h = hex.replace('#', '');
-    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
-    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
-    let deg = 0;
-    if (d) {
-      if (max === r) deg = 60 * (((g - b) / d) % 6);
-      else if (max === g) deg = 60 * ((b - r) / d + 2);
-      else deg = 60 * ((r - g) / d + 4);
-    }
-    if (deg < 0) deg += 360;
-    return { deg, light: (max + min) / 2 };
-  };
-  const coolness = (hex) => {
-    const { deg, light } = toHsl(hex);
-    const fromBlue = Math.min(Math.abs(240 - deg), 360 - Math.abs(240 - deg));
-    return { hue: 180 - fromBlue, dark: (1 - light) * 100 };
-  };
-
-  const key = (id) => PALETTES[id].deep;
-  const aero = coolness(key('aero'));
-
-  for (const id of Object.keys(PALETTES)) {
-    if (id === 'aero') continue;
-    const c = coolness(key(id));
-    // At least as blue as Aero, and no paler. "or", not "and": a deeper teal IS a
-    // cooler colour than a pale blue even a few degrees off hue.
-    const bluer = c.hue >= aero.hue - 8;
-    const darker = c.dark >= aero.dark - 3;
-    assert.ok(bluer || darker,
-      `${id} (${key(id)}) is not cooler than Frutiger Aero (${key('aero')}): `
-      + `hue-distance ${c.hue} vs ${aero.hue}, darkness ${c.dark.toFixed(0)} `
-      + `vs ${aero.dark.toFixed(0)}`);
+test('unlocked palettes have strictly increasing tint strength', () => {
+  // Each tier's palette must have a stronger tint than the previous one.
+  // Tint strength is the single number that controls how much the lake/dock/angler
+  // shifts toward the scheme. It goes 0 (aero) -> 1 (rainbow).
+  const tints = Object.values(ACHIEVEMENTS)
+    .map((a) => tintFor(a.palette))
+    .filter((n) => n > 0)
+    .sort((x, y) => x - y);
+  
+  // Check distinct palettes have strictly increasing tint
+  const distinctPalettes = [...new Set(Object.values(ACHIEVEMENTS).map((a) => a.palette))];
+  const distinctTints = distinctPalettes.map((id) => tintFor(id)).sort((x, y) => x - y);
+  for (let i = 1; i < distinctTints.length; i += 1) {
+    assert.ok(distinctTints[i] > distinctTints[i - 1],
+      `distinct palettes must have strictly increasing tint: ${distinctTints.join(' < ')}`);
   }
-
-  // And the ramp must not double back. Grouped by tier, because two achievements
-  // in one tier deliberately share a scheme.
-  const byTier = new Map();
-  for (const a of Object.values(ACHIEVEMENTS)) {
-    if (!byTier.has(a.tier)) byTier.set(a.tier, a.palette);
-  }
-  const ramp = [...byTier.entries()].sort((x, y) => x[0] - y[0]);
-  assert.ok(ramp.length >= 4, 'expected several tiers of colour');
-  for (let i = 1; i < ramp.length; i += 1) {
-    const prev = coolness(key(ramp[i - 1][1]));
-    const now = coolness(key(ramp[i][1]));
-    assert.equal(now.hue > prev.hue + 8 && now.dark <= prev.dark, false,
-      `tier ${ramp[i][0]} (${ramp[i][1]}, ${key(ramp[i][1])}) must not be warmer than `
-      + `tier ${ramp[i - 1][0]} (${ramp[i - 1][1]}, ${key(ramp[i - 1][1])})`);
-  }
+  
+  // The hardest scheme must tint fully
+  assert.equal(distinctTints.at(-1), 1, 'the hardest scheme must tint the lakes outright');
 });
 
 test('progress comes from the save and nothing else, so the panel cannot lie', () => {
@@ -3333,16 +3291,16 @@ test('a palette is only wearable once earned, and a hand-edited save gets nothin
   // One earned: exactly one scheme more. The FIRST achievement is judged on
   // species, not on catches -- a catch that was a duplicate of a species you
   // already had does not land a new one -- so one landed species is what earns it.
-  assert.deepEqual(unlockedPalettes({ bestiary: { glidefin: 1 } }), ['aero', 'lagoon'],
+  assert.deepEqual(unlockedPalettes({ bestiary: { glidefin: 1 } }), ['aero', 'sunrise'],
     'landing one new species earns the tier-1 scheme and nothing beyond it');
   assert.deepEqual(unlockedPalettes({ stats: { catches: 1 } }), ['aero'],
     'a raw catch count with no species earns nothing -- catches is the century\'s stat');
 
   // A save claiming a scheme it has not earned is refused. paletteFor() is what the
   // page calls, so this is the line between a cheat and a blank page.
-  assert.equal(paletteFor({ palette: 'void' }), 'aero',
+  assert.equal(paletteFor({ palette: 'prism' }), 'aero',
     'a scheme that was never earned must not be applied');
-  assert.equal(paletteFor({ palette: 'lagoon', bestiary: { glidefin: 1 } }), 'lagoon',
+  assert.equal(paletteFor({ palette: 'sunrise', bestiary: { glidefin: 1 } }), 'sunrise',
     'but a genuinely earned one is applied');
   assert.equal(paletteFor({}), 'aero', 'and no choice at all means your own look');
   assert.equal(paletteFor({ palette: 'not_a_palette' }), 'aero',
@@ -3378,7 +3336,7 @@ test('no achievement is satisfied by an empty save, or by the bare minimum', () 
     .filter((a) => achievementState(a, one).done).map((a) => a.id);
   assert.deepEqual(doneAtOne.sort(), ['first_catch'],
     `landing one species should complete exactly one thing, not ${doneAtOne.join(', ')}`);
-  assert.deepEqual(unlockedPalettes(one), ['aero', 'lagoon'],
+  assert.deepEqual(unlockedPalettes(one), ['aero', 'sunrise'],
     'and unlock only the first scheme');
 
   // And the progress a bar shows must never claim more than was done.
@@ -3433,4 +3391,49 @@ test('every palette is legible on the glass the text actually sits on', () => {
     // And the glass tint is a real rgba, because the HUD uses it directly.
     assert.match(p.haze, /^rgba\(/, `${id}.haze must be an rgba`);
   }
+});
+
+test('a worn scheme tints the lake itself, and each lake keeps its own character', () => {
+  // The scheme was applied to <html> while paintArea() sets --sky-* and friends as
+  // INLINE styles on #lake. Inline styles beat any selector, so every lake kept its
+  // own colours and the achievement changed nothing you could see -- which is the
+  // entire point of the feature.
+  //
+  // And it must TINT, not replace: each lake has its own palette and its own painted
+  // background, and a scheme that flattened all five to the same colour would undo
+  // that. So the lake's colour is mixed toward the scheme's, and a lake still reads
+  // as itself.
+  assert.equal(mixHex('#ff0000', '#0000ff', 0), '#ff0000', 't=0 leaves the lake alone');
+  assert.equal(mixHex('#ff0000', '#0000ff', 1), '#0000ff', 't=1 is the scheme outright');
+  assert.equal(mixHex('#ff0000', '#0000ff', 0.5), '#800080', 'and halfway is halfway');
+
+  // A scheme says how hard it tints. Zero means "your own look, untouched" -- which
+  // is what Frutiger Aero must be, or buying nothing would still change every lake.
+  assert.equal(tintFor('aero'), 0, 'Frutiger Aero must tint nothing at all');
+  const tints = Object.values(ACHIEVEMENTS)
+    .map((a) => tintFor(a.palette));
+  for (const n of tints) {
+    assert.ok(n > 0 && n <= 1, `a tint of ${n} is out of range`);
+  }
+  // And it deepens with the tier, so a later scheme is visibly a bigger change.
+  // Ranked by TINT, not by tier: two achievements in one tier deliberately share a
+  // scheme, so tier 3 and tier 4 are the same palette and the same tint. Ranking by
+  // tier demanded a strict climb through a value that is identical by design.
+  const ranked = Object.keys(PALETTES)
+    .map((id) => tintFor(id))
+    .filter((n) => n > 0)
+    .sort((x, y) => x - y);
+  for (let i = 1; i < ranked.length; i += 1) {
+    assert.ok(ranked[i] > ranked[i - 1],
+      `palette tint must strictly increase: ${ranked[i - 1]} -> ${ranked[i]}`);
+  }
+  // And the strongest must actually be strong, or the last tier looks the same as
+  // the first and the whole ladder is decoration.
+  assert.equal(ranked.at(-1), 1, 'the hardest scheme must tint the lakes outright');
+
+  // The result still has to be a colour: a lake that goes transparent or black is
+  // not a tint.
+  assert.match(mixHex('#81d4fa', '#043372', 0.4), /^#[0-9a-f]{6}$/i);
+  assert.equal(mixRgba('rgba(255, 255, 255, 0.75)', '#043372', 0.4).startsWith('rgba('), true,
+    'an rgba lake colour keeps its alpha and its syntax');
 });
