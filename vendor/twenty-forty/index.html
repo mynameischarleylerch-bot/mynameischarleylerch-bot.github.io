@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2040 — Frutiger Aero</title>
+<style>
+  :root {
+    --deep: #01579b;
+    --deepest: #013a63;
+    --ink-soft: #3d6b85;
+    --on-accent: #ffffff;
+
+    --sky-top: #b3e5fc;
+    --sky-mid: #7fc4e8;
+    --sky-floor: #4aa8d8;
+    --sun: #fff9c4;
+    --haze-tint: rgba(255, 255, 255, 0.75);
+
+    --wood: #a9714a;
+    --wood-deep: #7d4f2e;
+
+    --glass-top: rgba(255, 255, 255, 0.62);
+    --glass-mid: rgba(255, 255, 255, 0.3);
+    --glass-bot: rgba(255, 255, 255, 0.16);
+    --glass: linear-gradient(180deg, var(--glass-top), var(--glass-mid) 55%, var(--glass-bot));
+
+    --sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5));
+    --gloss-strength: 0.9;
+
+    --hairline: rgba(255, 255, 255, 0.85);
+    --hairline-strong: rgba(255, 255, 255, 0.92);
+    --radius: 12px;
+    --pill: 999px;
+
+    --shadow-card: 0 6px 16px rgba(1, 87, 155, 0.22), inset 0 1px 0 var(--hairline-strong);
+    --shadow-panel: 0 18px 40px rgba(1, 87, 155, 0.22), inset 0 1px 0 var(--hairline);
+    --shadow-lift: 0 10px 22px rgba(1, 87, 155, 0.28), inset 0 1px 0 #fff;
+
+    --shine: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.45));
+    --lime: #a3e635;
+    --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; height: 100%;
+    background: linear-gradient(180deg, #e1f5fe, #b3e5fc 55%, #f4fbff);
+    color: var(--deep);
+    font: 16px "Segoe UI", Frutiger, system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  .stage {
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: .6rem;
+    padding: .75rem;
+  }
+
+  .hud {
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    flex-wrap: wrap;
+    padding: .4rem .9rem; border-radius: var(--pill);
+    background: var(--glass);
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .hud b { font-variant-numeric: tabular-nums; }
+  .hud__dim { color: var(--ink-soft); }
+
+  .board-wrap {
+    display: grid; place-items: center; min-height: 0;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: .5rem;
+    width: min(90vmin, 420px);
+    aspect-ratio: 1;
+    padding: .5rem;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.4), rgba(255,255,255,.15));
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-panel), inset 0 1px 0 var(--hairline);
+  }
+
+  .cell {
+    position: relative;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.1));
+    border: 1px solid rgba(255,255,255,.4);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+  }
+
+  .tile {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    border-radius: var(--radius);
+    font-weight: 800; font-size: clamp(1.5rem, 5vmin, 3rem);
+    color: var(--deep);
+    transition: transform 120ms var(--ease), opacity 120ms var(--ease);
+    background: var(--shine);
+    border: 1px solid rgba(255,255,255,.5);
+    box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(1,87,155,.15);
+    transform: scale(1);
+  }
+  .tile--new { animation: tile-pop 180ms var(--ease); }
+  .tile--merged { animation: tile-merge 140ms var(--ease); }
+  @keyframes tile-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes tile-merge { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+  /* Tile colors by value — Frutiger Aero palette */
+  .tile[data-v="2"] { background: linear-gradient(180deg, #e1f5fe, #b3e5fc); }
+  .tile[data-v="4"] { background: linear-gradient(180deg, #b3e5fc, #81d4fa); }
+  .tile[data-v="8"] { background: linear-gradient(180deg, #81d4fa, #4fc3f7); color: #fff; }
+  .tile[data-v="16"] { background: linear-gradient(180deg, #4fc3f7, #29b6f6); color: #fff; }
+  .tile[data-v="32"] { background: linear-gradient(180deg, #29b6f6, #03a9f4); color: #fff; }
+  .tile[data-v="64"] { background: linear-gradient(180deg, #03a9f4, #0288d1); color: #fff; }
+  .tile[data-v="128"] { background: linear-gradient(180deg, #0288d1, #0277bd); color: #fff; }
+  .tile[data-v="256"] { background: linear-gradient(180deg, #0277bd, #01579b); color: #fff; }
+  .tile[data-v="512"] { background: linear-gradient(180deg, #01579b, #013a63); color: #fff; }
+  .tile[data-v="1024"] { background: linear-gradient(180deg, #006064, #004d40); color: #fff; }
+  .tile[data-v="2048"] { background: linear-gradient(180deg, #004d40, #003b2e); color: #fff; box-shadow: 0 0 20px rgba(163,230,53,.6), inset 0 1px 0 #fff; }
+  .tile[data-v="4096"] { background: linear-gradient(180deg, #1b5e20, #0d4d0e); color: #fff; box-shadow: 0 0 30px rgba(163,230,53,.8), inset 0 1px 0 #fff; }
+
+  .msg {
+    position: absolute; inset: 0; display: grid; place-items: center; z-index: 10;
+    background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(6,51,79,.35), transparent 75%);
+  }
+  .msg > * { pointer-events: auto; }
+  .msg[hidden] { display: none; }
+  .msg__card {
+    padding: 1.5rem 2rem; border-radius: 18px; text-align: center;
+    background: linear-gradient(180deg, rgba(255,255,255,.96), var(--glass-mid));
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-panel), var(--shadow-lift);
+    animation: msg-pop 300ms cubic-bezier(.2,1.5,.4,1) both;
+  }
+  @keyframes msg-pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .msg__title { font-size: 1.8rem; font-weight: 700; margin: 0 0 .5rem; }
+  .msg__score { font-size: 1.2rem; margin: .3rem 0 1rem; color: var(--ink-soft); }
+  .btn {
+    padding: .55rem 1.2rem; border-radius: var(--pill); border: 1px solid rgba(255,255,255,.92);
+    background: var(--shine); color: var(--deep); font: inherit; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 10px rgba(1,87,155,.2), inset 0 1px 0 #fff;
+  }
+  .btn--primary { background: linear-gradient(180deg, #4fb3ee, #1c7fc4); color: #fff; }
+  .btn:focus-visible { outline: 2px solid var(--deep); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="hud">
+      <div class="hud__group">
+        <span>Score <b id="score">0</b></span>
+      </div>
+      <div class="hud__group">
+        <span>Best <b id="best">0</b></span>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board" role="grid" aria-label="2040 game board"></div>
+      <div class="msg" id="msg-win" hidden>
+        <div class="msg__card">
+          <h2 class="msg__title">You reached 2048!</h2>
+          <p class="msg__score">Score: <b id="win-score">0</b></p>
+          <button class="btn btn--primary" id="btn-continue" type="button">Keep going</button>
+          <button class="btn" id="btn-restart-win" type="button" style="margin-left:.5rem">Restart</button>
+        </div>
+      </div>
+      <div class="msg" id="msg-over" hidden>
+        <div class="msg__card">
+          <h2 class="msg__title">Game Over</h2>
+          <p class="msg__score">Score: <b id="over-score">0</b></p>
+          <button class="btn btn--primary" id="btn-restart-over" type="button">Try Again</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud" style="justify-content:center">
+      <span class="hud__dim">Arrow keys / WASD / Swipe to move</span>
+    </div>
+  </div>
+
+<script type="module">
+  // Game logic — pure, no DOM
+  const SIZE = 4;
+  const WIN_VALUE = 2048;
+  const STORAGE_KEY = 'twenty-forty-state';
+
+  function emptyGrid() { return Array.from({ length: SIZE }, () => Array(SIZE).fill(0)); }
+
+  function cloneGrid(g) { return g.map(row => [...row]); }
+
+  function addRandomTile(grid) {
+    const empties = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (grid[r][c] === 0) empties.push([r, c]);
+    if (!empties.length) return false;
+    const [r, c] = empties[Math.floor(Math.random() * empties.length)];
+    grid[r][c] = Math.random() < 0.9 ? 2 : 4;
+    return [r, c];
+  }
+
+  function slideRow(row, dir) {
+    // dir: -1 = left/up, 1 = right/down
+    const vals = row.filter(v => v !== 0);
+    const newRow = dir === -1 ? [...vals, ...Array(SIZE - vals.length).fill(0)] : [...Array(SIZE - vals.length).fill(0), ...vals];
+    let score = 0;
+    const merged = Array(SIZE).fill(false);
+    if (dir === -1) {
+      for (let i = 0; i < SIZE - 1; i++) {
+        if (newRow[i] && newRow[i] === newRow[i + 1] && !merged[i] && !merged[i + 1]) {
+          newRow[i] *= 2; score += newRow[i]; merged[i] = true; newRow[i + 1] = 0;
+        }
+      }
+    } else {
+      for (let i = SIZE - 1; i > 0; i--) {
+        if (newRow[i] && newRow[i] === newRow[i - 1] && !merged[i] && !merged[i - 1]) {
+          newRow[i] *= 2; score += newRow[i]; merged[i] = true; newRow[i - 1] = 0;
+        }
+      }
+    }
+    const final = newRow.filter(v => v !== 0);
+    const result = dir === -1 ? [...final, ...Array(SIZE - final.length).fill(0)] : [...Array(SIZE - final.length).fill(0), ...final];
+    return { row: result, score, moved: JSON.stringify(result) !== JSON.stringify(row) };
+  }
+
+  function move(grid, direction) {
+    // direction: 'up' | 'down' | 'left' | 'right'
+    const newGrid = cloneGrid(grid);
+    let totalScore = 0;
+    let moved = false;
+
+    if (direction === 'left' || direction === 'right') {
+      const dir = direction === 'left' ? -1 : 1;
+      for (let r = 0; r < SIZE; r++) {
+        const { row, score, moved: rowMoved } = slideRow(newGrid[r], dir);
+        newGrid[r] = row; totalScore += score; moved = moved || rowMoved;
+      }
+    } else {
+      const dir = direction === 'up' ? -1 : 1;
+      for (let c = 0; c < SIZE; c++) {
+        const col = newGrid.map(row => row[c]);
+        const { row, score, moved: colMoved } = slideRow(col, dir);
+        for (let r = 0; r < SIZE; r++) newGrid[r][c] = row[r];
+        totalScore += score; moved = moved || colMoved;
+      }
+    }
+    return { grid: newGrid, score: totalScore, moved };
+  }
+
+  function hasMoves(grid) {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c] === 0) return true;
+      if (c < SIZE - 1 && grid[r][c] === grid[r][c + 1]) return true;
+      if (r < SIZE - 1 && grid[r][c] === grid[r + 1][c]) return true;
+    }
+    return false;
+  }
+
+  function maxTile(grid) { return Math.max(...grid.flat()); }
+
+  // --- State ---
+  let grid = emptyGrid();
+  let score = 0;
+  let best = Number(localStorage.getItem('twenty-forty-best') || 0);
+  let won = false;
+  let gameOver = false;
+
+  // --- DOM ---
+  const boardEl = document.getElementById('board');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const msgWin = document.getElementById('msg-win');
+  const msgOver = document.getElementById('msg-over');
+  const winScoreEl = document.getElementById('win-score');
+  const overScoreEl = document.getElementById('over-score');
+
+  function render() {
+    boardEl.innerHTML = '';
+    // render empty cells
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.gridRow = r + 1;
+      cell.style.gridColumn = c + 1;
+      boardEl.appendChild(cell);
+    }
+    // render tiles
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const v = grid[r][c];
+      if (v === 0) continue;
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.v = v;
+      tile.textContent = v;
+      tile.style.gridRow = r + 1;
+      tile.style.gridColumn = c + 1;
+      boardEl.appendChild(tile);
+    }
+    scoreEl.textContent = score;
+    bestEl.textContent = best;
+  }
+
+  function init() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        grid = state.grid; score = state.score; won = state.won; gameOver = state.gameOver;
+      } catch { reset(); }
+    } else {
+      reset();
+    }
+    render();
+  }
+
+  function reset() {
+    grid = emptyGrid(); score = 0; won = false; gameOver = false;
+    addRandomTile(grid); addRandomTile(grid);
+    save();
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ grid, score, won, gameOver }));
+    if (score > best) { best = score; localStorage.setItem('twenty-forty-best', String(best)); }
+  }
+
+  function doMove(dir) {
+    if (gameOver) return;
+    const { grid: newGrid, score: gained, moved } = move(grid, dir);
+    if (!moved) return;
+    grid = newGrid; score += gained; save();
+    const newPos = addRandomTile(grid);
+    render();
+    checkWin();
+    if (!hasMoves(grid)) { gameOver = true; save(); showOver(); }
+  }
+
+  function checkWin() {
+    if (!won && maxTile(grid) >= WIN_VALUE) {
+      won = true; save(); showWin();
+    }
+  }
+
+  function showWin() {
+    winScoreEl.textContent = score; msgWin.hidden = false;
+  }
+  function showOver() { overScoreEl.textContent = score; msgOver.hidden = false; }
+
+  // --- Input ---
+  document.addEventListener('keydown', e => {
+    const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
+    if (map[e.code]) { e.preventDefault(); doMove(map[e.code]); }
+  });
+
+  // Touch swipe
+  let touchStart = null;
+  boardEl.addEventListener('touchstart', e => { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
+  boardEl.addEventListener('touchend', e => {
+    if (!touchStart) return;
+    const dx = e.changedTouches[0].clientX - touchStart.x;
+    const dy = e.changedTouches[0].clientY - touchStart.y;
+    touchStart = null;
+    if (Math.abs(dx) > Math.abs(dy)) { if (Math.abs(dx) > 20) doMove(dx > 0 ? 'right' : 'left'); }
+    else { if (Math.abs(dy) > 20) doMove(dy > 0 ? 'down' : 'up'); }
+  }, { passive: true });
+
+  // Buttons
+  document.getElementById('btn-continue').onclick = () => { msgWin.hidden = true; };
+  document.getElementById('btn-restart-win').onclick = () => { msgWin.hidden = true; reset(); render(); };
+  document.getElementById('btn-restart-over').onclick = () => { msgOver.hidden = true; reset(); render(); };
+
+  init();
+</script>
+</body>
+</html>

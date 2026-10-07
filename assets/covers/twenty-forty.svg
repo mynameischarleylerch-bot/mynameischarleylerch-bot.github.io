@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e1f5fe"/>
+      <stop offset="55%" stop-color="#b3e5fc"/>
+      <stop offset="100%" stop-color="#f4fbff"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#b3e5fc"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="180" fill="url(#bg)"/>
+  <g transform="translate(60,30)">
+    <rect x="0" y="0" width="40" height="40" rx="8" fill="url(#tile)" stroke="#7fc4e8" stroke-width="1.5"/>
+    <text x="20" y="28" text-anchor="middle" font="bold 18px Segoe UI" fill="#01579b">2</text>
+    <rect x="50" y="0" width="40" height="40" rx="8" fill="url(#tile)" stroke="#7fc4e8" stroke-width="1.5"/>
+    <text x="70" y="28" text-anchor="middle" font="bold 18px Segoe UI" fill="#01579b">4</text>
+    <rect x="100" y="0" width="40" height="40" rx="8" fill="url(#tile)" stroke="#4fc3f7" stroke-width="1.5"/>
+    <text x="120" y="28" text-anchor="middle" font="bold 18px Segoe UI" fill="#fff">8</text>
+    <rect x="150" y="0" width="40" height="40" rx="8" fill="url(#tile)" stroke="#29b6f6" stroke-width="1.5"/>
+    <text x="170" y="28" text-anchor="middle" font="bold 16px Segoe UI" fill="#fff">16</text>
+  </g>
+  <text x="160" y="130" text-anchor="middle" font="bold 32px Segoe UI" fill="#01579b">2040</text>
+  <text x="160" y="155" text-anchor="middle" font="14px Segoe UI" fill="#3d6b85">Slide. Merge. Reach 2048.</text>
+</svg>

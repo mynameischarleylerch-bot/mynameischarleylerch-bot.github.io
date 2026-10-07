@@ -76,6 +76,22 @@
       "controls": "Click a block, then a cell. R restarts",
       "year": 2026,
       "featured": false
+    },
+    {
+      "slug": "twenty-forty",
+      "title": "2040",
+      "summary": "Slide tiles, merge matching numbers, reach 2048. Frutiger Aero edition.",
+      "repoUrl": "https://github.com/mynameischarleylerch-bot",
+      "playUrl": "./vendor/twenty-forty/index.html",
+      "cover": "./assets/covers/twenty-forty.svg",
+      "tags": [
+        "puzzle",
+        "2048",
+        "aero"
+      ],
+      "controls": "Arrow keys / WASD / Swipe",
+      "year": 2026,
+      "featured": false
     }
   ]
 }
