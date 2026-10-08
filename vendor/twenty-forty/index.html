@@ -40,6 +40,7 @@
     --shine: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.45));
     --lime: #a3e635;
     --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --move-duration: 120ms;
   }
 
   * { box-sizing: border-box; }
@@ -90,6 +91,7 @@
     border-radius: 10px;
     background: #bbada0;
     box-shadow: 0 10px 24px rgba(119, 110, 101, .35);
+    position: relative;
   }
 
   .cell {
@@ -99,18 +101,23 @@
   }
 
   .tile {
-    position: absolute; inset: 0;
+    position: absolute;
+    inset: 0;
     display: grid; place-items: center;
     border-radius: 6px;
     font-weight: 800; font-size: clamp(1.6rem, 6vmin, 3.2rem);
     color: #776e65;
-    transition: transform 120ms var(--ease), opacity 120ms var(--ease);
+    transition: transform var(--move-duration) var(--ease), opacity var(--move-duration) var(--ease);
     transform: scale(1);
+    will-change: transform, opacity;
+    z-index: 1;
   }
   .tile--new { animation: tile-pop 180ms var(--ease); }
   .tile--merged { animation: tile-merge 140ms var(--ease); }
+  .tile--merged-from { animation: tile-merge-from 140ms var(--ease) forwards; }
   @keyframes tile-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   @keyframes tile-merge { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+  @keyframes tile-merge-from { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.8); opacity: 0; } }
 
   /* Tile colors by value — the classic 2048 ladder */
   .tile[data-v="2"] { background: #eee4da; }
@@ -210,52 +217,106 @@
     return [r, c];
   }
 
+  // Returns { row, score, moved, merges: [{from, to, value}] }
   function slideRow(row, dir) {
-    // dir: -1 = left/up, 1 = right/down
     const vals = row.filter(v => v !== 0);
     const newRow = dir === -1 ? [...vals, ...Array(SIZE - vals.length).fill(0)] : [...Array(SIZE - vals.length).fill(0), ...vals];
     let score = 0;
     const merged = Array(SIZE).fill(false);
+    const merges = [];
+
     if (dir === -1) {
       for (let i = 0; i < SIZE - 1; i++) {
         if (newRow[i] && newRow[i] === newRow[i + 1] && !merged[i] && !merged[i + 1]) {
           newRow[i] *= 2; score += newRow[i]; merged[i] = true; newRow[i + 1] = 0;
+          merges.push({ from: i + 1, to: i, value: newRow[i] });
         }
       }
     } else {
       for (let i = SIZE - 1; i > 0; i--) {
         if (newRow[i] && newRow[i] === newRow[i - 1] && !merged[i] && !merged[i - 1]) {
           newRow[i] *= 2; score += newRow[i]; merged[i] = true; newRow[i - 1] = 0;
+          merges.push({ from: i - 1, to: i, value: newRow[i] });
         }
       }
     }
     const final = newRow.filter(v => v !== 0);
     const result = dir === -1 ? [...final, ...Array(SIZE - final.length).fill(0)] : [...Array(SIZE - final.length).fill(0), ...final];
-    return { row: result, score, moved: JSON.stringify(result) !== JSON.stringify(row) };
+    return { row: result, score, moved: JSON.stringify(result) !== JSON.stringify(row), merges };
   }
 
+  // Returns { grid, score, moved, moves: [{from: [r,c], to: [r,c], value, merged: bool}], newTiles: [[r,c]] }
   function move(grid, direction) {
-    // direction: 'up' | 'down' | 'left' | 'right'
     const newGrid = cloneGrid(grid);
     let totalScore = 0;
     let moved = false;
+    const moves = [];
+    const newTilePos = [];
 
     if (direction === 'left' || direction === 'right') {
       const dir = direction === 'left' ? -1 : 1;
       for (let r = 0; r < SIZE; r++) {
-        const { row, score, moved: rowMoved } = slideRow(newGrid[r], dir);
+        const { row, score, moved: rowMoved, merges } = slideRow(newGrid[r], dir);
+
+        // Track old positions
+        const oldNonZero = [];
+        for (let c = 0; c < SIZE; c++) if (newGrid[r][c] !== 0) oldNonZero.push({c, v: newGrid[r][c]});
+
+        // Match old tiles to new positions
+        for (const old of oldNonZero) {
+          // Find the matching new position
+          let targetC = old.c;
+          for (let c = 0; c < SIZE; c++) {
+            if (row[c] === old.v && (c !== old.c || row[c] !== old.v || (row.filter(x => x === old.v).length > newGrid[r].filter(x => x === old.v).length))) {
+              targetC = c; break;
+            }
+          }
+          moves.push({ from: [r, old.c], to: [r, targetC], value: old.v, merged: false });
+        }
+        // Handle merges
+        for (const m of merges) {
+          const fromC = dir === -1 ? m.from : m.to;
+          const toC = dir === -1 ? m.to : m.from;
+          moves.push({ from: [r, fromC], to: [r, toC], value: m.value / 2, merged: true });
+          moves.push({ from: [r, dir === -1 ? m.to : m.from], to: [r, toC], value: m.value / 2, merged: true });
+        }
+
         newGrid[r] = row; totalScore += score; moved = moved || rowMoved;
       }
     } else {
       const dir = direction === 'up' ? -1 : 1;
       for (let c = 0; c < SIZE; c++) {
         const col = newGrid.map(row => row[c]);
-        const { row, score, moved: colMoved } = slideRow(col, dir);
+        const { row, score, moved: colMoved, merges } = slideRow(col, dir);
+
+        const oldNonZero = [];
+        for (let r = 0; r < SIZE; r++) if (newGrid[r][c] !== 0) oldNonZero.push({r, v: newGrid[r][c]});
+
+        for (const old of oldNonZero) {
+          let targetR = old.r;
+          for (let r = 0; r < SIZE; r++) {
+            if (row[r] === old.v) { targetR = r; break; }
+          }
+          moves.push({ from: [old.r, c], to: [targetR, c], value: old.v, merged: false });
+        }
+        for (const m of merges) {
+          const fromR = dir === -1 ? m.from : m.to;
+          const toR = dir === -1 ? m.to : m.from;
+          moves.push({ from: [fromR, c], to: [toR, c], value: m.value / 2, merged: true });
+          moves.push({ from: [dir === -1 ? m.to : m.from, c], to: [toR, c], value: m.value / 2, merged: true });
+        }
+
         for (let r = 0; r < SIZE; r++) newGrid[r][c] = row[r];
         totalScore += score; moved = moved || colMoved;
       }
     }
-    return { grid: newGrid, score: totalScore, moved };
+
+    // Find new tile positions
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c] === 0 && newGrid[r][c] !== 0) newTilePos.push([r, c]);
+    }
+
+    return { grid: newGrid, score: totalScore, moved, moves, newTiles: newTilePos };
   }
 
   function hasMoves(grid) {
@@ -275,6 +336,8 @@
   let best = Number(localStorage.getItem('twenty-forty-best') || 0);
   let won = false;
   let gameOver = false;
+  let animating = false;
+  const tileElements = new Map(); // "r,c" -> tile element
 
   // --- DOM ---
   const boardEl = document.getElementById('board');
@@ -285,26 +348,140 @@
   const winScoreEl = document.getElementById('win-score');
   const overScoreEl = document.getElementById('over-score');
 
-  function render() {
-    boardEl.innerHTML = '';
-    // Each cell holds its tile, so the tile's inset:0 fills the cell — not the board.
-    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.style.gridRow = r + 1;
-      cell.style.gridColumn = c + 1;
-      const v = grid[r][c];
-      if (v !== 0) {
-        const tile = document.createElement('div');
-        tile.className = 'tile';
-        tile.dataset.v = v;
-        tile.textContent = v;
-        cell.appendChild(tile);
-      }
-      boardEl.appendChild(cell);
+  function cellRect(r, c) {
+    const cell = boardEl.querySelector('.cell[style*="grid-row: ' + (r + 1) + '"][style*="grid-column: ' + (c + 1) + '"]');
+    if (!cell) return null;
+    const boardRect = boardEl.getBoundingClientRect();
+    const cellRect_ = cell.getBoundingClientRect();
+    return {
+      top: cellRect_.top - boardRect.top,
+      left: cellRect_.left - boardRect.left,
+      width: cellRect_.width,
+      height: cellRect_.height
+    };
+  }
+
+  function createTile(r, c, value, isNew, isMerged) {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.dataset.v = value;
+    tile.textContent = value;
+    if (isNew) tile.classList.add('tile--new');
+    if (isMerged) tile.classList.add('tile--merged');
+    const rect = cellRect(r, c);
+    if (rect) {
+      tile.style.top = rect.top + 'px';
+      tile.style.left = rect.left + 'px';
+      tile.style.width = rect.width + 'px';
+      tile.style.height = rect.height + 'px';
     }
+    tile.style.gridRow = r + 1;
+    tile.style.gridColumn = c + 1;
+    return tile;
+  }
+
+  function render(immediate) {
+    // Build new tile element map
+    const newTileElements = new Map();
+
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const v = grid[r][c];
+      if (v === 0) continue;
+      const key = r + ',' + c;
+      const existing = tileElements.get(key);
+
+      if (existing && !immediate) {
+        // Update position via transform
+        const rect = cellRect(r, c);
+        if (rect) {
+          existing.style.top = rect.top + 'px';
+          existing.style.left = rect.left + 'px';
+        }
+        existing.style.gridRow = r + 1;
+        existing.style.gridColumn = c + 1;
+        newTileElements.set(key, existing);
+      } else {
+        // Create new tile element
+        const tile = createTile(r, c, v, false, false);
+        boardEl.appendChild(tile);
+        newTileElements.set(key, tile);
+      }
+    }
+
+    // Remove tiles that no longer exist
+    for (const [key, tile] of tileElements) {
+      if (!newTileElements.has(key)) {
+        tile.remove();
+      }
+    }
+
+    tileElements.clear();
+    for (const [key, tile] of newTileElements) tileElements.set(key, tile);
+
     scoreEl.textContent = score;
     bestEl.textContent = best;
+  }
+
+  function animateMove(moveInfo) {
+    return new Promise(function(resolve) {
+      const from = moveInfo.from;
+      const to = moveInfo.to;
+      const merged = moveInfo.merged;
+      const fromKey = from[0] + ',' + from[1];
+      const tile = tileElements.get(fromKey);
+
+      if (!tile) { resolve(); return; }
+
+      const rect = cellRect(to[0], to[1]);
+      if (!rect) { resolve(); return; }
+
+      tile.style.transition = 'transform var(--move-duration) var(--ease), opacity var(--move-duration) var(--ease)';
+      tile.style.top = rect.top + 'px';
+      tile.style.left = rect.left + 'px';
+
+      if (merged) {
+        // The source tile shrinks and fades
+        tile.classList.add('tile--merged-from');
+        tile.addEventListener('animationend', function() {
+          tile.remove();
+          resolve();
+        }, { once: true });
+      } else {
+        tile.style.gridRow = to[0] + 1;
+        tile.style.gridColumn = to[1] + 1;
+        tile.addEventListener('transitionend', function() {
+          resolve();
+        }, { once: true });
+      }
+    });
+  }
+
+  async function doMove(dir) {
+    if (gameOver || animating) return;
+    const result = move(grid, dir);
+    if (!result.moved) return;
+
+    animating = true;
+    grid = result.grid;
+    score += result.score;
+    save();
+
+    // Animate all moves
+    await Promise.all(result.moves.map(function(m) { return animateMove(m); }));
+
+    // Add new tiles
+    for (const pos of result.newTiles) {
+      const r = pos[0], c = pos[1];
+      const tile = createTile(r, c, grid[r][c], true, false);
+      boardEl.appendChild(tile);
+      tileElements.set(r + ',' + c, tile);
+    }
+
+    render(true);
+    animating = false;
+
+    checkWin();
+    if (!hasMoves(grid)) { gameOver = true; save(); showOver(); }
   }
 
   function init() {
@@ -317,29 +494,20 @@
     } else {
       reset();
     }
-    render();
+    render(true);
   }
 
   function reset() {
     grid = emptyGrid(); score = 0; won = false; gameOver = false;
+    tileElements.clear();
     addRandomTile(grid); addRandomTile(grid);
     save();
+    render(true);
   }
 
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ grid, score, won, gameOver }));
     if (score > best) { best = score; localStorage.setItem('twenty-forty-best', String(best)); }
-  }
-
-  function doMove(dir) {
-    if (gameOver) return;
-    const { grid: newGrid, score: gained, moved } = move(grid, dir);
-    if (!moved) return;
-    grid = newGrid; score += gained; save();
-    const newPos = addRandomTile(grid);
-    render();
-    checkWin();
-    if (!hasMoves(grid)) { gameOver = true; save(); showOver(); }
   }
 
   function checkWin() {
@@ -348,21 +516,19 @@
     }
   }
 
-  function showWin() {
-    winScoreEl.textContent = score; msgWin.hidden = false;
-  }
+  function showWin() { winScoreEl.textContent = score; msgWin.hidden = false; }
   function showOver() { overScoreEl.textContent = score; msgOver.hidden = false; }
 
   // --- Input ---
-  document.addEventListener('keydown', e => {
+  document.addEventListener('keydown', function(e) {
     const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
     if (map[e.code]) { e.preventDefault(); doMove(map[e.code]); }
   });
 
   // Touch swipe
   let touchStart = null;
-  boardEl.addEventListener('touchstart', e => { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
-  boardEl.addEventListener('touchend', e => {
+  boardEl.addEventListener('touchstart', function(e) { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
+  boardEl.addEventListener('touchend', function(e) {
     if (!touchStart) return;
     const dx = e.changedTouches[0].clientX - touchStart.x;
     const dy = e.changedTouches[0].clientY - touchStart.y;
@@ -372,10 +538,10 @@
   }, { passive: true });
 
   // Buttons
-  document.getElementById('btn-continue').onclick = () => { msgWin.hidden = true; };
-  document.getElementById('btn-restart-win').onclick = () => { msgWin.hidden = true; reset(); render(); };
-  document.getElementById('btn-restart-over').onclick = () => { msgOver.hidden = true; reset(); render(); };
-  document.getElementById('reset-btn').onclick = () => { reset(); render(); };
+  document.getElementById('btn-continue').onclick = function() { msgWin.hidden = true; };
+  document.getElementById('btn-restart-win').onclick = function() { msgWin.hidden = true; reset(); render(true); };
+  document.getElementById('btn-restart-over').onclick = function() { msgOver.hidden = true; reset(); render(true); };
+  document.getElementById('reset-btn').onclick = function() { reset(); render(true); };
 
   init();
 </script>
