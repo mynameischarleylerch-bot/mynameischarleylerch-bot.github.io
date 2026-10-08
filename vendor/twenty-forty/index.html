@@ -15,6 +15,7 @@
     --sky-mid: #7fc4e8;
     --sky-floor: #4aa8d8;
     --sun: #fff9c4;
+    --sun-core: rgba(255, 255, 255, 0.95);
     --haze-tint: rgba(255, 255, 255, 0.75);
 
     --wood: #a9714a;
@@ -26,18 +27,22 @@
     --glass: linear-gradient(180deg, var(--glass-top), var(--glass-mid) 55%, var(--glass-bot));
 
     --sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5));
+    --sheen-faint: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
     --gloss-strength: 0.9;
 
     --hairline: rgba(255, 255, 255, 0.85);
     --hairline-strong: rgba(255, 255, 255, 0.92);
     --radius: 12px;
     --pill: 999px;
+    --radius-lg: 18px;
 
     --shadow-card: 0 6px 16px rgba(1, 87, 155, 0.22), inset 0 1px 0 var(--hairline-strong);
     --shadow-panel: 0 18px 40px rgba(1, 87, 155, 0.22), inset 0 1px 0 var(--hairline);
+    --shadow-edge: inset 0 -1px 0 rgba(255, 255, 255, 0.5);
     --shadow-lift: 0 10px 22px rgba(1, 87, 155, 0.28), inset 0 1px 0 #fff;
 
     --shine: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.45));
+    --shine-on: linear-gradient(180deg, #81d4fa, #0288d1);
     --lime: #a3e635;
     --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
     --move-duration: 120ms;
@@ -64,14 +69,21 @@
   .hud {
     display: flex; align-items: center; justify-content: space-between; gap: .5rem;
     flex-wrap: wrap;
-    padding: .4rem .9rem;
+    padding: .4rem .9rem; border-radius: var(--pill);
+    background: var(--glass);
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   }
   .hud__group {
-    padding: .45rem 1.2rem; border-radius: 6px;
-    background: #bbada0; color: #f9f6f2; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .05em; font-size: .85rem;
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .18rem .55rem; min-height: 2.1rem; box-sizing: border-box;
+    border-radius: var(--pill);
+    background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.62));
+    border: 1px solid rgba(255, 255, 255, .95);
+    box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(1, 87, 155, .12);
   }
-  .hud__group b { color: #fff; font-size: 1.2em; }
+  .hud__group b { color: var(--deep); font-size: 1.2em; }
 
   .hud b { font-variant-numeric: tabular-nums; }
   .hud__dim { color: var(--ink-soft); }
@@ -88,29 +100,61 @@
     width: min(90vmin, 460px);
     aspect-ratio: 1;
     padding: .75rem;
-    border-radius: 10px;
-    background: #bbada0;
-    box-shadow: 0 10px 24px rgba(119, 110, 101, .35);
+    border-radius: var(--radius-lg);
+    background:
+      linear-gradient(105deg, rgba(255,255,255,0) 38%, rgba(255,255,255,.22) 50%, rgba(255,255,255,0) 62%),
+      linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 42%, var(--sky-floor) 100%);
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-panel), var(--shadow-edge);
     position: relative;
+    overflow: hidden;
+  }
+
+  .board::before {
+    content: ""; position: absolute; right: 6%; top: 4%;
+    width: 24%; height: 30%;
+    border-radius: 28% 34% 32% 30% / 34% 30% 32% 28%;
+    background: radial-gradient(ellipse at 50% 50%, var(--sun), rgba(255, 249, 196, 0) 72%);
+    box-shadow: 0 0 40px rgba(255, 249, 196, .55);
+    pointer-events: none;
+  }
+
+  .board::after {
+    content: ""; position: absolute; left: -5%; right: -5%; top: 22%; height: 28%;
+    pointer-events: none;
+    background:
+      radial-gradient(50% 100% at 62% 30%, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 70%),
+      radial-gradient(60% 100% at 20% 60%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 70%);
+    opacity: .85;
+    animation: sheen-drift 14s ease-in-out infinite alternate;
+  }
+  @keyframes sheen-drift {
+    from { transform: translateX(-3%); }
+    to   { transform: translateX(3%); }
   }
 
   .cell {
     position: relative;
-    border-radius: 6px;
-    background: #cdc1b4;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.1));
+    border: 1px solid rgba(255,255,255,.4);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
   }
 
   .tile {
     position: absolute;
     inset: 0;
     display: grid; place-items: center;
-    border-radius: 6px;
+    border-radius: var(--radius);
     font-weight: 800; font-size: clamp(1.6rem, 6vmin, 3.2rem);
-    color: #776e65;
+    color: var(--deep);
     transition: transform var(--move-duration) var(--ease), opacity var(--move-duration) var(--ease);
     transform: scale(1);
     will-change: transform, opacity;
     z-index: 1;
+    background: var(--shine);
+    border: 1px solid rgba(255,255,255,.5);
+    box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(1,87,155,.15);
   }
   .tile--new { animation: tile-pop 180ms var(--ease); }
   .tile--merged { animation: tile-merge 140ms var(--ease); }
@@ -119,20 +163,20 @@
   @keyframes tile-merge { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
   @keyframes tile-merge-from { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.8); opacity: 0; } }
 
-  /* Tile colors by value — the classic 2048 ladder */
-  .tile[data-v="2"] { background: #eee4da; }
-  .tile[data-v="4"] { background: #ede0c8; }
-  .tile[data-v="8"] { background: #f2b179; color: #f9f6f2; }
-  .tile[data-v="16"] { background: #f59563; color: #f9f6f2; }
-  .tile[data-v="32"] { background: #f67c5f; color: #f9f6f2; }
-  .tile[data-v="64"] { background: #f65e3b; color: #f9f6f2; }
-  .tile[data-v="128"] { background: #edcf72; color: #f9f6f2; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
-  .tile[data-v="256"] { background: #edcc61; color: #f9f6f2; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
-  .tile[data-v="512"] { background: #edc850; color: #f9f6f2; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
-  .tile[data-v="1024"] { background: #edc53f; color: #f9f6f2; font-size: clamp(1rem, 4vmin, 2.1rem); }
-  .tile[data-v="2048"] { background: #edc22e; color: #f9f6f2; font-size: clamp(1rem, 4vmin, 2.1rem); box-shadow: 0 0 24px rgba(243, 194, 46, .5); }
-  .tile[data-v="4096"], .tile[data-v="8192"] { background: #3c3a32; color: #f9f6f2; font-size: clamp(1rem, 4vmin, 2.1rem); box-shadow: 0 0 30px rgba(60, 58, 50, .45); }
-  .tile[data-v="16384"], .tile[data-v="32768"], .tile[data-v="65536"] { background: #2e2b26; color: #f9f6f2; font-size: clamp(.8rem, 3.4vmin, 1.7rem); }
+  /* Tile colors — Aero palette: sky blues, aquas, sun golds */
+  .tile[data-v="2"]   { background: linear-gradient(180deg, #e1f5fe, #b3e5fc); color: var(--deep); }
+  .tile[data-v="4"]   { background: linear-gradient(180deg, #b3e5fc, #81d4fa); color: var(--deep); }
+  .tile[data-v="8"]   { background: linear-gradient(180deg, #81d4fa, #4fc3f7); color: #fff; }
+  .tile[data-v="16"]  { background: linear-gradient(180deg, #4fc3f7, #29b6f6); color: #fff; }
+  .tile[data-v="32"]  { background: linear-gradient(180deg, #29b6f6, #03a9f4); color: #fff; }
+  .tile[data-v="64"]  { background: linear-gradient(180deg, #03a9f4, #0288d1); color: #fff; }
+  .tile[data-v="128"] { background: linear-gradient(180deg, #0288d1, #0277bd); color: #fff; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
+  .tile[data-v="256"] { background: linear-gradient(180deg, #0277bd, #01579b); color: #fff; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
+  .tile[data-v="512"] { background: linear-gradient(180deg, #01579b, #013a63); color: #fff; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
+  .tile[data-v="1024"] { background: linear-gradient(180deg, #fff9c4, #ffd600); color: var(--deep); font-size: clamp(1rem, 4vmin, 2.1rem); }
+  .tile[data-v="2048"] { background: linear-gradient(180deg, #ffd600, #ffb300); color: var(--deep); font-size: clamp(1rem, 4vmin, 2.1rem); box-shadow: 0 0 24px rgba(255, 214, 0, .6), inset 0 1px 0 #fff; }
+  .tile[data-v="4096"], .tile[data-v="8192"] { background: linear-gradient(180deg, #a5d6a7, #66bb6a); color: #fff; font-size: clamp(1rem, 4vmin, 2.1rem); box-shadow: 0 0 30px rgba(165, 214, 167, .6), inset 0 1px 0 #fff; }
+  .tile[data-v="16384"], .tile[data-v="32768"], .tile[data-v="65536"] { background: linear-gradient(180deg, #4fc3f7, #0288d1); color: #fff; font-size: clamp(.8rem, 3.4vmin, 1.7rem); }
 
   .msg {
     position: absolute; inset: 0; display: grid; place-items: center; z-index: 10;
@@ -141,38 +185,43 @@
   .msg > * { pointer-events: auto; }
   .msg[hidden] { display: none; }
   .msg__card {
-    padding: 1.5rem 2rem; border-radius: 10px; text-align: center;
-    background: #faf8ef; border: 4px solid #bbada0;
-    box-shadow: 0 14px 30px rgba(119, 110, 101, .4);
+    padding: 1.5rem 2rem; border-radius: 18px; text-align: center;
+    background: linear-gradient(180deg, rgba(255,255,255,.94), var(--glass-mid));
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-panel), var(--shadow-lift);
     animation: msg-pop 300ms cubic-bezier(.2,1.5,.4,1) both;
   }
   @keyframes msg-pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .msg__title { font-size: 1.8rem; font-weight: 700; margin: 0 0 .5rem; color: #776e65; }
-  .msg__score { font-size: 1.2rem; margin: .3rem 0 1rem; color: #776e65; }
+  .msg__title { font-size: 1.8rem; font-weight: 700; margin: 0 0 .5rem; color: var(--deep); }
+  .msg__score { font-size: 1.2rem; margin: .3rem 0 1rem; color: var(--ink-soft); }
+
   .btn {
-    padding: .55rem 1.2rem; border-radius: 6px; border: none;
-    background: #8f7a66; color: #f9f6f2; font: inherit; font-weight: 700; cursor: pointer;
+    padding: .55rem 1.2rem; border-radius: var(--pill); border: 1px solid rgba(255,255,255,.92);
+    background: var(--shine); color: var(--deep); font: inherit; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 10px rgba(1,87,155,.2), inset 0 1px 0 #fff;
   }
-  .btn--primary { background: #f67c5f; color: #f9f6f2; }
+  .btn--primary { background: var(--shine-on); color: #fff; }
+  .btn--small { padding: .2rem .7rem; font-size: .82rem; font-weight: 600; min-height: 2.1rem; box-sizing: border-box; }
   .btn:hover { filter: brightness(1.06); }
   .btn:focus-visible { outline: 2px solid var(--deep); outline-offset: 2px; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
+    .board::after { animation: none; opacity: .7; }
   }
 </style>
 </head>
 <body>
   <div class="stage">
     <div class="hud">
-        <div class="hud__group">
-          <span>Score <b id="score">0</b></span>
-        </div>
-        <div class="hud__group">
-          <span>Best <b id="best">0</b></span>
-        </div>
-        <button class="btn btn--small" id="reset-btn" type="button" title="New game">New Game</button>
+      <div class="hud__group">
+        <span>Score <b id="score">0</b></span>
       </div>
+      <div class="hud__group">
+        <span>Best <b id="best">0</b></span>
+      </div>
+      <button class="btn btn--small" id="reset-btn" type="button" title="New game">New Game</button>
+    </div>
 
     <div class="board-wrap">
       <div class="board" id="board" role="grid" aria-label="2040 game board"></div>
@@ -193,19 +242,17 @@
       </div>
     </div>
 
-    <div class="hud" style="justify-content:center; background:none; box-shadow:none">
-      <span style="color:#8f7a66; font-weight:700">Arrow keys / WASD / Swipe to move</span>
+    <div class="hud" style="justify-content:center; background:none; box-shadow:none; padding:0">
+      <span class="hud__dim">Arrow keys / WASD / Swipe to move</span>
     </div>
   </div>
 
 <script type="module">
-  // Game logic — pure, no DOM
   const SIZE = 4;
   const WIN_VALUE = 2048;
   const STORAGE_KEY = 'twenty-forty-state';
 
   function emptyGrid() { return Array.from({ length: SIZE }, () => Array(SIZE).fill(0)); }
-
   function cloneGrid(g) { return g.map(row => [...row]); }
 
   function addRandomTile(grid) {
@@ -217,7 +264,6 @@
     return [r, c];
   }
 
-  // Returns { row, score, moved, merges: [{from, to, value}] }
   function slideRow(row, dir) {
     const vals = row.filter(v => v !== 0);
     const newRow = dir === -1 ? [...vals, ...Array(SIZE - vals.length).fill(0)] : [...Array(SIZE - vals.length).fill(0), ...vals];
@@ -245,7 +291,6 @@
     return { row: result, score, moved: JSON.stringify(result) !== JSON.stringify(row), merges };
   }
 
-  // Returns { grid, score, moved, moves: [{from: [r,c], to: [r,c], value, merged: bool}], newTiles: [[r,c]] }
   function move(grid, direction) {
     const newGrid = cloneGrid(grid);
     let totalScore = 0;
@@ -258,13 +303,10 @@
       for (let r = 0; r < SIZE; r++) {
         const { row, score, moved: rowMoved, merges } = slideRow(newGrid[r], dir);
 
-        // Track old positions
         const oldNonZero = [];
         for (let c = 0; c < SIZE; c++) if (newGrid[r][c] !== 0) oldNonZero.push({c, v: newGrid[r][c]});
 
-        // Match old tiles to new positions
         for (const old of oldNonZero) {
-          // Find the matching new position
           let targetC = old.c;
           for (let c = 0; c < SIZE; c++) {
             if (row[c] === old.v && (c !== old.c || row[c] !== old.v || (row.filter(x => x === old.v).length > newGrid[r].filter(x => x === old.v).length))) {
@@ -273,7 +315,6 @@
           }
           moves.push({ from: [r, old.c], to: [r, targetC], value: old.v, merged: false });
         }
-        // Handle merges
         for (const m of merges) {
           const fromC = dir === -1 ? m.from : m.to;
           const toC = dir === -1 ? m.to : m.from;
@@ -311,7 +352,6 @@
       }
     }
 
-    // Find new tile positions
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
       if (grid[r][c] === 0 && newGrid[r][c] !== 0) newTilePos.push([r, c]);
     }
@@ -330,16 +370,14 @@
 
   function maxTile(grid) { return Math.max(...grid.flat()); }
 
-  // --- State ---
   let grid = emptyGrid();
   let score = 0;
   let best = Number(localStorage.getItem('twenty-forty-best') || 0);
   let won = false;
   let gameOver = false;
   let animating = false;
-  const tileElements = new Map(); // "r,c" -> tile element
+  const tileElements = new Map();
 
-  // --- DOM ---
   const boardEl = document.getElementById('board');
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
@@ -353,12 +391,7 @@
     if (!cell) return null;
     const boardRect = boardEl.getBoundingClientRect();
     const cellRect_ = cell.getBoundingClientRect();
-    return {
-      top: cellRect_.top - boardRect.top,
-      left: cellRect_.left - boardRect.left,
-      width: cellRect_.width,
-      height: cellRect_.height
-    };
+    return { top: cellRect_.top - boardRect.top, left: cellRect_.left - boardRect.left, width: cellRect_.width, height: cellRect_.height };
   }
 
   function createTile(r, c, value, isNew, isMerged) {
@@ -369,19 +402,13 @@
     if (isNew) tile.classList.add('tile--new');
     if (isMerged) tile.classList.add('tile--merged');
     const rect = cellRect(r, c);
-    if (rect) {
-      tile.style.top = rect.top + 'px';
-      tile.style.left = rect.left + 'px';
-      tile.style.width = rect.width + 'px';
-      tile.style.height = rect.height + 'px';
-    }
+    if (rect) { tile.style.top = rect.top + 'px'; tile.style.left = rect.left + 'px'; tile.style.width = rect.width + 'px'; tile.style.height = rect.height + 'px'; }
     tile.style.gridRow = r + 1;
     tile.style.gridColumn = c + 1;
     return tile;
   }
 
   function render(immediate) {
-    // Build new tile element map
     const newTileElements = new Map();
 
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
@@ -391,28 +418,20 @@
       const existing = tileElements.get(key);
 
       if (existing && !immediate) {
-        // Update position via transform
         const rect = cellRect(r, c);
-        if (rect) {
-          existing.style.top = rect.top + 'px';
-          existing.style.left = rect.left + 'px';
-        }
+        if (rect) { existing.style.top = rect.top + 'px'; existing.style.left = rect.left + 'px'; }
         existing.style.gridRow = r + 1;
         existing.style.gridColumn = c + 1;
         newTileElements.set(key, existing);
       } else {
-        // Create new tile element
         const tile = createTile(r, c, v, false, false);
         boardEl.appendChild(tile);
         newTileElements.set(key, tile);
       }
     }
 
-    // Remove tiles that no longer exist
     for (const [key, tile] of tileElements) {
-      if (!newTileElements.has(key)) {
-        tile.remove();
-      }
+      if (!newTileElements.has(key)) tile.remove();
     }
 
     tileElements.clear();
@@ -440,18 +459,12 @@
       tile.style.left = rect.left + 'px';
 
       if (merged) {
-        // The source tile shrinks and fades
         tile.classList.add('tile--merged-from');
-        tile.addEventListener('animationend', function() {
-          tile.remove();
-          resolve();
-        }, { once: true });
+        tile.addEventListener('animationend', function() { tile.remove(); resolve(); }, { once: true });
       } else {
         tile.style.gridRow = to[0] + 1;
         tile.style.gridColumn = to[1] + 1;
-        tile.addEventListener('transitionend', function() {
-          resolve();
-        }, { once: true });
+        tile.addEventListener('transitionend', function() { resolve(); }, { once: true });
       }
     });
   }
@@ -466,10 +479,8 @@
     score += result.score;
     save();
 
-    // Animate all moves
     await Promise.all(result.moves.map(function(m) { return animateMove(m); }));
 
-    // Add new tiles
     for (const pos of result.newTiles) {
       const r = pos[0], c = pos[1];
       const tile = createTile(r, c, grid[r][c], true, false);
@@ -491,9 +502,7 @@
         const state = JSON.parse(saved);
         grid = state.grid; score = state.score; won = state.won; gameOver = state.gameOver;
       } catch { reset(); }
-    } else {
-      reset();
-    }
+    } else { reset(); }
     render(true);
   }
 
@@ -511,21 +520,17 @@
   }
 
   function checkWin() {
-    if (!won && maxTile(grid) >= WIN_VALUE) {
-      won = true; save(); showWin();
-    }
+    if (!won && maxTile(grid) >= WIN_VALUE) { won = true; save(); showWin(); }
   }
 
   function showWin() { winScoreEl.textContent = score; msgWin.hidden = false; }
   function showOver() { overScoreEl.textContent = score; msgOver.hidden = false; }
 
-  // --- Input ---
   document.addEventListener('keydown', function(e) {
     const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
     if (map[e.code]) { e.preventDefault(); doMove(map[e.code]); }
   });
 
-  // Touch swipe
   let touchStart = null;
   boardEl.addEventListener('touchstart', function(e) { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
   boardEl.addEventListener('touchend', function(e) {
@@ -537,7 +542,6 @@
     else { if (Math.abs(dy) > 20) doMove(dy > 0 ? 'down' : 'up'); }
   }, { passive: true });
 
-  // Buttons
   document.getElementById('btn-continue').onclick = function() { msgWin.hidden = true; };
   document.getElementById('btn-restart-win').onclick = function() { msgWin.hidden = true; reset(); render(true); };
   document.getElementById('btn-restart-over').onclick = function() { msgOver.hidden = true; reset(); render(true); };
