@@ -286,25 +286,21 @@
 
   function render() {
     boardEl.innerHTML = '';
-    // render empty cells
+    // Each cell holds its tile, so the tile's inset:0 fills the cell — not the board.
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
       const cell = document.createElement('div');
       cell.className = 'cell';
       cell.style.gridRow = r + 1;
       cell.style.gridColumn = c + 1;
-      boardEl.appendChild(cell);
-    }
-    // render tiles
-    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
       const v = grid[r][c];
-      if (v === 0) continue;
-      const tile = document.createElement('div');
-      tile.className = 'tile';
-      tile.dataset.v = v;
-      tile.textContent = v;
-      tile.style.gridRow = r + 1;
-      tile.style.gridColumn = c + 1;
-      boardEl.appendChild(tile);
+      if (v !== 0) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.dataset.v = v;
+        tile.textContent = v;
+        cell.appendChild(tile);
+      }
+      boardEl.appendChild(cell);
     }
     scoreEl.textContent = score;
     bestEl.textContent = best;
