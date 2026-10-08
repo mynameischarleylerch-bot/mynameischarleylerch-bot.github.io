@@ -1,6 +1,6 @@
 /** Builds HTML strings from registry data. No DOM access — the browser gets a string. */
 
-import { versioned } from './build.js?v=2026-10-06-F';
+import { versioned } from './build.js?v=2026-10-06-G';
 
 
 

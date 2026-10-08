@@ -163,7 +163,7 @@
   @keyframes tile-merge { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
   @keyframes tile-merge-from { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.8); opacity: 0; } }
 
-  /* Tile colors — Aero palette: sky blues, aquas, sun golds */
+  /* Tile colors — Aero palette */
   .tile[data-v="2"]   { background: linear-gradient(180deg, #e1f5fe, #b3e5fc); color: var(--deep); }
   .tile[data-v="4"]   { background: linear-gradient(180deg, #b3e5fc, #81d4fa); color: var(--deep); }
   .tile[data-v="8"]   { background: linear-gradient(180deg, #81d4fa, #4fc3f7); color: #fff; }
@@ -172,7 +172,7 @@
   .tile[data-v="64"]  { background: linear-gradient(180deg, #03a9f4, #0288d1); color: #fff; }
   .tile[data-v="128"] { background: linear-gradient(180deg, #0288d1, #0277bd); color: #fff; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
   .tile[data-v="256"] { background: linear-gradient(180deg, #0277bd, #01579b); color: #fff; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
-  .tile[data-v="512"] { background: linear-gradient(180deg, #01579b, #013a63); color: #fff; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
+  .tile[data-v="512"] { background: linear-gradient(180deg, #0277bd, #01579b); color: #fff; font-size: clamp(1.3rem, 4.8vmin, 2.6rem); }
   .tile[data-v="1024"] { background: linear-gradient(180deg, #fff9c4, #ffd600); color: var(--deep); font-size: clamp(1rem, 4vmin, 2.1rem); }
   .tile[data-v="2048"] { background: linear-gradient(180deg, #ffd600, #ffb300); color: var(--deep); font-size: clamp(1rem, 4vmin, 2.1rem); box-shadow: 0 0 24px rgba(255, 214, 0, .6), inset 0 1px 0 #fff; }
   .tile[data-v="4096"], .tile[data-v="8192"] { background: linear-gradient(180deg, #a5d6a7, #66bb6a); color: #fff; font-size: clamp(1rem, 4vmin, 2.1rem); box-shadow: 0 0 30px rgba(165, 214, 167, .6), inset 0 1px 0 #fff; }
@@ -264,99 +264,100 @@
     return [r, c];
   }
 
+  // Slide a single row/col. Returns { newRow, score, moved, merges: [{fromIdx, toIdx, value}] }
   function slideRow(row, dir) {
-    const vals = row.filter(v => v !== 0);
-    const newRow = dir === -1 ? [...vals, ...Array(SIZE - vals.length).fill(0)] : [...Array(SIZE - vals.length).fill(0), ...vals];
+    const tiles = row.filter(v => v !== 0).map((v, i) => ({v, origIdx: i}));
+    const newRow = Array(SIZE).fill(0);
     let score = 0;
-    const merged = Array(SIZE).fill(false);
     const merges = [];
+    let writeIdx = dir === -1 ? 0 : SIZE - 1;
+    let step = dir === -1 ? 1 : -1;
 
-    if (dir === -1) {
-      for (let i = 0; i < SIZE - 1; i++) {
-        if (newRow[i] && newRow[i] === newRow[i + 1] && !merged[i] && !merged[i + 1]) {
-          newRow[i] *= 2; score += newRow[i]; merged[i] = true; newRow[i + 1] = 0;
-          merges.push({ from: i + 1, to: i, value: newRow[i] });
-        }
+    for (let i = 0; i < tiles.length; i++) {
+      const curr = tiles[i];
+      const next = tiles[i + 1];
+      if (next && curr.v === next.v) {
+        // Merge
+        newRow[writeIdx] = curr.v * 2;
+        score += curr.v * 2;
+        merges.push({ fromIdx: curr.origIdx, toIdx: writeIdx, value: curr.v * 2 });
+        i++; // skip next
+      } else {
+        // No merge
+        newRow[writeIdx] = curr.v;
       }
-    } else {
-      for (let i = SIZE - 1; i > 0; i--) {
-        if (newRow[i] && newRow[i] === newRow[i - 1] && !merged[i] && !merged[i - 1]) {
-          newRow[i] *= 2; score += newRow[i]; merged[i] = true; newRow[i - 1] = 0;
-          merges.push({ from: i - 1, to: i, value: newRow[i] });
-        }
-      }
+      writeIdx += step;
     }
-    const final = newRow.filter(v => v !== 0);
-    const result = dir === -1 ? [...final, ...Array(SIZE - final.length).fill(0)] : [...Array(SIZE - final.length).fill(0), ...final];
-    return { row: result, score, moved: JSON.stringify(result) !== JSON.stringify(row), merges };
+
+    const moved = JSON.stringify(newRow) !== JSON.stringify(row);
+    return { row: newRow, score, moved, merges };
   }
 
+  // Move the grid. Returns { grid, score, moved, tileMoves: [{from:[r,c], to:[r,c], value, merged}], newTiles: [[r,c]] }
   function move(grid, direction) {
     const newGrid = cloneGrid(grid);
     let totalScore = 0;
     let moved = false;
-    const moves = [];
+    const tileMoves = [];
     const newTilePos = [];
 
     if (direction === 'left' || direction === 'right') {
       const dir = direction === 'left' ? -1 : 1;
       for (let r = 0; r < SIZE; r++) {
-        const { row, score, moved: rowMoved, merges } = slideRow(newGrid[r], dir);
+        const row = newGrid[r].map((v, c) => ({v, c})).filter(t => t.v !== 0);
+        const { row: newRow, score, moved: rowMoved, merges } = slideRow(newGrid[r], direction === 'left' ? -1 : 1);
 
-        const oldNonZero = [];
-        for (let c = 0; c < SIZE; c++) if (newGrid[r][c] !== 0) oldNonZero.push({c, v: newGrid[r][c]});
-
-        for (const old of oldNonZero) {
-          let targetC = old.c;
-          for (let c = 0; c < SIZE; c++) {
-            if (row[c] === old.v && (c !== old.c || row[c] !== old.v || (row.filter(x => x === old.v).length > newGrid[r].filter(x => x === old.v).length))) {
-              targetC = c; break;
-            }
+        // Track which original positions map to which new positions
+        const nonZero = newGrid[r].map((v, c) => v !== 0 ? {v, c} : null).filter(Boolean);
+        let readIdx = 0;
+        for (let c = 0; c < SIZE; c++) {
+          if (newRow[c] === 0) continue;
+          const old = nonZero[readIdx++];
+          if (old) {
+            const merged = merges.some(m => m.toIdx === c && m.value === newRow[c]);
+            tileMoves.push({ from: [r, old.c], to: [r, c], value: old.v, merged });
           }
-          moves.push({ from: [r, old.c], to: [r, targetC], value: old.v, merged: false });
         }
+        // Handle merges - the source tile that got merged
         for (const m of merges) {
-          const fromC = dir === -1 ? m.from : m.to;
-          const toC = dir === -1 ? m.to : m.from;
-          moves.push({ from: [r, fromC], to: [r, toC], value: m.value / 2, merged: true });
-          moves.push({ from: [r, dir === -1 ? m.to : m.from], to: [r, toC], value: m.value / 2, merged: true });
+          tileMoves.push({ from: [r, m.fromIdx], to: [r, m.toIdx], value: m.value / 2, merged: true });
         }
 
-        newGrid[r] = row; totalScore += score; moved = moved || rowMoved;
+        for (let c = 0; c < SIZE; c++) newGrid[r][c] = newRow[c];
+        totalScore += score; moved = moved || rowMoved;
       }
     } else {
       const dir = direction === 'up' ? -1 : 1;
       for (let c = 0; c < SIZE; c++) {
-        const col = newGrid.map(row => row[c]);
-        const { row, score, moved: colMoved, merges } = slideRow(col, dir);
+        const col = newGrid.map((row, r) => ({v: row[c], r})).filter(t => t.v !== 0);
+        const colVals = newGrid.map(row => row[c]);
+        const { row: newCol, score, moved: colMoved, merges } = slideRow(colVals, direction === 'up' ? -1 : 1);
 
-        const oldNonZero = [];
-        for (let r = 0; r < SIZE; r++) if (newGrid[r][c] !== 0) oldNonZero.push({r, v: newGrid[r][c]});
-
-        for (const old of oldNonZero) {
-          let targetR = old.r;
-          for (let r = 0; r < SIZE; r++) {
-            if (row[r] === old.v) { targetR = r; break; }
+        const nonZero = newGrid.map((row, r) => row[c] !== 0 ? {v: row[c], r} : null).filter(Boolean);
+        let readIdx = 0;
+        for (let r = 0; r < SIZE; r++) {
+          if (newCol[r] === 0) continue;
+          const old = nonZero[readIdx++];
+          if (old) {
+            const merged = merges.some(m => m.toIdx === r && m.value === newCol[r]);
+            tileMoves.push({ from: [old.r, c], to: [r, c], value: old.v, merged });
           }
-          moves.push({ from: [old.r, c], to: [targetR, c], value: old.v, merged: false });
         }
         for (const m of merges) {
-          const fromR = dir === -1 ? m.from : m.to;
-          const toR = dir === -1 ? m.to : m.from;
-          moves.push({ from: [fromR, c], to: [toR, c], value: m.value / 2, merged: true });
-          moves.push({ from: [dir === -1 ? m.to : m.from, c], to: [toR, c], value: m.value / 2, merged: true });
+          tileMoves.push({ from: [m.fromIdx, c], to: [m.toIdx, c], value: m.value / 2, merged: true });
         }
 
-        for (let r = 0; r < SIZE; r++) newGrid[r][c] = row[r];
+        for (let r = 0; r < SIZE; r++) newGrid[r][c] = newCol[r];
         totalScore += score; moved = moved || colMoved;
       }
     }
 
+    // Find new tile positions (where old was 0 and new is non-zero)
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
       if (grid[r][c] === 0 && newGrid[r][c] !== 0) newTilePos.push([r, c]);
     }
 
-    return { grid: newGrid, score: totalScore, moved, moves, newTiles: newTilePos };
+    return { grid: newGrid, score: totalScore, moved, tileMoves, newTiles: newTilePos };
   }
 
   function hasMoves(grid) {
@@ -376,7 +377,7 @@
   let won = false;
   let gameOver = false;
   let animating = false;
-  const tileElements = new Map();
+  const tileElements = new Map(); // "r,c" -> tile element
 
   const boardEl = document.getElementById('board');
   const scoreEl = document.getElementById('score');
@@ -479,7 +480,7 @@
     score += result.score;
     save();
 
-    await Promise.all(result.moves.map(function(m) { return animateMove(m); }));
+    await Promise.all(result.tileMoves.map(function(m) { return animateMove(m); }));
 
     for (const pos of result.newTiles) {
       const r = pos[0], c = pos[1];
