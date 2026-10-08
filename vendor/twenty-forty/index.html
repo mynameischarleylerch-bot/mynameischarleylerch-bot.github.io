@@ -264,36 +264,41 @@
     return [r, c];
   }
 
-  // Slide a single row/col. Returns { newRow, score, moved, merges: [{fromIdx, toIdx, value}] }
-  function slideRow(row, dir) {
-    const tiles = row.filter(v => v !== 0).map((v, i) => ({v, origIdx: i}));
-    const newRow = Array(SIZE).fill(0);
+  // Slide a row/col array of objects {v, idx}. Returns { newVals, score, moved, merges, result }
+  function slideLine(line, towardsStart) {
+    // line: array of {v, idx} where idx is original position
+    // towardsStart: true = left/up, false = right/down
+    const tiles = line.filter(t => t.v !== 0);
+    const result = Array(SIZE).fill(null);
     let score = 0;
     const merges = [];
-    let writeIdx = dir === -1 ? 0 : SIZE - 1;
-    let step = dir === -1 ? 1 : -1;
+
+    let writePos = towardsStart ? 0 : SIZE - 1;
+    const step = towardsStart ? 1 : -1;
 
     for (let i = 0; i < tiles.length; i++) {
       const curr = tiles[i];
       const next = tiles[i + 1];
       if (next && curr.v === next.v) {
         // Merge
-        newRow[writeIdx] = curr.v * 2;
+        result[writePos] = { v: curr.v * 2, merged: true, fromIdx: curr.idx };
         score += curr.v * 2;
-        merges.push({ fromIdx: curr.origIdx, toIdx: writeIdx, value: curr.v * 2 });
+        merges.push({ fromIdx: curr.idx, toIdx: writePos, value: curr.v * 2 });
         i++; // skip next
       } else {
         // No merge
-        newRow[writeIdx] = curr.v;
+        result[writePos] = { v: curr.v, merged: false, fromIdx: curr.idx };
       }
-      writeIdx += step;
+      writePos += step;
     }
 
-    const moved = JSON.stringify(newRow) !== JSON.stringify(row);
-    return { row: newRow, score, moved, merges };
+    // Convert back to plain values
+    const newVals = result.map(t => t ? t.v : 0);
+    const moved = JSON.stringify(newVals) !== JSON.stringify(line.map(t => t.v));
+    return { newVals, score, moved, merges, result };
   }
 
-  // Move the grid. Returns { grid, score, moved, tileMoves: [{from:[r,c], to:[r,c], value, merged}], newTiles: [[r,c]] }
+  // Move the grid. Returns { grid, score, moved, tileMoves, newTiles }
   function move(grid, direction) {
     const newGrid = cloneGrid(grid);
     let totalScore = 0;
@@ -302,52 +307,53 @@
     const newTilePos = [];
 
     if (direction === 'left' || direction === 'right') {
-      const dir = direction === 'left' ? -1 : 1;
+      const towardsStart = direction === 'left';
       for (let r = 0; r < SIZE; r++) {
-        const row = newGrid[r].map((v, c) => ({v, c})).filter(t => t.v !== 0);
-        const { row: newRow, score, moved: rowMoved, merges } = slideRow(newGrid[r], direction === 'left' ? -1 : 1);
+        const line = newGrid[r].map((v, c) => v !== 0 ? {v, idx: c} : null).filter(Boolean);
+        const { newVals, score, moved: lineMoved, merges, result } = slideLine(line, towardsStart);
 
-        // Track which original positions map to which new positions
-        const nonZero = newGrid[r].map((v, c) => v !== 0 ? {v, c} : null).filter(Boolean);
+        // Track moves for non-merged tiles
         let readIdx = 0;
         for (let c = 0; c < SIZE; c++) {
-          if (newRow[c] === 0) continue;
-          const old = nonZero[readIdx++];
-          if (old) {
-            const merged = merges.some(m => m.toIdx === c && m.value === newRow[c]);
-            tileMoves.push({ from: [r, old.c], to: [r, c], value: old.v, merged });
+          if (!result[c]) continue; // empty
+          const item = result[c];
+          if (!item.merged) {
+            const old = line[readIdx++];
+            if (old) {
+              tileMoves.push({ from: [r, old.idx], to: [r, c], value: old.v, merged: false });
+            }
           }
         }
-        // Handle merges - the source tile that got merged
+        // Merged tiles - source tile vanishes, destination pops
         for (const m of merges) {
           tileMoves.push({ from: [r, m.fromIdx], to: [r, m.toIdx], value: m.value / 2, merged: true });
         }
 
-        for (let c = 0; c < SIZE; c++) newGrid[r][c] = newRow[c];
-        totalScore += score; moved = moved || rowMoved;
+        for (let c = 0; c < SIZE; c++) newGrid[r][c] = result[c] ? result[c].v : 0;
+        totalScore += score; moved = moved || lineMoved;
       }
     } else {
-      const dir = direction === 'up' ? -1 : 1;
+      const towardsStart = direction === 'up';
       for (let c = 0; c < SIZE; c++) {
-        const col = newGrid.map((row, r) => ({v: row[c], r})).filter(t => t.v !== 0);
-        const colVals = newGrid.map(row => row[c]);
-        const { row: newCol, score, moved: colMoved, merges } = slideRow(colVals, direction === 'up' ? -1 : 1);
+        const colVals = newGrid.map((row, r) => ({ v: row[c], idx: r })).filter(t => t.v !== 0);
+        const { newVals, score, moved: colMoved, merges, result } = slideLine(colVals, towardsStart);
 
-        const nonZero = newGrid.map((row, r) => row[c] !== 0 ? {v: row[c], r} : null).filter(Boolean);
         let readIdx = 0;
         for (let r = 0; r < SIZE; r++) {
-          if (newCol[r] === 0) continue;
-          const old = nonZero[readIdx++];
-          if (old) {
-            const merged = merges.some(m => m.toIdx === r && m.value === newCol[r]);
-            tileMoves.push({ from: [old.r, c], to: [r, c], value: old.v, merged });
+          if (!result[r]) continue;
+          const item = result[r];
+          if (!item.merged) {
+            const old = colVals[readIdx++];
+            if (old) {
+              tileMoves.push({ from: [old.idx, c], to: [r, c], value: old.v, merged: false });
+            }
           }
         }
         for (const m of merges) {
           tileMoves.push({ from: [m.fromIdx, c], to: [m.toIdx, c], value: m.value / 2, merged: true });
         }
 
-        for (let r = 0; r < SIZE; r++) newGrid[r][c] = newCol[r];
+        for (let r = 0; r < SIZE; r++) newGrid[r][c] = result[r] ? result[r].v : 0;
         totalScore += score; moved = moved || colMoved;
       }
     }
