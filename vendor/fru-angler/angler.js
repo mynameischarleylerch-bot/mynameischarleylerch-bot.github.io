@@ -786,7 +786,11 @@ function clearNotices() {
  */
 function paintPet() {
   const dock = document.getElementById('fa-pet-dock');
-  if (!dock) return;
+  if (!dock) {
+    console.log('[paintPet] dock not found');
+    return;
+  }
+  console.log('[paintPet] running');
   const party = sealParty().map((id) => SEALS.find((s) => s.id === id) ?? null);
 
   for (const slot of dock.querySelectorAll('.fa-pet-slot')) {
@@ -987,7 +991,11 @@ function fitFigure() {
 function fitPet() {
   const dock = document.getElementById('fa-pet-dock');
   const box = ui.lake.getBoundingClientRect();
-  if (!dock || !box.width || !box.height) return;
+  if (!dock || !box.width || !box.height) {
+    console.log('[fitPet] dock or box missing', { dock: !!dock, width: box?.width, height: box?.height });
+    return;
+  }
+  console.log('[fitPet] running', { scale: box.height / box.width });
   const scale = box.height / box.width;
   // PET_Y lifts the seal onto the pier deck: its belly is drawn at y=49.6 and the
   // deck's top edge is at y=58, so without this it floated above the boards.

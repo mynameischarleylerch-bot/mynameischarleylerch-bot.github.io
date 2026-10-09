@@ -1,8 +1,8 @@
 /** Boots the arcade index: load registry, validate, render, wire tag filters. */
 
-import { validateConfig, filterByTag, allTags } from './config.js?v=2026-10-06-L'
+import { validateConfig, filterByTag, allTags } from './config.js?v=2026-10-06-M'
 ;
-import { renderGrid, renderTagFilters } from './render.js?v=2026-10-06-L'
+import { renderGrid, renderTagFilters } from './render.js?v=2026-10-06-M'
 ;
 
 
@@ -18,7 +18,7 @@ import { renderGrid, renderTagFilters } from './render.js?v=2026-10-06-L'
 
  */
 
-const CONFIG_URL = './games.config.json?v=2026-10-06-L';
+const CONFIG_URL = './games.config.json?v=2026-10-06-M';
 
 
 
