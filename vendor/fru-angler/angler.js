@@ -2821,9 +2821,11 @@ function frame(now) {
   const luck = luckFor({
     rod: rod(),
     level: levelFrom({ xp: state.xp }).level,
-    seal: sealNow,
-    // Fed fish, so feeding shows up in the roll rather than only on a panel.
-    bond: sealNow ? bondCount(state.bond, sealNow.id) : 0,
+    // Pass the full party so both seals' luck and bond are counted
+    seals: sealParty().map(id => SEALS.find(s => s.id === id)).filter(Boolean),
+    // Bond per seal in the party
+    bond: sealParty().map(id => bondCount(state.bond, id)),
+    upgrades: state.upgrades,
   }) + (luckFromSky(skyNow.time, skyNow.weather) - 1);
   hookSet(rollFish(Math.random(), rod(), state.areaId, luck));
   }
