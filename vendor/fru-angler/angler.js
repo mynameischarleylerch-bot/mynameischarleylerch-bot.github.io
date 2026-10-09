@@ -2215,7 +2215,7 @@ function startingStats() {
 }
 
 function sealParty() {
-  return sealPartyOf(state.equippedSeal, state.ownedSeals, state.upgrades);
+  return sealParty(state.equippedSeal, state.ownedSeals, state.upgrades);
 }
 
 function primarySeal() {
