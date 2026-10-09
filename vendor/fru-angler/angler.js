@@ -997,19 +997,23 @@ function fitPet() {
   // shape, which is what put the :3 on the animal's shoulder for several passes.
   const FACE_X = 13;
 
+  // Position seals side by side on the pier (0..100 viewBox, pier is 0..42).
+  // Two seals side by side: position at ~1/3 and ~2/3 of pier width.
+  const SLOT_X = [10, 32];
+
   // Every slot, not just slot 0: a second animal fitted to a different rule than
   // the first would be a smear on exactly the lakes the first one survives.
   for (const slot of dock.querySelectorAll('.fa-pet-slot')) {
-    slot.setAttribute('transform', slot.dataset.slot === '0'
-      ? `translate(${FACE_X} 0) scale(${scale.toFixed(4)} 1) translate(${-FACE_X} 0) translate(0 ${PET_Y})`
-      // Slot 1 sits further along the pier, so it keeps its markup offset AND gets
-      // the same correction. Composed, not replaced -- the offset lives in the
-      // markup where the geometry tests can see it.
-      : `translate(30 0) translate(${FACE_X} 0) scale(${scale.toFixed(4)} 1) translate(${-FACE_X} 0) translate(0 ${PET_Y})`);
+    const n = Number(slot.dataset.slot);
+    const xPos = SLOT_X[n] ?? 10;
+    // Slot 0 stays at its original anchor; slot 1 gets an extra offset.
+    // Both use FACE_X as the squeeze anchor so the face inverse cancels correctly.
+    const extraOffset = slot.dataset.slot === '0' ? 0 : 30;
+    slot.setAttribute('transform',
+      `translate(${extraOffset} 0) translate(${FACE_X} 0) scale(${scale.toFixed(4)} 1) translate(${-FACE_X} 0) translate(0 ${PET_Y})`);
 
-    // The face gets the INVERSE correction. The outer scale is around 0.5 on a
-    // typical lake, which halved the eyes and thinned the mouth stroke to a
-    // sub-pixel hairline -- correct in the markup, invisible in the game.
+    // The face gets the INVERSE correction anchored at FACE_X.
+    // Order: translate(FACE_X) scale(inv) translate(-FACE_X)
     const face = document.getElementById(`pet-face-${slot.dataset.slot}`);
     if (face) {
       const inv = 1 / scale;
