@@ -7,7 +7,7 @@
 import {
   STATUSES, AVATARS, avatarSrc, withAvatar, withStatus, withNick,
   loadProfile, saveProfile, profileSummary, statusById, NICK_MAX,
-} from './messenger.js?v=2026-10-06-K';
+} from './messenger.js?v=2026-10-06-L';
 
 const el = (id) => document.getElementById(id);
 

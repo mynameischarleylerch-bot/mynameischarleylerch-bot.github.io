@@ -855,6 +855,7 @@ function paintChrome() {
     ui.levelBar.dataset.level = String(rank.level);
   }
   paintPet();
+  fitPet();
   paintBoosts();
   paintFinds();
 
@@ -2439,6 +2440,7 @@ function renderUpgrades() {
         // repainted here rather than left lying until a reload.
         paintBag();
         paintPet();
+        fitPet();
         say(`${up.name} fitted.`);
       });
       row.appendChild(buy);
