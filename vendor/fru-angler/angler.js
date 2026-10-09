@@ -511,7 +511,8 @@ function paintBoosts() {
   if (!ui.boostList || !ui.boostTotal) return;
   const current = rod();
   const rank = levelFrom({ xp: state.xp }).level;
-  const seal = primarySeal();
+  const party = sealParty();
+  const seals = party.map(id => SEALS.find(s => s.id === id)).filter(Boolean);
   const sky = state.sky ?? skyFor(state.areaId);
 
   const rows = [
@@ -520,23 +521,30 @@ function paintBoosts() {
     // to account for it. Same for the seal.
     { key: 'rod', name: current ? current.name : 'No rod', value: Number(current?.luck) || 0 },
     { key: 'rank', name: `Rank ${rank}`, value: luckFromLevel(rank) },
-    { key: 'seal', name: seal ? seal.name : 'No seal', value: Number(seal?.luck) || 0 },
-    // Fed fish. Its own row rather than folded into the seal's, so the player can
-    // see what feeding bought -- otherwise the seal row would silently grow and
-    // there would be no way to tell feeding from a better seal.
-    {
-      key: 'bond',
-      name: seal ? `${seal.name}'s bond` : 'Seal bond',
-      value: bondLuck(seal ? bondCount(state.bond, seal.id) : 0),
-    },
-    // Weather's own contribution only. The seal is a row of its own, so folding
-    // it in here too would show every boost twice.
-    {
-      key: 'weather',
-      name: `${sky.weather.name}, ${sky.time.name}`,
-      value: Math.round((luckFromSky(sky.time, sky.weather) - 1) * 100) / 100,
-    },
   ];
+
+  // Add each equipped seal and its bond
+  if (seals.length > 0) {
+    for (const seal of seals) {
+      rows.push({ key: 'seal', name: seal.name, value: Number(seal.luck) || 0 });
+      rows.push({
+        key: 'bond',
+        name: `${seal.name}'s bond`,
+        value: bondLuck(bondCount(state.bond, seal.id)),
+      });
+    }
+  } else {
+    rows.push({ key: 'seal', name: 'No seal', value: 0 });
+    rows.push({ key: 'bond', name: 'Seal bond', value: 0 });
+  }
+
+  // Weather's own contribution only. The seal is a row of its own, so folding
+  // it in here too would show every boost twice.
+  rows.push({
+    key: 'weather',
+    name: `${sky.weather.name}, ${sky.time.name}`,
+    value: Math.round((luckFromSky(sky.time, sky.weather) - 1) * 100) / 100,
+  });
 
   ui.boostList.textContent = '';
   for (const row of rows) {
