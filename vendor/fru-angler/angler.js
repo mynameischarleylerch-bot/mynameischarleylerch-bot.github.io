@@ -27,6 +27,7 @@ import {
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
  convertSealToRod,
+ sealPartyOf,
 } from './fishing.js?v=2026-10-06-A';
 import {
   reelConfig, stepReel as advance, reelOutcomeFor, isCaught, lineSnapped,
@@ -2214,8 +2215,9 @@ function startingStats() {
   };
 }
 
+// sealParty is imported from fishing.js as sealPartyOf (renamed to avoid conflict)
 function sealParty() {
-  return sealParty(state.equippedSeal, state.ownedSeals, state.upgrades);
+  return sealPartyOf(state.equippedSeal, state.ownedSeals, state.upgrades);
 }
 
 function primarySeal() {
