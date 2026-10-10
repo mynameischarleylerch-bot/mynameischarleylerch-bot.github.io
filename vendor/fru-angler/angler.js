@@ -23,7 +23,7 @@ import {
  SEALS, LOST_ITEMS,
  levelFrom, xpForCatch, xpForLevel, luckFor, luckFromLevel,
  rollLostItem, lostItemsFor, sellLostItems, lostItemById,
- addToBag, bagCap, mixHex, mixRgba, tintFor, ACHIEVEMENTS, PALETTES, achievementState, unlockedPalettes, paletteFor, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, sealParty as sealPartyOf, fishEntrySpec, bagWorth, bagEntryValue,
+ addToBag, bagCap, mixHex, mixRgba, tintFor, ACHIEVEMENTS, PALETTES, achievementState, unlockedPalettes, paletteFor, BASE_BAG_CAP, UPGRADES, sealSlots, buyUpgrade, fishEntrySpec, bagWorth, bagEntryValue,
  sellFromBag, sellWholeBag, feedToBond, bondLuck, bondCount, groupBag,
  buySeal, equipSeal, sealComment, sealDuplicates, sealIdleLine, sealFedLine, bondProgress,
  convertSealToRod,
