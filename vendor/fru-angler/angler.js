@@ -236,9 +236,7 @@ function load() {
     state.lakesSeen = Array.isArray(saved.lakesSeen)
       ? [...new Set(saved.lakesSeen.filter((id) => AREAS.some((a) => a.id === id)))]
       : [];
-    state.stats = { ...startingStats() };
-    // Defensive: ensure lakesVisited exists (defensive against missing field)
-    if (!('lakesVisited' in state.stats)) state.stats.lakesVisited = 0;
+    state.stats = ensureStats(saved.stats);
     if (saved.stats && typeof saved.stats === 'object') {
       for (const key of Object.keys(state.stats)) {
         const n = Number(saved.stats[key]);
@@ -2215,6 +2213,13 @@ function startingStats() {
     darkLakeCatches: 0, rareLanded: 0, crowned: 0,
     lakesVisited: 0,
   };
+}
+
+// Ensure stats always has lakesVisited (for backward compat)
+function ensureStats(stats) {
+  if (!stats) return startingStats();
+  if (!('lakesVisited' in stats)) stats.lakesVisited = 0;
+  return stats;
 }
 
 // sealParty is imported from fishing.js as _sealParty (renamed to avoid conflict)
