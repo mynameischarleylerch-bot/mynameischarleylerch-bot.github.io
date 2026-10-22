@@ -502,6 +502,14 @@
   }
 
   function init() {
+    // Create the 16 cells once
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.gridRow = r + 1;
+      cell.style.gridColumn = c + 1;
+      boardEl.appendChild(cell);
+    }
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
