@@ -237,6 +237,8 @@ function load() {
       ? [...new Set(saved.lakesSeen.filter((id) => AREAS.some((a) => a.id === id)))]
       : [];
     state.stats = { ...startingStats() };
+    // Defensive: ensure lakesVisited exists (defensive against missing field)
+    if (!('lakesVisited' in state.stats)) state.stats.lakesVisited = 0;
     if (saved.stats && typeof saved.stats === 'object') {
       for (const key of Object.keys(state.stats)) {
         const n = Number(saved.stats[key]);
