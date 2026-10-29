@@ -165,6 +165,7 @@ const state = {
     darkLakeCatches: 0,
     rareLanded: 0,     // Rare or better
     crowned: 0,        // a Crowned fish, worth five times its weight
+    lakesVisited: 0,   // distinct lakes fished in
   },
 
   duplicates: 0,        // seal copies handed over, all time
@@ -174,6 +175,26 @@ const state = {
 const rod = () => RODS[state.rodId];
 
 /* ------------------------------------------------------------------- save */
+
+function startingStats() {
+  return {
+    catches: 0, peakBag: 0, nightCatches: 0,
+    darkLakeCatches: 0, rareLanded: 0, crowned: 0,
+    lakesVisited: 0,
+  };
+}
+
+function ensureStats(stats) {
+  if (!stats) return startingStats();
+  const defaults = startingStats();
+  // Return a new object with all keys from defaults, filling from stats where present
+  const result = { ...defaults };
+  for (const key of Object.keys(defaults)) {
+    if (key in stats) result[key] = stats[key];
+  }
+  return result;
+}
+
 
 function load() {
   const fresh = startingLoadout();
@@ -237,12 +258,6 @@ function load() {
       ? [...new Set(saved.lakesSeen.filter((id) => AREAS.some((a) => a.id === id)))]
       : [];
     state.stats = ensureStats(saved.stats);
-    if (saved.stats && typeof saved.stats === 'object') {
-      for (const key of Object.keys(state.stats)) {
-        const n = Number(saved.stats[key]);
-        if (Number.isFinite(n) && n >= 0) state.stats[key] = Math.floor(n);
-      }
-    }
 
     state.lost = Array.isArray(saved.lost)
       ? saved.lost.filter((id) => LOST_ITEMS.some((item) => item.id === id))
@@ -2207,20 +2222,8 @@ function closeBond() {
  * be one object mutated by every game on the page and by every test -- which is how
  * "peak bag" ends up reading 40 in a fresh save.
  */
-function startingStats() {
-  return {
-    catches: 0, peakBag: 0, nightCatches: 0,
-    darkLakeCatches: 0, rareLanded: 0, crowned: 0,
-    lakesVisited: 0,
-  };
-}
 
-// Ensure stats always has lakesVisited (for backward compat)
-function ensureStats(stats) {
-  if (!stats) return startingStats();
-  if (!('lakesVisited' in stats)) stats.lakesVisited = 0;
-  return stats;
-}
+// Ensure stats always has all fields from startingStats (for backward compat)
 
 // sealParty is imported from fishing.js as _sealParty (renamed to avoid conflict)
 function sealParty() {

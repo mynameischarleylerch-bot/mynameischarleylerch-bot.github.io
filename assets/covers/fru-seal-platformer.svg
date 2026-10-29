@@ -1,0 +1,243 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Frutiger Aero Seal Platformer 8-bit">
+  <title>Frutiger Aero Seal Platformer 8-bit</title>
+  <defs>
+    <!-- 8-bit Aero palette -->
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0066CC"/>
+      <stop offset="25%" stop-color="#0088FF"/>
+      <stop offset="50%" stop-color="#44AAFF"/>
+      <stop offset="75%" stop-color="#88CCFF"/>
+      <stop offset="100%" stop-color="#CCEEFF"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.85" cy="0.15" r="0.5">
+      <stop offset="0%" stop-color="#FFCC00"/>
+      <stop offset="60%" stop-color="#FFEE44"/>
+      <stop offset="100%" stop-color="#FFFF88"/>
+    </radialGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#004488"/>
+      <stop offset="50%" stop-color="#0066AA"/>
+      <stop offset="100%" stop-color="#0088CC"/>
+    </linearGradient>
+    <linearGradient id="seal-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#002244"/>
+      <stop offset="50%" stop-color="#004466"/>
+      <stop offset="100%" stop-color="#006688"/>
+    </linearGradient>
+    <linearGradient id="seal-belly" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFCC00"/>
+      <stop offset="100%" stop-color="#FFEE44"/>
+    </linearGradient>
+    <linearGradient id="glass-platform" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#CCEEFF"/>
+      <stop offset="50%" stop-color="#88CCEE"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <radialGradient id="bubble-platform" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#44AAFF"/>
+      <stop offset="70%" stop-color="#88CCFF"/>
+      <stop offset="100%" stop-color="#CCEEFF"/>
+    </radialGradient>
+    <linearGradient id="goal-platform" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFCC00"/>
+      <stop offset="50%" stop-color="#FFEE44"/>
+      <stop offset="100%" stop-color="#FFFF88"/>
+    </linearGradient>
+    <radialGradient id="bubble-collect" cx="0.3" cy="0.3" r="0.7">
+      <stop offset="0%" stop-color="#88CCFF"/>
+      <stop offset="50%" stop-color="#CCEEFF"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </radialGradient>
+    <radialGradient id="pearl-collect" cx="0.3" cy="0.3" r="0.7">
+      <stop offset="0%" stop-color="#FFFFCC"/>
+      <stop offset="50%" stop-color="#FFFF88"/>
+      <stop offset="100%" stop-color="#FFFFAA"/>
+    </radialGradient>
+    <radialGradient id="urchin-body" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#440044"/>
+      <stop offset="50%" stop-color="#660066"/>
+      <stop offset="100%" stop-color="#880088"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="320" height="180" fill="url(#sky)"/>
+
+  <!-- Sun with 8-bit rays -->
+  <g transform="translate(272, 27)">
+    <g stroke="#FFEE44" stroke-width="2">
+      <line x1="0" y1="-30" x2="0" y2="-45"/>
+      <line x1="21" y1="-21" x2="32" y2="-32"/>
+      <line x1="30" y1="0" x2="45" y2="0"/>
+      <line x1="21" y1="21" x2="32" y2="32"/>
+      <line x1="0" y1="30" x2="0" y2="45"/>
+      <line x1="-21" y1="21" x2="-32" y2="32"/>
+      <line x1="-30" y1="0" x2="-45" y2="0"/>
+      <line x1="-21" y1="-21" x2="-32" y2="-32"/>
+    </g>
+    <circle cx="0" cy="0" r="20" fill="#FFCC00"/>
+    <circle cx="0" cy="0" r="12" fill="#FFEE44"/>
+    <circle cx="0" cy="0" r="6" fill="#FFFF88"/>
+  </g>
+
+  <!-- Far hills -->
+  <path d="M-20,130 Q80,110 180,120 Q280,130 340,120 L340,180 L-20,180 Z" fill="#0066CC"/>
+  <path d="M-20,145 Q90,125 200,135 Q310,145 340,135 L340,180 L-20,180 Z" fill="#0088FF"/>
+  <path d="M-20,160 Q100,140 220,150 Q340,160 340,150 L340,180 L-20,180 Z" fill="#44AAFF"/>
+
+  <!-- Ground -->
+  <rect x="-20" y="140" width="360" height="40" fill="url(#ground)"/>
+  <rect x="-20" y="140" width="360" height="4" fill="#0088CC"/>
+  <!-- Dither pattern on ground -->
+  <g fill="#0088CC">
+    <rect x="0" y="140" width="2" height="2"/>
+    <rect x="4" y="140" width="2" height="2"/>
+    <rect x="8" y="140" width="2" height="2"/>
+    <rect x="12" y="140" width="2" height="2"/>
+    <rect x="16" y="140" width="2" height="2"/>
+    <rect x="20" y="140" width="2" height="2"/>
+    <rect x="24" y="140" width="2" height="2"/>
+    <rect x="28" y="140" width="2" height="2"/>
+    <rect x="32" y="140" width="2" height="2"/>
+    <rect x="36" y="140" width="2" height="2"/>
+    <rect x="40" y="140" width="2" height="2"/>
+    <rect x="44" y="140" width="2" height="2"/>
+    <rect x="48" y="140" width="2" height="2"/>
+    <rect x="52" y="140" width="2" height="2"/>
+    <rect x="56" y="140" width="2" height="2"/>
+    <rect x="56" y="140" width="2" height="2"/>
+    <rect x="60" y="140" width="2" height="2"/>
+    <rect x="64" y="140" width="2" height="2"/>
+    <rect x="68" y="140" width="2" height="2"/>
+    <rect x="72" y="140" width="2" height="2"/>
+    <rect x="76" y="140" width="2" height="2"/>
+    <rect x="80" y="140" width="2" height="2"/>
+    <rect x="84" y="140" width="2" height="2"/>
+    <rect x="88" y="140" width="2" height="2"/>
+    <rect x="92" y="140" width="2" height="2"/>
+    <rect x="96" y="140" width="2" height="2"/>
+    <rect x="100" y="140" width="2" height="2"/>
+    <rect x="104" y="140" width="2" height="2"/>
+    <rect x="108" y="140" width="2" height="2"/>
+    <rect x="112" y="140" width="2" height="2"/>
+    <rect x="116" y="140" width="2" height="2"/>
+    <rect x="120" y="140" width="2" height="2"/>
+    <rect x="124" y="140" width="2" height="2"/>
+    <rect x="128" y="140" width="2" height="2"/>
+    <rect x="132" y="140" width="2" height="2"/>
+    <rect x="136" y="140" width="2" height="2"/>
+    <rect x="136" y="140" width="2" height="2"/>
+    <rect x="140" y="140" width="2" height="2"/>
+    <rect x="144" y="140" width="2" height="2"/>
+    <rect x="148" y="140" width="2" height="2"/>
+    <rect x="152" y="140" width="2" height="2"/>
+    <rect x="156" y="140" width="2" height="2"/>
+    <rect x="160" y="140" width="2" height="2"/>
+    <rect x="164" y="140" width="2" height="2"/>
+    <rect x="168" y="140" width="2" height="2"/>
+    <rect x="172" y="140" width="2" height="2"/>
+    <rect x="176" y="140" width="2" height="2"/>
+    <rect x="180" y="140" width="2" height="2"/>
+    <rect x="184" y="140" width="2" height="2"/>
+    <rect x="188" y="140" width="2" height="2"/>
+    <rect x="192" y="140" width="2" height="2"/>
+    <rect x="196" y="140" width="2" height="2"/>
+    <rect x="200" y="140" width="2" height="2"/>
+    <rect x="204" y="140" width="2" height="2"/>
+    <rect x="208" y="140" width="2" height="2"/>
+    <rect x="212" y="140" width="2" height="2"/>
+    <rect x="216" y="140" width="2" height="2"/>
+    <rect x="220" y="140" width="2" height="2"/>
+    <rect x="224" y="140" width="2" height="2"/>
+    <rect x="228" y="140" width="2" height="2"/>
+    <rect x="232" y="140" width="2" height="2"/>
+    <rect x="236" y="140" width="2" height="2"/>
+    <rect x="240" y="140" width="2" height="2"/>
+    <rect x="244" y="140" width="2" height="2"/>
+    <rect x="248" y="140" width="2" height="2"/>
+    <rect x="252" y="140" width="2" height="2"/>
+    <rect x="256" y="140" width="2" height="2"/>
+    <rect x="256" y="140" width="2" height="2"/>
+    <rect x="260" y="140" width="2" height="2"/>
+    <rect x="264" y="140" width="2" height="2"/>
+    <rect x="268" y="140" width="2" height="2"/>
+    <rect x="272" y="140" width="2" height="2"/>
+    <rect x="276" y="140" width="2" height="2"/>
+    <rect x="280" y="140" width="2" height="2"/>
+    <rect x="284" y="140" width="2" height="2"/>
+    <rect x="288" y="140" width="2" height="2"/>
+    <rect x="292" y="140" width="2" height="2"/>
+    <rect x="296" y="140" width="2" height="2"/>
+    <rect x="300" y="140" width="2" height="2"/>
+    <rect x="304" y="140" width="2" height="2"/>
+    <rect x="308" y="140" width="2" height="2"/>
+    <rect x="312" y="140" width="2" height="2"/>
+    <rect x="316" y="140" width="2" height="2"/>
+  </g>
+
+  <!-- Platforms -->
+  <!-- Glass platform left -->
+  <rect x="40" y="100" width="100" height="14" rx="4" fill="#CCEEFF" stroke="#FFFFFF" stroke-width="1"/>
+  <rect x="40" y="100" width="100" height="3" rx="4" fill="#88CCEE"/>
+
+  <!-- Bubble platform middle -->
+  <rect x="180" y="80" width="90" height="14" rx="7" fill="#44AAFF" stroke="#88CCFF" stroke-width="1.5"/>
+
+  <!-- Glass platform right -->
+  <rect x="200" y="50" width="80" height="12" rx="4" fill="#CCEEFF" stroke="#FFFFFF" stroke-width="1"/>
+  <rect x="200" y="50" width="80" height="3" rx="4" fill="#88CCEE"/>
+
+  <!-- Goal platform top right (flashing) -->
+  <rect x="260" y="25" width="45" height="14" rx="4" fill="#FFCC00" stroke="#FFFF88" stroke-width="2"/>
+  <rect x="260" y="25" width="45" height="3" rx="4" fill="#FFEE44"/>
+
+  <!-- Collectibles -->
+  <!-- Bubble collectible -->
+  <circle cx="70" cy="85" r="10" fill="#88CCFF"/>
+  <circle cx="67" cy="82" r="3" fill="#CCEEFF"/>
+
+  <!-- Pearl collectible -->
+  <circle cx="210" cy="62" r="9" fill="#FFFFCC"/>
+  <circle cx="210" cy="62" r="12" fill="#FFFF88" fill-opacity="0.5"/>
+  <circle cx="208" cy="60" r="2" fill="#FFFFAA"/>
+
+  <!-- Seal character (8-bit Messenger blob style from Frutiger Angler) -->
+  <g transform="translate(140, 110) scale(1.5)">
+    <!-- Main body blob (head merged into body with shoulder lobes) -->
+    <path d="M0,20 C-18,20 -22,10 -22,0 C-22,-8 -14,-12 0,-12 C14,-12 22,-8 22,0 C22,10 18,20 0,20 Z" fill="#004466"/>
+    <!-- Body highlight -->
+    <path d="M-2,16 C-10,16 -14,6 -14,-2 C-14,-6 -8,-8 0,-8 C8,-8 14,-6 14,-2 C14,6 10,16 2,16 Z" fill="#006688"/>
+    <!-- Belly -->
+    <ellipse cx="0" cy="14" rx="10" ry="6" fill="#FFCC00"/>
+    <!-- Face (on right side) -->
+    <!-- Eye -->
+    <rect x="-2" y="-6" width="4" height="4" fill="#002244"/>
+    <rect x="-1" y="-5" width="1" height="1" fill="#FFFFFF"/>
+    <!-- Nose/snout -->
+    <rect x="10" y="0" width="2" height="2" fill="#002244"/>
+    <!-- Front flipper -->
+    <ellipse cx="4" cy="14" rx="6" ry="3" fill="#002244" transform="rotate(-15 4 14)"/>
+    <!-- Back flipper -->
+    <ellipse cx="-10" cy="12" rx="4" ry="2" fill="#002244" transform="rotate(10 -10 12)"/>
+    <!-- Whiskers -->
+    <g stroke="#002244" stroke-width="1" fill="none">
+      <line x1="8" y1="-2" x2="14" y2="-4"/>
+      <line x1="8" y1="2" x2="14" y2="4"/>
+    </g>
+  </g>
+
+  <!-- Background bubbles -->
+  <g fill="#44AAFF" opacity="0.5">
+    <circle cx="30" cy="40" r="6"/>
+    <circle cx="280" cy="60" r="4"/>
+    <circle cx="50" cy="120" r="5"/>
+    <circle cx="290" cy="140" r="3"/>
+    <circle cx="100" cy="30" r="4"/>
+    <circle cx="240" cy="110" r="5"/>
+  </g>
+
+  <!-- Title text -->
+  <text x="160" y="165" text-anchor="middle" font-family="monospace" font-size="14" font-weight="600" fill="#002244" letter-spacing="1px">
+    FRUTIGER AERO SEAL 8-BIT
+  </text>
+</svg>

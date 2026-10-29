@@ -92,6 +92,23 @@
       "controls": "Arrow keys / WASD / Swipe",
       "year": 2026,
       "featured": false
+    },
+    {
+      "slug": "fru-seal-platformer",
+      "title": "Frutiger Aero Seal",
+      "summary": "Run, jump, and swim through glossy Aero seas as a cheerful seal. Collect bubbles and pearls, avoid urchins, chase the sun.",
+      "repoUrl": "https://github.com/mynameischarleylerch-bot",
+      "playUrl": "./vendor/fru-seal-platformer/index.html",
+      "cover": "./assets/covers/fru-seal-platformer.svg",
+      "tags": [
+        "platformer",
+        "aero",
+        "seal",
+        "action"
+      ],
+      "controls": "Arrow keys / WASD move, Space jump, Escape pause",
+      "year": 2026,
+      "featured": true
     }
   ]
 }

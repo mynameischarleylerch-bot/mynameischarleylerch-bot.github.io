@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aero Arcade — loading</title>
-<link rel="stylesheet" href="./styles.css?v=2026-10-06-Q">
-<!-- The tab icon. This was href="data:,", an empty placeholder that renders
+<link rel="stylesheet" href="./styles.css?v=2026-10-25-A">
+<!-- The tab icon. This was href="data:," an empty placeholder that renders
      nothing, so the browser tab was blank. -->
-<link rel="icon" type="image/svg+xml" href="./assets/icon.svg?v=2026-10-06-Q">
-<link rel="apple-touch-icon" href="./assets/icon.svg?v=2026-10-06-Q">
+<link rel="icon" type="image/svg+xml" href="./assets/icon.svg?v=2026-10-25-A">
+<link rel="apple-touch-icon" href="./assets/icon.svg?v=2026-10-25-A">
 </head>
 <body class="player-page">
 <div class="backdrop" aria-hidden="true"></div>
@@ -60,17 +60,17 @@
 <p class="hint">Press <kbd>Esc</kbd> to go back. Fullscreen is the way to play.</p>
 </div>
 <script type="module">
-  import { initPlayer } from './src/play.js?v=2026-10-06-Q';
-  import { gameSlugFromSearch } from './src/router.js?v=2026-10-06-Q';
+  import { initPlayer } from './src/play.js?v=2026-10-25-A';
+  import { gameSlugFromSearch } from './src/router.js?v=2026-10-25-A';
 
   const slug = gameSlugFromSearch(window.location.search);
-  const response = await fetch('./games.config.json?v=2026-10-06-Q');
+  const response = await fetch('./games.config.json?v=2026-10-25-A');
   const config = await response.json();
   initPlayer({ window, config, slug });
 </script>
 <script type="module">
-  import { initThemeButton } from './src/theme-ui.js?v=2026-10-06-Q';
-  import { initAvatar } from './src/avatar-ui.js?v=2026-10-06-Q';
+  import { initThemeButton } from './src/theme-ui.js?v=2026-10-25-A';
+  import { initAvatar } from './src/avatar-ui.js?v=2026-10-25-A';
   initThemeButton(window);
   initAvatar(document);
 </script>

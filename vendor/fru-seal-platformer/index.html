@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frutiger Aero Seal</title>
+<style>
+  :root {
+    --deep: #01579b;
+    --deepest: #013a63;
+    --ink-soft: #3d6b85;
+    --on-accent: #ffffff;
+
+    --sky-top: #b3e5fc;
+    --sky-mid: #7fc4e8;
+    --sky-floor: #4aa8d8;
+    --sun: #fff9c4;
+    --sun-core: rgba(255, 255, 255, 0.95);
+    --haze-tint: rgba(255, 255, 255, 0.75);
+
+    --wood: #a9714a;
+    --wood-deep: #7d4f2e;
+
+    --glass-top: rgba(255, 255, 255, 0.62);
+    --glass-mid: rgba(255, 255, 255, 0.3);
+    --glass-bot: rgba(255, 255, 255, 0.16);
+    --glass: linear-gradient(180deg, var(--glass-top), var(--glass-mid) 55%, var(--glass-bot));
+
+    --sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5));
+    --sheen-faint: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+    --gloss-strength: 0.9;
+
+    --hairline: rgba(255, 255, 255, 0.85);
+    --hairline-strong: rgba(255, 255, 255, 0.92);
+    --radius: 12px;
+    --pill: 999px;
+    --radius-lg: 18px;
+
+    --shadow-card: 0 6px 16px rgba(1, 87, 155, 0.22), inset 0 1px 0 var(--hairline-strong);
+    --shadow-panel: 0 18px 40px rgba(1, 87, 155, 0.22), inset 0 1px 0 var(--hairline);
+    --shadow-edge: inset 0 -1px 0 rgba(255, 255, 255, 0.5);
+    --shadow-lift: 0 10px 22px rgba(1, 87, 155, 0.28), inset 0 1px 0 #fff;
+
+    --shine: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.45));
+    --shine-on: linear-gradient(180deg, #81d4fa, #0288d1);
+    --lime: #a3e635;
+    --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+    --bubble: #a8d0e6;
+    --pearl: #fff8e1;
+    --urchin: #4a148c;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; height: 100%;
+    background: linear-gradient(180deg, #e1f5fe, #b3e5fc 55%, #f4fbff);
+    color: var(--deep);
+    font: 16px "Segoe UI", Frutiger, system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  .stage {
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: .6rem;
+    padding: .75rem;
+  }
+
+  .hud {
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem .7rem;
+    flex-wrap: wrap;
+    padding: .4rem .9rem; border-radius: var(--pill);
+    background: var(--glass);
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .hud__group {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .18rem .55rem; min-height: 2.1rem; box-sizing: border-box;
+    border-radius: var(--pill);
+    background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.62));
+    border: 1px solid rgba(255, 255, 255, .95);
+    box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(1, 87, 155, .12);
+  }
+  .hud__group b { color: var(--deep); font-size: 1.2em; font-variant-numeric: tabular-nums; }
+  .hud__dim { color: var(--ink-soft); font-size: .85rem; }
+
+  .game-wrap {
+    display: grid; place-items: center; min-height: 0; position: relative;
+  }
+
+  .game-canvas {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-panel), var(--shadow-edge);
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 40%, var(--sky-floor) 100%);
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .msg {
+    position: absolute; inset: 0; display: grid; place-items: center; z-index: 10;
+    background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(6,51,79,.35), transparent 75%);
+  }
+  .msg > * { pointer-events: auto; }
+  .msg[hidden] { display: none; }
+  .msg__card {
+    padding: 1.5rem 2rem; border-radius: 18px; text-align: center;
+    background: linear-gradient(180deg, rgba(255,255,255,.94), var(--glass-mid));
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-panel), var(--shadow-lift);
+    animation: msg-pop 300ms cubic-bezier(.2,1.5,.4,1) both;
+  }
+  @keyframes msg-pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .msg__title { font-size: 1.8rem; font-weight: 700; margin: 0 0 .5rem; color: var(--deep); }
+  .msg__score { font-size: 1.2rem; margin: .3rem 0 1rem; color: var(--ink-soft); }
+  .msg__stats { font-size: .95rem; margin: .5rem 0 1rem; color: var(--ink-soft); line-height: 1.8; }
+
+  .btn {
+    padding: .55rem 1.2rem; border-radius: var(--pill); border: 1px solid rgba(255,255,255,.92);
+    background: var(--shine); color: var(--deep); font: inherit; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 10px rgba(1,87,155,.2), inset 0 1px 0 #fff;
+  }
+  .btn--primary { background: var(--shine-on); color: #fff; }
+  .btn--small { padding: .2rem .7rem; font-size: .82rem; font-weight: 600; min-height: 2.1rem; box-sizing: border-box; }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:focus-visible { outline: 2px solid var(--deep); outline-offset: 2px; }
+
+  .touch-controls {
+    display: none;
+    position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+    gap: .5rem; z-index: 20;
+  }
+  @media (pointer: coarse) {
+    .touch-controls { display: flex; }
+  }
+  .touch-btn {
+    width: 64px; height: 64px; border-radius: var(--radius-lg);
+    background: var(--glass); border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-card);
+    display: grid; place-items: center;
+    color: var(--deep);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .touch-btn:active { background: var(--glass-mid); transform: scale(0.95); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="hud">
+      <div class="hud__group">
+        <span>Level <b id="hud-level">1</b></span>
+      </div>
+      <div class="hud__group">
+        <span>Bubbles <b id="hud-bubbles">0</b></span>
+      </div>
+      <div class="hud__group">
+        <span>Pearls <b id="hud-pearls">0</b></span>
+      </div>
+      <div class="hud__group">
+        <span>Time <b id="hud-time">0.00</b>s</span>
+      </div>
+    </div>
+
+    <div class="game-wrap">
+      <canvas id="game" class="game-canvas" aria-label="Frutiger Aero Seal Platformer"></canvas>
+      <div class="msg" id="msg-complete" hidden>
+        <div class="msg__card">
+          <h2 class="msg__title">Level Complete!</h2>
+          <p class="msg__score">Time: <b id="complete-time">0.00</b>s</p>
+          <p class="msg__stats">
+            Bubbles: <b id="complete-bubbles">0</b> / <b id="complete-total-bubbles">0</b><br>
+            Pearls: <b id="complete-pearls">0</b> / <b id="complete-total-pearls">0</b>
+          </p>
+          <button class="btn btn--primary" id="btn-next" type="button">Next Level</button>
+          <button class="btn" id="btn-restart-level" type="button" style="margin-left:.5rem">Restart</button>
+        </div>
+      </div>
+      <div class="msg" id="msg-paused" hidden>
+        <div class="msg__card">
+          <h2 class="msg__title">Paused</h2>
+          <p class="msg__dim">Press Escape or click to resume</p>
+          <button class="btn btn--primary" id="btn-resume" type="button" style="margin-top:1rem">Resume</button>
+        </div>
+      </div>
+      <div class="msg" id="msg-game-complete" hidden>
+        <div class="msg__card">
+          <h2 class="msg__title">🎉 All Levels Complete!</h2>
+          <p class="msg__score">Total Time: <b id="total-time">0.00</b>s</p>
+          <p class="msg__stats">
+            Total Bubbles: <b id="total-bubbles">0</b><br>
+            Total Pearls: <b id="total-pearls">0</b>
+          </p>
+          <button class="btn btn--primary" id="btn-play-again" type="button">Play Again</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud" style="justify-content:center; background:none; box-shadow:none; padding:0">
+      <span class="hud__dim">Arrow keys / WASD move, Space jump, Escape pause</span>
+    </div>
+  </div>
+
+  <div class="touch-controls" aria-hidden="true">
+    <button class="touch-btn" id="touch-left" aria-label="Move left">◀</button>
+    <button class="touch-btn" id="touch-jump" aria-label="Jump">⬆</button>
+    <button class="touch-btn" id="touch-right" aria-label="Move right">▶</button>
+  </div>
+
+<script type="module">
+import {
+  LEVELS,
+  PALETTE,
+  createInitialState,
+  updatePlayer,
+  updateCamera,
+  updateCollectibles,
+  updateHazards,
+  checkGoal,
+  completeLevel,
+  nextLevel,
+  restartLevel,
+  resetGame,
+  loadBestTimes,
+  saveBestTimes,
+  updateParticles,
+  updateCollectibleBobs,
+  updateAnimation,
+  updateLevelTime,
+  PLAYER_W,
+  PLAYER_H
+} from './game.js';
+
+// --- Canvas ---
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false; // 8-bit pixel art style
+let canvasW = 0, canvasH = 0;
+
+// --- State ---
+let state = createInitialState(0);
+state.bestTimes = loadBestTimes();
+
+// --- Background layers (parallax) ---
+const bgBubbles = [];
+for (let i = 0; i < 30; i++) {
+  bgBubbles.push({
+    x: Math.random() * 4000,
+    y: Math.random() * 1000,
+    r: 8 + Math.random() * 20,
+    speed: 0.02 + Math.random() * 0.05,
+    phase: Math.random() * Math.PI * 2
+  });
+}
+const hills = [
+  { y: 0.7, color: PALETTE.SKY_1, speed: 0.1 },
+  { y: 0.8, color: PALETTE.SKY_2, speed: 0.2 },
+  { y: 0.9, color: PALETTE.SKY_3, speed: 0.35 }
+];
+
+// --- Resize ---
+function resize() {
+  const wrap = canvas.parentElement;
+  const maxW = wrap.clientWidth;
+  const maxH = wrap.clientHeight;
+  const aspect = 16 / 9;
+  let w = Math.min(maxW, maxH * aspect);
+  let h = w / aspect;
+  if (h > maxH) { h = maxH; w = h * aspect; }
+  canvas.width = w * devicePixelRatio;
+  canvas.height = h * devicePixelRatio;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  canvasW = w;
+  canvasH = h;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+// --- Spawn particles ---
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 50 + Math.random() * 150;
+    state.particles.push({
+      x: x - state.camera.x,
+      y: y - state.camera.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 100,
+      life: 1,
+      maxLife: 0.5 + Math.random() * 0.5,
+      color: color,
+      size: 3 + Math.random() * 4
+    });
+  }
+}
+
+// --- Input ---
+function handleKey(e, down) {
+  const code = e.code;
+  if (code === 'ArrowLeft' || code === 'KeyA') { state.input.left = down; if (down) e.preventDefault(); }
+  if (code === 'ArrowRight' || code === 'KeyD') { state.input.right = down; if (down) e.preventDefault(); }
+  if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') { state.input.jump = down; if (down) e.preventDefault(); }
+  if (code === 'Escape') {
+    if (down) togglePause();
+    e.preventDefault();
+  }
+}
+
+function togglePause() {
+  if (state.gameComplete) return;
+  state.paused = !state.paused;
+  document.getElementById('msg-paused').hidden = !state.paused;
+  if (!state.paused) { lastTime = performance.now(); requestAnimationFrame(gameLoop); }
+}
+
+document.addEventListener('keydown', e => handleKey(e, true));
+document.addEventListener('keyup', e => handleKey(e, false));
+
+// Touch controls
+document.getElementById('touch-left').addEventListener('touchstart', e => { state.input.left = true; e.preventDefault(); });
+document.getElementById('touch-left').addEventListener('touchend', e => { state.input.left = false; e.preventDefault(); });
+document.getElementById('touch-right').addEventListener('touchstart', e => { state.input.right = true; e.preventDefault(); });
+document.getElementById('touch-right').addEventListener('touchend', e => { state.input.right = false; e.preventDefault(); });
+document.getElementById('touch-jump').addEventListener('touchstart', e => { state.input.jump = true; e.preventDefault(); });
+document.getElementById('touch-jump').addEventListener('touchend', e => { state.input.jump = false; e.preventDefault(); });
+
+// Click to resume from pause
+canvas.addEventListener('click', () => { if (state.paused) togglePause(); });
+
+// --- 8-bit Render Helpers ---
+function drawRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.floor(x), Math.floor(y), Math.ceil(w), Math.ceil(h));
+}
+
+function drawRectStroke(x, y, w, h, color, lineWidth = 1) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.strokeRect(Math.floor(x) + 0.5, Math.floor(y) + 0.5, Math.ceil(w), Math.ceil(h));
+}
+
+function drawEllipse(x, y, rx, ry, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(Math.floor(x), Math.floor(y), rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawPixelSun(cx, cy, r) {
+  // 8-bit sun with rays
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const x1 = cx + Math.cos(angle) * r;
+    const y1 = cy + Math.sin(angle) * r;
+    const x2 = cx + Math.cos(angle) * (r + 8);
+    const y2 = cy + Math.sin(angle) * (r + 8);
+    ctx.strokeStyle = PALETTE.SUN_2;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+  // Sun core
+  drawEllipse(cx, cy, r, r, PALETTE.SUN_1);
+  drawEllipse(cx, cy, r * 0.6, r * 0.6, PALETTE.SUN_3);
+}
+
+// --- Render ---
+function render() {
+  ctx.clearRect(0, 0, canvasW, canvasH);
+
+  // 8-bit Sky gradient (banded)
+  const bands = 4;
+  const bandH = canvasH / bands;
+  for (let i = 0; i < bands; i++) {
+    const colors = [PALETTE.SKY_1, PALETTE.SKY_2, PALETTE.SKY_3, PALETTE.SKY_4];
+    drawRect(0, i * bandH, canvasW, bandH, colors[i]);
+  }
+
+  // Sun
+  const sunX = canvasW * 0.85;
+  const sunY = canvasH * 0.15;
+  drawPixelSun(sunX, sunY, 20);
+
+  // Parallax hills (8-bit style)
+  for (const hill of hills) {
+    ctx.fillStyle = hill.color;
+    ctx.beginPath();
+    ctx.moveTo(-state.camera.x * hill.speed, canvasH * hill.y);
+    for (let x = -state.camera.x * hill.speed; x < canvasW - state.camera.x * hill.speed + 200; x += 200) {
+      const h = canvasH * (1 - hill.y) * 0.3;
+      const y = canvasH * hill.y - Math.sin(x * 0.005 + hill.phase) * h;
+      ctx.lineTo(Math.floor(x), Math.floor(y));
+    }
+    ctx.lineTo(canvasW - state.camera.x * hill.speed, canvasH);
+    ctx.lineTo(-state.camera.x * hill.speed, canvasH);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Background bubbles (8-bit)
+  for (const b of bgBubbles) {
+    const bx = b.x - state.camera.x * b.speed;
+    const by = b.y + Math.sin(performance.now() * 0.001 * b.speed * 100 + b.phase) * 20;
+    if (bx + b.r > 0 && bx - b.r < canvasW && by + b.r > 0 && by - b.r < canvasH) {
+      drawEllipse(bx, by, b.r, b.r, PALETTE.BUBBLE_2);
+      drawEllipse(bx - 2, by - 2, b.r * 0.3, b.r * 0.3, PALETTE.BUBBLE_3);
+    }
+  }
+
+  // Platforms
+  for (const p of state.level.platforms) {
+    const px = p.x - state.camera.x;
+    const py = p.y - state.camera.y;
+    if (px + p.w < 0 || px > canvasW || py + p.h < 0 || py > canvasH) continue;
+
+    if (p.type === 'ground') {
+      // 8-bit ground with dither pattern
+      drawRect(px, py, p.w, p.h, PALETTE.GROUND_2);
+      drawRect(px, py, p.w, 4, PALETTE.GROUND_3);
+      // Dither highlight
+      for (let x = 0; x < p.w; x += 4) {
+        drawRect(px + x, py, 2, 2, PALETTE.GROUND_3);
+      }
+    } else if (p.type === 'glass') {
+      drawRect(px, py, p.w, p.h, PALETTE.GLASS_2);
+      drawRectStroke(px, py, p.w, p.h, PALETTE.GLASS_1);
+      drawRect(px, py, p.w, 3, PALETTE.GLASS_3);
+    } else if (p.type === 'bubble') {
+      drawRect(px, py, p.w, p.h, PALETTE.BUBBLE_1);
+      drawRectStroke(px, py, p.w, p.h, PALETTE.BUBBLE_2);
+    } else if (p.type === 'goal') {
+      // Animated goal platform
+      const t = performance.now() / 500;
+      const flash = Math.sin(t) > 0;
+      drawRect(px, py, p.w, p.h, flash ? PALETTE.GOAL_1 : PALETTE.GOAL_2);
+      drawRectStroke(px, py, p.w, p.h, PALETTE.GOAL_3, 2);
+      if (flash) drawRect(px, py, p.w, p.h, PALETTE.GOAL_3);
+    }
+  }
+
+  // Collectibles
+  for (const c of state.collectibles) {
+    if (c.collected) continue;
+    const cx = c.x - state.camera.x;
+    const cy = c.y - state.camera.y + Math.sin(c.bob) * 6;
+    if (cx + 16 < 0 || cx - 16 > canvasW || cy + 16 < 0 || cy - 16 > canvasH) continue;
+
+    if (c.type === 'bubble') {
+      drawEllipse(cx, cy, 14, 14, PALETTE.BUBBLE_COL_1);
+      drawEllipse(cx - 3, cy - 3, 3, 3, PALETTE.BUBBLE_COL_2);
+    } else if (c.type === 'pearl') {
+      drawEllipse(cx, cy, 12, 12, PALETTE.PEARL_1);
+      drawEllipse(cx, cy, 16, 16, PALETTE.PEARL_2);
+      drawEllipse(cx - 2, cy - 2, 2, 2, PALETTE.PEARL_3);
+      if (Math.random() < 0.05) c.sparkle = 0.3;
+      if (c.sparkle > 0) {
+        ctx.fillStyle = PALETTE.PEARL_3;
+        for (let i = 0; i < 4; i++) {
+          const a = c.bob * 4 + i * Math.PI / 2;
+          const sx = cx + Math.cos(a) * 18;
+          const sy = cy + Math.sin(a) * 18;
+          drawRect(sx - 1, sy - 1, 2, 2, PALETTE.PEARL_3);
+        }
+      }
+    }
+  }
+
+  // Hazards (urchins)
+  for (const h of state.hazards) {
+    const hx = h.x - state.camera.x;
+    const hy = h.y - state.camera.y;
+    if (hx + h.w < 0 || hx > canvasW || hy + h.h < 0 || hy > canvasH) continue;
+
+    drawEllipse(hx + h.w/2, hy + h.h/2, h.w/2, h.h/2, PALETTE.URCHIN_1);
+    drawEllipse(hx + h.w/2 - 2, hy + h.h/2 - 2, h.w/2 - 4, h.h/2 - 4, PALETTE.URCHIN_2);
+    drawEllipse(hx + h.w/2, hy + h.h/2, h.w/2 - 8, h.h/2 - 8, PALETTE.URCHIN_3);
+
+    // Spikes
+    const cx = hx + h.w/2;
+    const cy = hy + h.h/2;
+    ctx.strokeStyle = PALETTE.URCHIN_4;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + performance.now() / 1000;
+      const r = h.w/2 + 8;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      ctx.stroke();
+    }
+  }
+
+  // Particles
+  for (const p of state.particles) {
+    ctx.globalAlpha = p.life / p.maxLife;
+    drawRect(p.x, p.y, p.size * (p.life / p.maxLife), p.size * (p.life / p.maxLife), p.color);
+  }
+  ctx.globalAlpha = 1;
+
+  // Player (seal) - 8-bit Messenger blob style from Frutiger Angler
+  const px = state.player.x - state.camera.x + PLAYER_W/2;
+  const py = state.player.y - state.camera.y + PLAYER_H/2;
+
+  ctx.save();
+  ctx.translate(px, py);
+  if (state.player.facing === -1) ctx.scale(-1, 1);
+  drawSeal8Bit(ctx, state.player.state, state.animFrame);
+  ctx.restore();
+}
+
+// 8-bit seal drawing - based on Frutiger Angler's ringed seal (":3" face glyph)
+function drawSeal8Bit(ctx, playerState, animFrame) {
+  const scale = 1;
+  ctx.save();
+  ctx.scale(scale, scale);
+
+  // Seal colors from PALETTE (based on Angler's ringed seal)
+  const body1 = PALETTE.SEAL_1;  // #002244 - darkest
+  const body2 = PALETTE.SEAL_2;  // #004466 - mid
+  const body3 = PALETTE.SEAL_3;  // #006688 - light
+  const body4 = PALETTE.SEAL_4;  // #0088AA - highlight
+  const belly = PALETTE.SEAL_BELLY; // #FFCC00 - yellow belly
+  const white = PALETTE.SEAL_5;  // #FFFFFF
+  const ringColor = '#e8f2f7';   // Pale rings like Angler seal
+
+  // Main body - long rounded mass, flat bottom (from Angler's pet-body path)
+  ctx.fillStyle = body2;
+  ctx.beginPath();
+  // Long rounded body, flat bottom where it rests
+  ctx.moveTo(-18, 8);
+  ctx.bezierCurveTo(-24, 8, -28, 16, -28, 24);
+  ctx.bezierCurveTo(-28, 32, -22, 36, -14, 36);
+  ctx.lineTo(14, 36);
+  ctx.bezierCurveTo(22, 36, 28, 32, 28, 24);
+  ctx.bezierCurveTo(28, 16, 24, 8, 18, 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Body highlight (lighter area on upper-left)
+  ctx.fillStyle = body3;
+  ctx.beginPath();
+  ctx.moveTo(-14, 10);
+  ctx.bezierCurveTo(-20, 10, -24, 16, -24, 20);
+  ctx.bezierCurveTo(-24, 26, -18, 28, -10, 28);
+  ctx.lineTo(10, 28);
+  ctx.bezierCurveTo(18, 28, 22, 24, 22, 18);
+  ctx.bezierCurveTo(22, 12, 16, 8, 10, 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Belly (yellow like Angler seal)
+  ctx.fillStyle = belly;
+  ctx.beginPath();
+  ctx.ellipse(0, 28, 12, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Rings/spots on back (like ringed seal from Angler)
+  ctx.strokeStyle = ringColor;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  // Ring 1
+  ctx.ellipse(-6, 10, 5, 3, 0, 0, Math.PI * 2);
+  // Ring 2
+  ctx.ellipse(-2, 18, 4, 2, 0, 0, Math.PI * 2);
+  // Ring 3
+  ctx.ellipse(4, 14, 3, 2, 0, 0, Math.PI * 2);
+  // Ring 4
+  ctx.ellipse(-4, 22, 3, 2, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Spots (darker spots)
+  ctx.fillStyle = body1;
+  ctx.beginPath();
+  ctx.ellipse(-8, 8, 2, 1.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 16, 1.5, 1, 0, 0, Math.PI * 2);
+  ctx.ellipse(8, 12, 1, 1, 0, 0, Math.PI * 2);
+  ctx.ellipse(-4, 24, 1.5, 1, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Face glyph ":3" (two stacked dots for colon, vertical smile arc)
+  // Colon - two dots stacked vertically
+  ctx.fillStyle = body1;
+  drawRect(-8, -6, 2, 2, body1);  // Top dot of colon
+  drawRect(-8, -2, 2, 2, body1);  // Bottom dot of colon
+  
+  // "3" - vertical smile arc bulging right
+  ctx.strokeStyle = body1;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-4, -8);  // Top of 3
+  ctx.bezierCurveTo(0, -6, 2, -4, 0, 0);  // Upper lobe bulging right
+  ctx.bezierCurveTo(-2, 2, 0, 4, -4, 6);  // Lower lobe bulging right, ends left
+  ctx.stroke();
+
+  // Front flipper (animated for run)
+  let flipperX = -10, flipperY = 28;
+  if (playerState === 'run') {
+    if (animFrame === 0) { flipperX = -8; flipperY = 26; }
+    else if (animFrame === 1) { flipperX = -12; flipperY = 30; }
+    else if (animFrame === 2) { flipperX = -10; flipperY = 28; }
+    else { flipperX = -8; flipperY = 26; }
+  } else if (playerState === 'jump') {
+    flipperX = -10; flipperY = 24;
+  } else if (playerState === 'swim') {
+    if (animFrame % 2 === 0) { flipperX = -6; flipperY = 24; }
+    else { flipperX = -12; flipperY = 30; }
+  }
+
+  ctx.fillStyle = body1;
+  ctx.beginPath();
+  ctx.ellipse(flipperX, flipperY, 5, 3, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Back flipper (tucked)
+  ctx.fillStyle = body1;
+  ctx.beginPath();
+  ctx.ellipse(-18, 24, 4, 2, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Whiskers (optional - small dots for 8-bit)
+  ctx.fillStyle = body1;
+  drawRect(-22, 0, 2, 1, body1);
+  drawRect(-22, 4, 2, 1, body1);
+
+  ctx.restore();
+}
+
+// --- Game Loop ---
+let lastTime = 0;
+function gameLoop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = Math.min(timestamp - lastTime, 50);
+  lastTime = timestamp;
+
+  if (!state.paused && !state.gameComplete) {
+    updateLevelTime(state, timestamp);
+    document.getElementById('hud-time').textContent = state.levelTime.toFixed(2);
+
+    updatePlayer(state, dt, canvasW, canvasH);
+    updateCamera(state, canvasW, canvasH);
+    updateCollectibles(state);
+    updateHazards(state);
+    updateParticles(state, dt);
+    updateCollectibleBobs(state, dt);
+    updateAnimation(state, dt);
+
+    // Check goal
+    if (checkGoal(state)) {
+      const { levelTime, bestTime } = completeLevel(state);
+      saveBestTimes(state.bestTimes);
+
+      document.getElementById('complete-time').textContent = levelTime.toFixed(2);
+      document.getElementById('complete-bubbles').textContent = state.totalBubbles;
+      document.getElementById('complete-pearls').textContent = state.totalPearls;
+      const levelBubbles = state.level.collectibles.filter(c => c.type === 'bubble').length;
+      const levelPearls = state.level.collectibles.filter(c => c.type === 'pearl').length;
+      document.getElementById('complete-total-bubbles').textContent = levelBubbles;
+      document.getElementById('complete-total-pearls').textContent = levelPearls;
+
+      document.getElementById('msg-complete').hidden = false;
+      if (state.levelIndex >= LEVELS.length - 1) {
+        document.getElementById('btn-next').textContent = 'Finish';
+      }
+    }
+  }
+
+  render();
+
+  if (!state.paused && !state.gameComplete) {
+    requestAnimationFrame(gameLoop);
+  }
+}
+
+// --- Buttons ---
+document.getElementById('btn-next').onclick = () => {
+  document.getElementById('msg-complete').hidden = true;
+  const hasNext = nextLevel(state);
+  if (hasNext) {
+    state.levelStartTime = performance.now();
+    document.getElementById('hud-level').textContent = state.level.id;
+    document.getElementById('btn-next').textContent = 'Next Level';
+    requestAnimationFrame(gameLoop);
+  } else {
+    showGameComplete();
+  }
+};
+
+function showGameComplete() {
+  document.getElementById('total-time').textContent = state.totalTime.toFixed(2);
+  document.getElementById('total-bubbles').textContent = state.totalBubbles;
+  document.getElementById('total-pearls').textContent = state.totalPearls;
+  document.getElementById('msg-game-complete').hidden = false;
+}
+
+document.getElementById('btn-restart-level').onclick = () => {
+  document.getElementById('msg-complete').hidden = true;
+  restartLevel(state);
+  state.levelStartTime = performance.now();
+  requestAnimationFrame(gameLoop);
+};
+
+document.getElementById('btn-resume').onclick = () => togglePause();
+
+document.getElementById('btn-play-again').onclick = () => {
+  document.getElementById('msg-game-complete').hidden = true;
+  resetGame(state);
+  state.bestTimes = loadBestTimes();
+  state.levelStartTime = performance.now();
+  requestAnimationFrame(gameLoop);
+};
+
+// --- Init ---
+resize();
+state.levelStartTime = performance.now();
+requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@
  * place, on purpose.
  */
 
-export const BUILD = '2026-10-06-Q';
+export const BUILD = '2026-10-25-A';
 
 /** Append the build stamp to a same-origin asset path, leaving it alone if present. */
 export function versioned(url, build = BUILD) {
