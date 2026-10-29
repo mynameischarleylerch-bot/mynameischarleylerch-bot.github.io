@@ -11,6 +11,14 @@ export const JUMP_BUFFER = 100;
 export const PLAYER_W = 48;
 export const PLAYER_H = 48;
 
+// Idle animation sprite sheet (16 frames, 4x4 grid, 48x48 each)
+export const IDLE_FRAMES = 16;
+export const IDLE_FRAME_W = 48;
+export const IDLE_FRAME_H = 48;
+export const IDLE_SHEET_COLS = 4;
+export const IDLE_SHEET_ROWS = 4;
+export const IDLE_FRAME_DURATION = 70; // ms per frame (from GIF)
+
 // 8-bit color palette (Aero-themed)
 export const PALETTE = {
   // Background
@@ -223,7 +231,9 @@ export function createInitialState(levelIndex = 0) {
     coyoteTimer: 0,
     jumpBufferTimer: 0,
     animFrame: 0,
-    frameTimer: 0
+    frameTimer: 0,
+    idleFrame: 0,
+    idleFrameTimer: 0
   };
 }
 
@@ -381,6 +391,13 @@ export function updateAnimation(state, dt) {
     state.animFrame = (state.animFrame + 1) % 4;
     state.frameTimer = 0;
   }
+
+  // Update idle frame for sprite sheet animation
+  state.idleFrameTimer += dt;
+  if (state.idleFrameTimer >= IDLE_FRAME_DURATION) {
+    state.idleFrame = (state.idleFrame + 1) % IDLE_FRAMES;
+    state.idleFrameTimer = 0;
+  }
 }
 
 export function updateLevelTime(state, now) {
@@ -452,6 +469,8 @@ export function restartLevel(state) {
   state.jumpBufferTimer = 0;
   state.animFrame = 0;
   state.frameTimer = 0;
+  state.idleFrame = 0;
+  state.idleFrameTimer = 0;
 }
 
 export function resetGame(state) {

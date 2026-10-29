@@ -237,7 +237,13 @@ import {
   updateAnimation,
   updateLevelTime,
   PLAYER_W,
-  PLAYER_H
+  PLAYER_H,
+  IDLE_FRAMES,
+  IDLE_FRAME_W,
+  IDLE_FRAME_H,
+  IDLE_SHEET_COLS,
+  IDLE_SHEET_ROWS,
+  IDLE_FRAME_DURATION
 } from './game.js';
 
 // --- Canvas ---
@@ -249,6 +255,12 @@ let canvasW = 0, canvasH = 0;
 // --- State ---
 let state = createInitialState(0);
 state.bestTimes = loadBestTimes();
+
+// --- Idle Animation Sprite Sheet ---
+const idleSheet = new Image();
+idleSheet.src = './media/seal_idle_sprite.png';
+let idleSheetLoaded = false;
+idleSheet.onload = () => { idleSheetLoaded = true; };
 
 // --- Background layers (parallax) ---
 const bgBubbles = [];
@@ -516,7 +528,12 @@ function render() {
   ctx.save();
   ctx.translate(px, py);
   if (state.player.facing === -1) ctx.scale(-1, 1);
-  drawSeal8Bit(ctx, state.player.state, state.animFrame);
+  // Use sprite sheet for idle animation, procedural for other states
+  if (state.player.state === 'idle' && idleSheetLoaded) {
+    drawSealFromSheet(ctx, state.player.state, state.animFrame, state.idleFrame);
+  } else {
+    drawSeal8Bit(ctx, state.player.state, state.animFrame);
+  }
   ctx.restore();
 }
 
