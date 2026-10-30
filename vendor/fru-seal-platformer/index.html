@@ -537,6 +537,29 @@ function render() {
   ctx.restore();
 }
 
+// --- Sprite Sheet Rendering ---
+function drawSealFromSheet(ctx, playerState, animFrame, idleFrame) {
+  if (!idleSheetLoaded || playerState !== 'idle') {
+    drawSeal8Bit(ctx, playerState, animFrame);
+    return;
+  }
+
+  // Calculate which frame to show for idle animation
+  const frameIndex = idleFrame % IDLE_FRAMES;
+  const col = frameIndex % IDLE_SHEET_COLS;
+  const row = Math.floor(frameIndex / IDLE_SHEET_COLS);
+  
+  const sx = col * IDLE_FRAME_W;
+  const sy = row * IDLE_FRAME_H;
+  
+  // Draw the sprite frame (48x48 from sheet, centered at origin)
+  ctx.drawImage(
+    idleSheet,
+    sx, sy, IDLE_FRAME_W, IDLE_FRAME_H,
+    -IDLE_FRAME_W/2, -IDLE_FRAME_H/2, IDLE_FRAME_W, IDLE_FRAME_H
+  );
+}
+
 // 8-bit seal drawing - based on Frutiger Angler's ringed seal (":3" face glyph)
 function drawSeal8Bit(ctx, playerState, animFrame) {
   const scale = 1;

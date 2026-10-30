@@ -14,7 +14,7 @@
 
 
 
-import { versioned } from './build.js?v=2026-10-06-Q';
+import { versioned } from './build.js?v=2026-10-25-A';
 
 
 
