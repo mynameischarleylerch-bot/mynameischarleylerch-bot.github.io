@@ -11,13 +11,13 @@ export const JUMP_BUFFER = 100;
 export const PLAYER_W = 48;
 export const PLAYER_H = 48;
 
-// Idle animation sprite sheet (16 frames, 4x4 grid, 48x48 each)
-export const IDLE_FRAMES = 16;
+// Idle animation sprite sheet (14 frames, 4x4 grid, 48x48 each - last 2 slots empty)
+export const IDLE_FRAMES = 14;
 export const IDLE_FRAME_W = 48;
 export const IDLE_FRAME_H = 48;
 export const IDLE_SHEET_COLS = 4;
 export const IDLE_SHEET_ROWS = 4;
-export const IDLE_FRAME_DURATION = 70; // ms per frame (from GIF)
+export const IDLE_FRAME_DURATION = 90; // ms per frame (from GIF)
 
 // 8-bit color palette (Aero-themed)
 export const PALETTE = {

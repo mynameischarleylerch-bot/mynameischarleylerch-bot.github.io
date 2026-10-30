@@ -192,9 +192,10 @@ function ensureStats(stats) {
   for (const key of Object.keys(defaults)) {
     if (key in stats) result[key] = stats[key];
   }
-  // DEBUG
-  console.log('[ensureStats] stats:', JSON.stringify(stats));
-  console.log('[ensureStats] result:', JSON.stringify(result));
+  // DEBUG - store globally so test can see it
+  globalThis.__ensureStatsDebug = { stats, result };
+  console.error('[ensureStats] stats type:', typeof stats, 'keys:', stats ? Object.keys(stats) : 'null');
+  console.error('[ensureStats] result:', JSON.stringify(result));
   return result;
 }
 
@@ -261,8 +262,13 @@ function load() {
       ? [...new Set(saved.lakesSeen.filter((id) => AREAS.some((a) => a.id === id)))]
       : [];
     state.stats = ensureStats(saved.stats);
-    console.log('[load] state.stats after ensureStats:', JSON.stringify(state.stats));
-    console.log('[load] saved.stats:', JSON.stringify(saved.stats));
+    // DEBUG
+    const savedStatsForDebug = saved.stats;
+    console.error('[load] saved.stats (raw):', savedStatsForDebug);
+    console.error('[load] saved.stats keys:', savedStatsForDebug ? Object.keys(savedStatsForDebug) : 'none');
+    console.error('[load] state.stats after ensureStats:', JSON.stringify(state.stats));
+    console.error('[load] saved.stats:', JSON.stringify(saved.stats));
+    globalThis.__loadStatsDebug = { stateStats: state.stats, savedStats: saved.stats };
 
     state.lost = Array.isArray(saved.lost)
       ? saved.lost.filter((id) => LOST_ITEMS.some((item) => item.id === id))
