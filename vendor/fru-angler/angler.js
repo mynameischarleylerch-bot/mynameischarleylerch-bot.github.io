@@ -192,6 +192,9 @@ function ensureStats(stats) {
   for (const key of Object.keys(defaults)) {
     if (key in stats) result[key] = stats[key];
   }
+  // DEBUG
+  console.log('[ensureStats] stats:', JSON.stringify(stats));
+  console.log('[ensureStats] result:', JSON.stringify(result));
   return result;
 }
 
@@ -258,6 +261,8 @@ function load() {
       ? [...new Set(saved.lakesSeen.filter((id) => AREAS.some((a) => a.id === id)))]
       : [];
     state.stats = ensureStats(saved.stats);
+    console.log('[load] state.stats after ensureStats:', JSON.stringify(state.stats));
+    console.log('[load] saved.stats:', JSON.stringify(saved.stats));
 
     state.lost = Array.isArray(saved.lost)
       ? saved.lost.filter((id) => LOST_ITEMS.some((item) => item.id === id))
